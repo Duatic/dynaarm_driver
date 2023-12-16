@@ -53,6 +53,9 @@ pluginlib_export_plugin_description_file(hardware_interface hardware_interface_p
 install(TARGETS dynaarm_driver DESTINATION lib/)
 install(DIRECTORY include/ DESTINATION include)
 
+install(DIRECTORY launch  config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

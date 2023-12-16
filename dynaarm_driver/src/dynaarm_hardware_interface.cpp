@@ -218,3 +218,7 @@ namespace dynaarm_driver {
         }
 
 }
+
+#include "pluginlib/class_list_macros.hpp"
+
+PLUGINLIB_EXPORT_CLASS(dynaarm_driver::DynaArmHardwareInterface, hardware_interface::SystemInterface)

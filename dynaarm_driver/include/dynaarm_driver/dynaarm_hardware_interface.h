@@ -55,6 +55,11 @@ namespace dynaarm_driver {
 
             RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterface)
 
+            DynaArmHardwareInterface(): logger(rclcpp::get_logger("dynaarm_hardware_interface")){
+                //This is only here otherwise the compiler will complain about the logger var.
+                //We initilize the logger in on_init properly
+            }
+
             hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info);
 
             std::vector<hardware_interface::StateInterface> export_state_interfaces();
