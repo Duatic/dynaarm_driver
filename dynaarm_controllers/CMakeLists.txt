@@ -7,9 +7,47 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(controller_interface REQUIRED)
+find_package(hardware_interface REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(realtime_tools REQUIRED)
+find_package(pinocchio REQUIRED)
+
+add_library(${PROJECT_NAME} SHARED 
+  src/position_controller.cpp
+  src/gravity_compensation_controller.cpp)
+target_include_directories(
+    ${PROJECT_NAME}
+    PUBLIC
+    include
+    ${EIGEN3_INCLUDE_DIRS}
+)
+
+ament_target_dependencies(
+  ${PROJECT_NAME}
+  controller_interface
+  hardware_interface
+  pluginlib
+  rclcpp
+  rclcpp_lifecycle
+  trajectory_msgs
+  realtime_tools
+  pinocchio
+)
+pluginlib_export_plugin_description_file(controller_interface controller_interface_plugin.xml)
+
+install(
+  DIRECTORY include/
+  DESTINATION include/
+)
+install(TARGETS ${PROJECT_NAME}  
+  RUNTIME DESTINATION bin
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -23,4 +61,19 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+ament_export_include_directories(
+        include
+)
+ament_export_libraries(
+        ${PROJECT_NAME}
+)
+ament_export_dependencies(
+        controller_interface
+        pluginlib
+        rclcpp
+        rclcpp_lifecycle
+        hardware_interface
+        moveit_core
+)
 ament_package()
+

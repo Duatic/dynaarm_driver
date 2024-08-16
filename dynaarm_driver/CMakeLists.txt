@@ -13,12 +13,11 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(urdf REQUIRED)
 find_package(anydrive REQUIRED)
-
-
-
+find_package(ethercat_sdk_master REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_library(dynaarm_driver SHARED
-  src/dynaarm_hardware_interface.cpp
+  src/dynaarm_hardware_interface.cpp  
 )
 target_include_directories(dynaarm_driver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -32,7 +31,15 @@ ament_target_dependencies(dynaarm_driver
   pluginlib
   urdf
   anydrive
+  ethercat_sdk_master
+  Eigen3
 )
+
+install(TARGETS
+  dynaarm_driver
+  DESTINATION lib/${PROJECT_NAME})
+
+include_directories(include)
 
 ament_export_include_directories(include)
 
@@ -47,6 +54,7 @@ ament_export_dependencies(
   pluginlib
   urdf
   anydrive
+  ethercat_sdk_master
 )
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 

@@ -1,0 +1,17 @@
+<library path="dynaarm_controllers">
+  <class name="dynaarm_controllers/PositionController"
+         type="dynaarm_controllers::PositionController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm position controller plugin.
+    </description>
+  </class>
+
+  <class name="dynaarm_controllers/GravityCompensationController"
+         type="dynaarm_controllers::GravityCompensationController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm gravitiy compensation controller.
+    </description>
+  </class>
+</library>

@@ -9,15 +9,26 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
-  <depend>dynaarm_urdf</depend>
-  <depend>anydrive</depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>ros2_controllers</exec_depend>
+  <exec_depend>ros2_control</exec_depend>
+  <exec_depend>rqt_joint_trajectory_controller</exec_depend>
+  <exec_depend>rqt_controller_manager</exec_depend>
+  <exec_depend>rqt_gui</exec_depend>
+
+  <depend>eigen</depend>
   <depend>rclcpp</depend>
-  <depend>rclcpp_lifecycle</depend>
+  <depend>rclcpp_lifecycle</depend>  
   <depend>pluginlib</depend>
   <depend>urdf</depend>
+  
+  <depend>ethercat_sdk_master</depend>
+  <depend>anydrive</depend>  
   <depend>hardware_interface</depend>
+  
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
