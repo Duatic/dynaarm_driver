@@ -6,7 +6,7 @@ controller_manager:
       type: dynaarm_controllers/GravityCompensationController
 
     position_controller:
-      type: dynaarm_controllers/PositionController
+      type: forward_command_controller/ForwardCommandController
     
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -40,11 +40,7 @@ position_controller:
       - SH_FLE
       - EL_FLE
       - FA_ROT      
-    command_interfaces:
-      - position      
-    state_interfaces:
-      - position   
-    action_monitor_rate: 200.0   
+    interface_name: position      
 
 effort_controller:
   ros__parameters:
