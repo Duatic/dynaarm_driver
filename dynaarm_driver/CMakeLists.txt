@@ -24,6 +24,7 @@ target_include_directories(dynaarm_driver PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 target_compile_options(dynaarm_driver PUBLIC -fPIC)
+target_compile_features(dynaarm_driver PUBLIC c_std_99 cxx_std_20)
 ament_target_dependencies(dynaarm_driver
   rclcpp
   rclcpp_lifecycle
@@ -57,6 +58,7 @@ ament_export_dependencies(
   ethercat_sdk_master
 )
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
+
 
 install(TARGETS dynaarm_driver DESTINATION lib/)
 install(DIRECTORY include/ DESTINATION include)
