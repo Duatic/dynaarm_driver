@@ -49,7 +49,7 @@ namespace dynaarm_driver
             const auto address = std::stoi(joint.parameters.at("address"));
             const auto joint_name = joint.name;
 
-            std::string device_file_path = "/root/ros2_ws/src/duatic_ros2_pkgs/dynaarm_driver/dynaarm_driver/config/dynadrive.yaml";
+            const std::string device_file_path =system_info.hardware_parameters.at("drive_config_file");
             auto drive = anydrive::AnydriveEthercatSlave::deviceFromFile(device_file_path, joint_name, address, anydrive::PdoTypeEnum::C);
 
             // Store in our internal list so that we can easy refer to them afterwards
