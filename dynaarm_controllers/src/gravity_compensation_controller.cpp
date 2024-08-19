@@ -14,7 +14,7 @@ namespace dynaarm_controllers
         command_interface_types_ = auto_declare<std::vector<std::string>>("command_interfaces", command_interface_types_);
         state_interface_types_ = auto_declare<std::vector<std::string>>("state_interfaces", state_interface_types_);
 
-        std::string urdf_path = ament_index_cpp::get_package_share_directory("duatic_ros2_description") + "/urdf/dynaarm.urdf";
+        std::string urdf_path = ament_index_cpp::get_package_share_directory("duatic_description") + "/urdf/dynaarm.urdf";
         pinocchio::urdf::buildModel(urdf_path, model);
         data = pinocchio::Data(model);
 

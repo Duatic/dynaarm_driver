@@ -25,8 +25,8 @@ def launch_setup(context, *args, **kwargs):
     ethercat_bus_value = ethercat_bus.perform(context)    
     use_fake_value = use_fake.perform(context)
     
-    rviz_config_file = PathJoinSubstitution([FindPackageShare("duatic_ros2_description"), "rviz", "config.rviz"])
-    pkg_share_description = FindPackageShare(package='duatic_ros2_description').find('duatic_ros2_description')
+    rviz_config_file = PathJoinSubstitution([FindPackageShare("duatic_description"), "rviz", "config.rviz"])
+    pkg_share_description = FindPackageShare(package='duatic_description').find('duatic_description')
 
     doc = xacro.parse(open(os.path.join(pkg_share_description, 'urdf/dynaarm.xacro')))
     # xacro.process_doc(doc, mappings={'ethercat_bus': ethercat_bus_value, 
