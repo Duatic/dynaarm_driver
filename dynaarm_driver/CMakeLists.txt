@@ -15,7 +15,7 @@ find_package(urdf REQUIRED)
 find_package(anydrive REQUIRED)
 find_package(ethercat_sdk_master REQUIRED)
 find_package(Eigen3 REQUIRED)
-
+find_package(yaml-cpp REQUIRED)
 add_library(dynaarm_driver SHARED
   src/dynaarm_hardware_interface.cpp  
 )
@@ -24,7 +24,7 @@ target_include_directories(dynaarm_driver PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 target_compile_options(dynaarm_driver PUBLIC -fPIC)
-target_compile_features(dynaarm_driver PUBLIC c_std_99 cxx_std_20)
+target_compile_features(dynaarm_driver PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(dynaarm_driver
   rclcpp
   rclcpp_lifecycle
@@ -34,8 +34,11 @@ ament_target_dependencies(dynaarm_driver
   anydrive
   ethercat_sdk_master
   Eigen3
-)
 
+)
+# For some reason we need to directly link to yaml-cpp otherwise it will not declare it as a direct dependency
+# NOTE: Should actually be covered by the yaml_cpp_vendor
+target_link_libraries(dynaarm_driver yaml-cpp)
 install(TARGETS
   dynaarm_driver
   DESTINATION lib/${PROJECT_NAME})
@@ -56,6 +59,7 @@ ament_export_dependencies(
   urdf
   anydrive
   ethercat_sdk_master
+  
 )
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 
