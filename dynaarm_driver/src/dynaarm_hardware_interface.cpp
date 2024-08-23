@@ -34,7 +34,7 @@ namespace dynaarm_driver
 
         // configure ethercat bus and drives
         const auto ethercat_bus = system_info.hardware_parameters.at("ethercat_bus");
-        const ecat_master::EthercatMasterConfiguration ecat_master_config = {.name = name, .networkInterface = ethercat_bus, .timeStep = 0.001};
+        const ecat_master::EthercatMasterConfiguration ecat_master_config = {.name = name, .networkInterface = ethercat_bus, .timeStep = 0.001}; //TODO set timestep according to the update rate of ros2control (or spin asynchronously)
         
         // Obtain an instance of the bus from the singleton - if there is no instance it will be created
         ecat_master_ = std::make_shared<ecat_master::EthercatMaster>();
@@ -332,7 +332,7 @@ namespace dynaarm_driver
         {
             ecat_master_->preShutdown(true);
         }
-        std::cout << "PreShutdown ethercat master and all slaves." << std::endl;
+        RCLCPP_INFO_STREAM(logger,"PreShutdown ethercat master and all slaves.");
 
         abrtFlag_ = true;
         if (shutdownWorkerThread_)
@@ -346,7 +346,7 @@ namespace dynaarm_driver
         {
             ecat_master_->shutdown();
         }
-        std::cout << "Fully shutdown." << std::endl;
+        RCLCPP_INFO_STREAM(logger, "Fully shutdown.");
     }
 
     void DynaArmHardwareInterface::initializeStateVectors()
