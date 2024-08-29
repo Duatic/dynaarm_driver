@@ -86,7 +86,8 @@ def launch_setup(context, *args, **kwargs):
         },
     )
     
-    startup_controller_name = 'position_controller'
+    #startup_controller_name = 'position_controller'
+    startup_controller_name = 'joint_trajectory_controller'    
     #startup_controller_name = 'gravity_compensation_controller'
 
     startup_controller_node = Node(
