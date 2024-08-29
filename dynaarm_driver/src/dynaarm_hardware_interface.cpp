@@ -49,10 +49,10 @@ namespace dynaarm_driver
             const auto address = std::stoi(joint.parameters.at("address"));
             const auto joint_name = joint.name;
 
-            const std::string device_file_path =system_info.hardware_parameters.at("drive_config_file");
+            const std::string device_file_path = system_info.hardware_parameters.at("drive_config_file");            
             auto drive = anydrive::AnydriveEthercatSlave::deviceFromFile(device_file_path, joint_name, address, anydrive::PdoTypeEnum::C);
 
-            // Store in our internal list so that we can easy refer to them afterwards
+            // Store in our internal list so that we can easy refer to them afterwards            
             drives_[joint_name] = drive;
             
             // And attach it to the ethercat master
@@ -61,7 +61,7 @@ namespace dynaarm_driver
                 RCLCPP_ERROR_STREAM(logger, "Could not attach the slave drive to the master.");
             }
 
-            RCLCPP_INFO_STREAM(logger, "Configuring drive: " << joint_name << " at bus address: " << address);
+            RCLCPP_INFO_STREAM(logger, "Configuring drive: " << joint_name << " at bus address: " << address);            
         }
 
         if (ecat_master_->startup(startupAbortFlag_) == false)
@@ -93,6 +93,7 @@ namespace dynaarm_driver
             state_interfaces.emplace_back(hardware_interface::StateInterface(joint.name, "temperature_coil_C", &state_vectors_.at(joint.name).last_temperature_coil_C));
 
             state_interfaces.emplace_back(hardware_interface::StateInterface(joint.name, "bus_voltage", &state_vectors_.at(joint.name).last_bus_voltage));
+            
             // TODO expose drive state, warnings, imu?
         }
 
@@ -126,7 +127,6 @@ namespace dynaarm_driver
             auto &drive = drives_[joint.name];            
 
             // Put into controlOP, in blocking mode.            
-            //drive->setFSMGoalState(anydrive::fsm::StateEnum::Configure, true, 1, 10);
             drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 1, 10);
 
             // Log the firmware information of the drive. Might be usefull for debugging issues at customer
@@ -149,7 +149,7 @@ namespace dynaarm_driver
         read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0)));
 
         for (const auto &joint : info_.joints)
-        {   
+        {    
             command_vectors_[joint.name].target_position = state_vectors_[joint.name].last_position;
             RCLCPP_INFO_STREAM(logger, "Start position of joint: " << joint.name << " is: " << state_vectors_[joint.name].last_position);            
         }
@@ -185,7 +185,7 @@ namespace dynaarm_driver
 
         for (size_t i = 0; i < info_.joints.size(); ++i) 
         {
-            std::string joint_name = info_.joints[i].name;
+            std::string joint_name = info_.joints[i].name;            
 
             // Get a reading from the specific drive and
             anydrive::ReadingExtended reading;
@@ -195,23 +195,12 @@ namespace dynaarm_driver
             // And update the state vector so that controllers can read the current state
             auto state = reading.getState();
 
-            anydrive::mode::PidGainsF gains;            
-            drives_[joint_name]->getControlGains(anydrive::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
-            // And set the as the currently commanded pid gains
-            auto &pid = command_vectors_.at(joint_name).target_pid;
-            pid.p = gains.getP();
-            pid.i = gains.getI();
-            pid.d = gains.getD();
-
             auto &state_vector = state_vectors_[joint_name];
 
             state_joint_positions_[i] = state.getJointPosition(); 
+            state_joint_velocities_[i] = state.getJointVelocity(); 
             state_joint_torques_[i] = state.getJointTorque(); 
-
-            // state_vector.last_position = state.getJointPosition();
-            // state_vector.last_velocity = state.getJointVelocity();
-            // state_vector.last_torque = state.getJointTorque();
-
+            
             state_vector.last_temperature = state.getTemperature();
             state_vector.last_temperature_coil_A = state.getCoilTemp1();
             state_vector.last_temperature_coil_B = state.getCoilTemp2();
@@ -272,15 +261,22 @@ namespace dynaarm_driver
                 gains.setI(command_vector.target_pid.i);
                 gains.setD(command_vector.target_pid.d);
                 
-                std::cout << joint_name << " P:" << command_vector.target_pid.p << " I:" << command_vector.target_pid.i << " D:" << command_vector.target_pid.d << std::endl;
-                //std::cout << joint.name << ": " << command_vector.target_effort << std::endl;                                       
+                //std::cout << joint_name << " P:" << gains.getP() << " I:" << gains.getI() << " D:" << gains.getD() << std::endl;
+                //std::cout << joint_name << ": " << command_vector.target_effort << std::endl;         
+
+                // if (joint_name == "FA_ROT")
+                // {
+                //     std::cout << joint_name << ": " << transformed_positions[i] << " " << transformed_velocities[i] << " " << transformed_torques[i] << std::endl;
+                // }                
                 
+                // std::cout << "Mode: " << desired_mode_ << std::endl;
+
                 cmd.setJointPosition(transformed_positions[i]);
                 cmd.setJointVelocity(transformed_velocities[i]);
                 cmd.setJointTorque(transformed_torques[i]);
                 cmd.setPidGains(gains);
                 cmd.setModeEnum(desired_mode_);
-
+                
                 //We always fill all command fields but depending on the mode only a subset is used                
                 drive->setCommand(cmd);
             }
@@ -308,7 +304,24 @@ namespace dynaarm_driver
             // TODO Check if the controller selects all joints and necessary interfaces
             //@Jan this will work at the moment if you only have one hardware interface loaded.
             desired_mode_ = anydrive::mode::ModeEnum::JointPositionVelocityTorquePidGains;
-            //desired_mode_ = anydrive::mode::ModeEnum::Disable;
+
+            RCLCPP_INFO_STREAM(logger, "Mode: " << desired_mode_);
+
+            for (size_t i = 0; i < info_.joints.size(); ++i)
+            {
+                std::string joint_name = info_.joints[i].name;
+
+                anydrive::mode::PidGainsF gains;
+                drives_[joint_name]->getControlGains(desired_mode_, gains);
+
+                command_vectors_[joint_name].target_pid.p = gains.getP();
+                command_vectors_[joint_name].target_pid.i = gains.getI();
+                command_vectors_[joint_name].target_pid.d = gains.getD();
+                //std::cout << joint_name << command_vectors_[joint_name].target_pid.p << std::endl;                      
+                //std::cout << "P: " << gains.getP() << " I: " << gains.getI() << " D: " << gains.getD() << std::endl;
+            }
+
+            // desired_mode_ = anydrive::mode::ModeEnum::Disable;
         }
         return hardware_interface::return_type::OK;
     }
