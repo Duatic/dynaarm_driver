@@ -1,5 +1,6 @@
 #include "dynaarm_controllers/gravity_compensation_controller.hpp"
 
+using namespace std::chrono_literals;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 using config_type = controller_interface::interface_configuration_type;
 
@@ -13,9 +14,10 @@ namespace dynaarm_controllers
         joint_names_ = auto_declare<std::vector<std::string>>("joints", joint_names_);
         command_interface_types_ = auto_declare<std::vector<std::string>>("command_interfaces", command_interface_types_);
         state_interface_types_ = auto_declare<std::vector<std::string>>("state_interfaces", state_interface_types_);
+        
+        std::string urdf_string = get_robot_description();
 
-        std::string urdf_path = ament_index_cpp::get_package_share_directory("duatic_description") + "/urdf/dynaarm.urdf";
-        pinocchio::urdf::buildModel(urdf_path, model);
+        pinocchio::urdf::buildModelFromXML(urdf_string, model);
         data = pinocchio::Data(model);
 
         return CallbackReturn::SUCCESS;
@@ -81,11 +83,15 @@ namespace dynaarm_controllers
                 //std::cout << i << " - NEW: " << new_effort << std::endl;     
                 joint_effort_command_interface_[i].get().set_value(new_effort);
             }            
-
-            //joint_p_command_interface_[i].get().set_value(0.0);
-            //joint_i_command_interface_[i].get().set_value(0.0);
-            //joint_d_command_interface_[i].get().set_value(0.0);
         }
+
+        // for (size_t i = 0; i < joint_p_command_interface_.size(); ++i)
+        // {
+        //     std::cout << i << std::endl;
+        //     joint_p_command_interface_[i].get().set_value(0.0);
+        //     joint_i_command_interface_[i].get().set_value(0.0);
+        //     joint_d_command_interface_[i].get().set_value(0.0);
+        // }
 
         return controller_interface::return_type::OK;
     }
@@ -114,14 +120,7 @@ namespace dynaarm_controllers
         for (auto &interface : state_interfaces_)
         {
             state_interface_map_[interface.get_interface_name()]->push_back(interface);
-        }
-
-        // for (size_t i = 0; i < joint_p_command_interface_.size(); ++i)
-        // {
-        //     joint_p_command_interface_[i].get().set_value(0.0);
-        //     joint_i_command_interface_[i].get().set_value(0.0);
-        //     joint_d_command_interface_[i].get().set_value(0.0);
-        // }
+        }        
 
         return CallbackReturn::SUCCESS;
     }

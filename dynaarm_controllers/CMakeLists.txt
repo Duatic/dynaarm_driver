@@ -16,8 +16,7 @@ find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(pinocchio REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED 
-  src/position_controller.cpp
+add_library(${PROJECT_NAME} SHARED   
   src/gravity_compensation_controller.cpp)
 target_include_directories(
     ${PROJECT_NAME}
