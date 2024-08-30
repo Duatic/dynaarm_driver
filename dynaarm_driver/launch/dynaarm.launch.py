@@ -1,3 +1,4 @@
+
 # Author: Timo Schwarzer
 # Date: December 22, 2023
 # Description: Launch a Mitsubishi RV-2FR robot URDF file using Rviz.
@@ -28,10 +29,8 @@ def launch_setup(context, *args, **kwargs):
     rviz_config_file = PathJoinSubstitution([FindPackageShare("duatic_description"), "rviz", "config.rviz"])
     pkg_share_description = FindPackageShare(package='duatic_description').find('duatic_description')
 
-    doc = xacro.parse(open(os.path.join(pkg_share_description, 'urdf/dynaarm.xacro')))
-    # xacro.process_doc(doc, mappings={'ethercat_bus': ethercat_bus_value, 
-	# 							     'use_mock_hardware': use_fake_value})	
-    xacro.process_doc(doc, mappings={'use_sim': use_fake_value, 
+    doc = xacro.parse(open(os.path.join(pkg_share_description, 'urdf/dynaarm.xacro')))    
+    xacro.process_doc(doc, mappings={'use_fake': use_fake_value, 
 	 							     'ethercat_bus': ethercat_bus_value})
     robot_description = {'robot_description': doc.toxml()}    
 
