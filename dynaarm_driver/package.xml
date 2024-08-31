@@ -15,7 +15,10 @@
   <exec_depend>rqt_joint_trajectory_controller</exec_depend>
   <exec_depend>rqt_controller_manager</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
-  <depend>duatic_description</depend>
+  
+  <depend>dynaarm_description</depend>
+  <depend>dynaarm_controllers</depend>
+
   <depend>eigen</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>  

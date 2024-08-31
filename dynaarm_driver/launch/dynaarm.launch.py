@@ -26,8 +26,8 @@ def launch_setup(context, *args, **kwargs):
     ethercat_bus_value = ethercat_bus.perform(context)    
     use_fake_value = use_fake.perform(context)
     
-    rviz_config_file = PathJoinSubstitution([FindPackageShare("duatic_description"), "rviz", "config.rviz"])
-    pkg_share_description = FindPackageShare(package='duatic_description').find('duatic_description')
+    rviz_config_file = PathJoinSubstitution([FindPackageShare("dynaarm_description"), "rviz", "config.rviz"])
+    pkg_share_description = FindPackageShare(package='dynaarm_description').find('dynaarm_description')
 
     doc = xacro.parse(open(os.path.join(pkg_share_description, 'urdf/dynaarm.xacro')))    
     xacro.process_doc(doc, mappings={'use_fake': use_fake_value, 
@@ -86,7 +86,7 @@ def launch_setup(context, *args, **kwargs):
     )
     
     #startup_controller_name = 'position_controller'
-    startup_controller_name = 'joint_trajectory_controller'    
+    startup_controller_name = 'dynaarm_controller' # JTC
     #startup_controller_name = 'gravity_compensation_controller'
 
     startup_controller_node = Node(
