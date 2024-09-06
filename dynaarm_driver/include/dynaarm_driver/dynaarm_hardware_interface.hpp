@@ -72,6 +72,7 @@ namespace dynaarm_driver {
             hardware_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State &previous_state);
             hardware_interface::CallbackReturn on_error(const rclcpp_lifecycle::State &previous_state);
 
+
             hardware_interface::return_type read(const rclcpp::Time &time, const rclcpp::Duration &period);
             hardware_interface::return_type write(const rclcpp::Time &time, const rclcpp::Duration &period);
 

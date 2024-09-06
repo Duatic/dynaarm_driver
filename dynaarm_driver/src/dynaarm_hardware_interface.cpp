@@ -126,6 +126,7 @@ namespace dynaarm_driver
         {
             auto &drive = drives_[joint.name];            
 
+            
             // Put into controlOP, in blocking mode.            
             drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 1, 10);
 
@@ -152,7 +153,23 @@ namespace dynaarm_driver
         {    
             command_vectors_[joint.name].target_position = state_vectors_[joint.name].last_position;
             RCLCPP_INFO_STREAM(logger, "Start position of joint: " << joint.name << " is: " << state_vectors_[joint.name].last_position);            
+            auto &drive = drives_[joint.name];      
+
+
+            //In case wie are in error state clear the error and try again
+            anydrive::ReadingExtended reading;
+            drive->getReading(reading);
+
+            if(reading.getState().getStatusword().getStateEnum() == anydrive::fsm::StateEnum::Error){
+                drive->setControlword(ANYDRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
+                drive->updateWrite();
+                 drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 1, 10);
+            }
+
         }
+
+
+
         return hardware_interface::CallbackReturn::SUCCESS;
     }
 
@@ -168,6 +185,8 @@ namespace dynaarm_driver
             cmd.setModeEnum(anydrive::mode::ModeEnum::Freeze);
             drive->setCommand(cmd);            
         }
+
+
 
         return hardware_interface::CallbackReturn::SUCCESS;
     }
