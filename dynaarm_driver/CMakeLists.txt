@@ -12,7 +12,7 @@ find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(urdf REQUIRED)
-find_package(anydrive REQUIRED)
+find_package(rsl_drive_sdk REQUIRED)
 find_package(ethercat_sdk_master REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
@@ -31,7 +31,7 @@ ament_target_dependencies(dynaarm_driver
   hardware_interface
   pluginlib
   urdf
-  anydrive
+  rsl_drive_sdk
   ethercat_sdk_master
   Eigen3
 
@@ -57,7 +57,7 @@ ament_export_dependencies(
   hardware_interface
   pluginlib
   urdf
-  anydrive
+  rsl_drive_sdk
   ethercat_sdk_master
   
 )

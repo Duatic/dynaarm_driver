@@ -22,7 +22,7 @@
 #include <urdf/model.h>
 #include "dynaarm_driver/command_translator.hpp"
 #include "ethercat_sdk_master/EthercatMaster.hpp"
-#include <anydrive/Anydrive.hpp>
+#include <rsl_drive_sdk/Drive.hpp>
 
 namespace dynaarm_driver {
     class DynaArmHardwareInterface: public hardware_interface::SystemInterface 
@@ -86,7 +86,7 @@ namespace dynaarm_driver {
             urdf::Model urdf_;
 
             ecat_master::EthercatMaster::SharedPtr ecat_master_;            
-            std::map<std::string, anydrive::AnydriveEthercatSlave::SharedPtr> drives_;            
+            std::map<std::string, rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;            
 
             std::atomic<bool> startupAbortFlag_{false};
             std::atomic<bool> abrtFlag_{false};
@@ -105,7 +105,7 @@ namespace dynaarm_driver {
             void shutdown();
 
             double command_freeze_mode_{};
-            anydrive::mode::ModeEnum desired_mode_{anydrive::mode::ModeEnum::Freeze};
+            rsl_drive_sdk::mode::ModeEnum desired_mode_{rsl_drive_sdk::mode::ModeEnum::Freeze};
     };  
 
 

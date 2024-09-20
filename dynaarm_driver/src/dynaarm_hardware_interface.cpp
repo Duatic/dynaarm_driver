@@ -50,7 +50,7 @@ namespace dynaarm_driver
             const auto joint_name = joint.name;
 
             const std::string device_file_path = system_info.hardware_parameters.at("drive_config_file");            
-            auto drive = anydrive::AnydriveEthercatSlave::deviceFromFile(device_file_path, joint_name, address, anydrive::PdoTypeEnum::C);
+            auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address, rsl_drive_sdk::PdoTypeEnum::C);
 
             // Store in our internal list so that we can easy refer to them afterwards            
             drives_[joint_name] = drive;
@@ -128,10 +128,10 @@ namespace dynaarm_driver
 
             
             // Put into controlOP, in blocking mode.            
-            drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 1, 10);
+            drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
 
             // Log the firmware information of the drive. Might be usefull for debugging issues at customer
-            anydrive::common::BuildInfo info;
+            rsl_drive_sdk::common::BuildInfo info;
             drive->getBuildInfo(info);
             RCLCPP_INFO_STREAM(logger, "Drive info: " << joint.name << " Build date: " << info.buildDate << " tag: " << info.gitTag);
         }
@@ -157,13 +157,13 @@ namespace dynaarm_driver
 
 
             //In case wie are in error state clear the error and try again
-            anydrive::ReadingExtended reading;
+            rsl_drive_sdk::ReadingExtended reading;
             drive->getReading(reading);
 
-            if(reading.getState().getStatusword().getStateEnum() == anydrive::fsm::StateEnum::Error){
+            if(reading.getState().getStatusword().getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error){
                 drive->setControlword(ANYDRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
                 drive->updateWrite();
-                 drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 1, 10);
+                 drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
             }
 
         }
@@ -179,10 +179,10 @@ namespace dynaarm_driver
         for (const auto &joint : info_.joints)
         {
             auto &drive = drives_.at(joint.name);            
-            drive->setFSMGoalState(anydrive::fsm::StateEnum::ControlOp, true, 3.0, 0.01);            
+            drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 3.0, 0.01);            
             
-            anydrive::Command cmd;
-            cmd.setModeEnum(anydrive::mode::ModeEnum::Freeze);
+            rsl_drive_sdk::Command cmd;
+            cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
             drive->setCommand(cmd);            
         }
 
@@ -207,7 +207,7 @@ namespace dynaarm_driver
             std::string joint_name = info_.joints[i].name;            
 
             // Get a reading from the specific drive and
-            anydrive::ReadingExtended reading;
+            rsl_drive_sdk::ReadingExtended reading;
             // NOTE: getReading uses a recursive mutex -> It would be better if we could do something like: tryLock and if we can't look then we try again in the next cycle
             drives_[joint_name]->getReading(reading); // Use [ ] instead of at for performance reasons
 
@@ -272,10 +272,10 @@ namespace dynaarm_driver
             {
                 //Convert command vector into an anydrive::Command
                 //Make sure to be in the right mode
-                anydrive::Command cmd;
+                rsl_drive_sdk::Command cmd;
                 const auto & command_vector = command_vectors_[joint_name];
 
-                anydrive::mode::PidGainsF gains;
+                rsl_drive_sdk::mode::PidGainsF gains;
                 gains.setP(command_vector.target_pid.p);
                 gains.setI(command_vector.target_pid.i);
                 gains.setD(command_vector.target_pid.d);
@@ -316,13 +316,13 @@ namespace dynaarm_driver
         // The only thing we want to change here is to switch between freeze mode the JVTPID
         if (start_interfaces.size() == 1 and start_interfaces.at(0) == info_.name + "/freeze")
         {
-            desired_mode_ = anydrive::mode::ModeEnum::Freeze;
+            desired_mode_ = rsl_drive_sdk::mode::ModeEnum::Freeze;
         }
         else
         {
             // TODO Check if the controller selects all joints and necessary interfaces
             //@Jan this will work at the moment if you only have one hardware interface loaded.
-            desired_mode_ = anydrive::mode::ModeEnum::JointPositionVelocityTorquePidGains;
+            desired_mode_ = rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains;
 
             RCLCPP_INFO_STREAM(logger, "Mode: " << desired_mode_);
 
@@ -330,7 +330,7 @@ namespace dynaarm_driver
             {
                 std::string joint_name = info_.joints[i].name;
 
-                anydrive::mode::PidGainsF gains;
+                rsl_drive_sdk::mode::PidGainsF gains;
                 drives_[joint_name]->getControlGains(desired_mode_, gains);
 
                 command_vectors_[joint_name].target_pid.p = gains.getP();
@@ -340,7 +340,7 @@ namespace dynaarm_driver
                 //std::cout << "P: " << gains.getP() << " I: " << gains.getI() << " D: " << gains.getD() << std::endl;
             }
 
-            // desired_mode_ = anydrive::mode::ModeEnum::Disable;
+            // desired_mode_ = rsl_drive_sdk::mode::ModeEnum::Disable;
         }
         return hardware_interface::return_type::OK;
     }
