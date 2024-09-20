@@ -161,7 +161,7 @@ namespace dynaarm_driver
             drive->getReading(reading);
 
             if(reading.getState().getStatusword().getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error){
-                drive->setControlword(ANYDRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
+                drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
                 drive->updateWrite();
                  drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
             }
@@ -270,7 +270,7 @@ namespace dynaarm_driver
             //Only write the command if we are already in the correct state
             if(drive->goalStateHasBeenReached())
             {
-                //Convert command vector into an anydrive::Command
+                //Convert command vector into an rsl_drive_sdk::Command
                 //Make sure to be in the right mode
                 rsl_drive_sdk::Command cmd;
                 const auto & command_vector = command_vectors_[joint_name];
