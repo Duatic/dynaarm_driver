@@ -16,6 +16,7 @@ find_package(rsl_drive_sdk REQUIRED)
 find_package(ethercat_sdk_master REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 add_library(dynaarm_driver SHARED
   src/dynaarm_hardware_interface.cpp  
 )

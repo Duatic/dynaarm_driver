@@ -1,5 +1,6 @@
 #include "dynaarm_driver/dynaarm_hardware_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 namespace dynaarm_driver
 {
@@ -43,13 +44,30 @@ namespace dynaarm_driver
         // Initialize the state vectors with 0 values
         initializeStateVectors();
 
+        std::string device_file_path = system_info.hardware_parameters.at("drive_config_file_path");                
+
+        // If the drive config file path is empty, set it to the default path
+        if (device_file_path.empty())
+        {            
+            // Get the package share directory using ament_index_cpp
+            std::string package_name = "dynaarm_driver"; // Replace with the actual package name
+            std::string package_path = ament_index_cpp::get_package_share_directory(package_name);
+
+            // Set the default path to a file inside the package
+            device_file_path = package_path + "/config/dynadrive.yaml";
+            std::cout << "Default Dynadrive config file loaded: " << device_file_path << std::endl;
+        }        
+        else 
+        {
+            std::cout << "Specific Dynadrive config file loaded: " << device_file_path << std::endl;
+        }
+
         // Every joint refers to a drive
         for (const auto &joint : system_info.joints)
         {
             const auto address = std::stoi(joint.parameters.at("address"));
             const auto joint_name = joint.name;
-
-            const std::string device_file_path = system_info.hardware_parameters.at("drive_config_file");            
+                  
             auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address, rsl_drive_sdk::PdoTypeEnum::C);
 
             // Store in our internal list so that we can easy refer to them afterwards            

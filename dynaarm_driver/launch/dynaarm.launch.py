@@ -22,16 +22,19 @@ def launch_setup(context, *args, **kwargs):
     ethercat_bus = LaunchConfiguration("ethercat_bus")
     start_rviz = LaunchConfiguration("start_rviz")
     use_fake = LaunchConfiguration("use_fake")
+    dynadrive_config_file = LaunchConfiguration("dynadrive_config_file")
     
     ethercat_bus_value = ethercat_bus.perform(context)    
     use_fake_value = use_fake.perform(context)
+    dynadrive_config_file_value = dynadrive_config_file.perform(context)
     
     rviz_config_file = PathJoinSubstitution([FindPackageShare("dynaarm_description"), "rviz", "config.rviz"])
     pkg_share_description = FindPackageShare(package='dynaarm_description').find('dynaarm_description')
 
     doc = xacro.parse(open(os.path.join(pkg_share_description, 'urdf/dynaarm.xacro')))    
     xacro.process_doc(doc, mappings={'use_fake': use_fake_value, 
-	 							     'ethercat_bus': ethercat_bus_value})
+	 							     'ethercat_bus': ethercat_bus_value,
+                                     'drive_config_file_path': dynadrive_config_file_value})
     robot_description = {'robot_description': doc.toxml()}    
 
     # Subscribe to the joint states of the robot, and publish the 3D pose of each link.
@@ -133,6 +136,13 @@ def generate_launch_description():
             'start_rviz',
             default_value='true',
             description='Start RViz2 automatically with this launch file.',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'dynadrive_config_file',
+            default_value=[FindPackageShare('dynaarm_driver'), '/config/dynadrive.yaml'],
+            description='Path to the dynadrive config file.',
         )
     )
 
