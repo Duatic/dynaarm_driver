@@ -15,6 +15,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED   
   src/gravity_compensation_controller.cpp)
@@ -35,6 +36,7 @@ ament_target_dependencies(
   trajectory_msgs
   realtime_tools
   pinocchio
+  ament_index_cpp
 )
 pluginlib_export_plugin_description_file(controller_interface controller_interface_plugin.xml)
 

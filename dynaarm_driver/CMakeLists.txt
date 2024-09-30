@@ -35,7 +35,7 @@ ament_target_dependencies(dynaarm_driver
   rsl_drive_sdk
   ethercat_sdk_master
   Eigen3
-
+  ament_index_cpp
 )
 # For some reason we need to directly link to yaml-cpp otherwise it will not declare it as a direct dependency
 # NOTE: Should actually be covered by the yaml_cpp_vendor
@@ -60,7 +60,7 @@ ament_export_dependencies(
   urdf
   rsl_drive_sdk
   ethercat_sdk_master
-  
+  ament_index_cpp
 )
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 
