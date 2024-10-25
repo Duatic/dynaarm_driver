@@ -25,7 +25,7 @@
 #include <rsl_drive_sdk/Drive.hpp>
 
 namespace dynaarm_driver {
-    class DynaArmHardwareInterface: public hardware_interface::SystemInterface 
+    class DynaArmHardwareInterface: public hardware_interface::SystemInterface
     {
         public:
             struct PID {
@@ -38,7 +38,7 @@ namespace dynaarm_driver {
                 double last_position{};
                 double last_velocity{};
                 double last_torque{};
-                
+
                 double last_temperature{};
                 double last_temperature_coil_A{};
                 double last_temperature_coil_B{};
@@ -55,14 +55,14 @@ namespace dynaarm_driver {
             };
 
             RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterface)
-            
+
             virtual ~DynaArmHardwareInterface();
 
             DynaArmHardwareInterface(): logger(rclcpp::get_logger("dynaarm_hardware_interface")){
                 //This is only here otherwise the compiler will complain about the logger var.
-                //We initilize the logger in on_init properly
+                //We initialize the logger in on_init properly
             }
-            
+
             hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info);
 
             std::vector<hardware_interface::StateInterface> export_state_interfaces();
@@ -85,8 +85,8 @@ namespace dynaarm_driver {
             rclcpp::Logger logger;
             urdf::Model urdf_;
 
-            ecat_master::EthercatMaster::SharedPtr ecat_master_;            
-            std::map<std::string, rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;            
+            ecat_master::EthercatMaster::SharedPtr ecat_master_;
+            std::map<std::string, rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
             std::atomic<bool> startupAbortFlag_{false};
             std::atomic<bool> abrtFlag_{false};
@@ -106,7 +106,7 @@ namespace dynaarm_driver {
 
             double command_freeze_mode_{};
             rsl_drive_sdk::mode::ModeEnum desired_mode_{rsl_drive_sdk::mode::ModeEnum::Freeze};
-    };  
+    };
 
 
 }

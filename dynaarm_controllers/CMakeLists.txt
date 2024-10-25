@@ -16,7 +16,7 @@ find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(pinocchio REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED   
+add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp)
 target_include_directories(
     ${PROJECT_NAME}
@@ -42,7 +42,7 @@ install(
   DIRECTORY include/
   DESTINATION include/
 )
-install(TARGETS ${PROJECT_NAME}  
+install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -75,4 +75,3 @@ ament_export_dependencies(
         moveit_core
 )
 ament_package()
-

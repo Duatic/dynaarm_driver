@@ -14,7 +14,7 @@ namespace dynaarm_controllers
         joint_names_ = auto_declare<std::vector<std::string>>("joints", joint_names_);
         command_interface_types_ = auto_declare<std::vector<std::string>>("command_interfaces", command_interface_types_);
         state_interface_types_ = auto_declare<std::vector<std::string>>("state_interfaces", state_interface_types_);
-        
+
         std::string urdf_string = get_robot_description();
 
         pinocchio::urdf::buildModelFromXML(urdf_string, model);
@@ -32,7 +32,7 @@ namespace dynaarm_controllers
         {
             for (const auto &interface_type : command_interface_types_)
             {
-                conf.names.push_back(joint_name + "/" + interface_type);                
+                conf.names.push_back(joint_name + "/" + interface_type);
             }
         }
 
@@ -75,14 +75,14 @@ namespace dynaarm_controllers
         std::cout << std::fixed << std::setprecision(10);
         // add gravity compensation torque to base command
         for (int i = 0; i < model.nv; i++)
-        {   
+        {
             double new_effort = gravity[i] * 1.0;
 
-            if (i == 1) 
+            if (i == 1)
             {
-                //std::cout << i << " - NEW: " << new_effort << std::endl;     
+                //std::cout << i << " - NEW: " << new_effort << std::endl;
                 joint_effort_command_interface_[i].get().set_value(new_effort);
-            }            
+            }
         }
 
         // for (size_t i = 0; i < joint_p_command_interface_.size(); ++i)
@@ -120,7 +120,7 @@ namespace dynaarm_controllers
         for (auto &interface : state_interfaces_)
         {
             state_interface_map_[interface.get_interface_name()]->push_back(interface);
-        }        
+        }
 
         return CallbackReturn::SUCCESS;
     }

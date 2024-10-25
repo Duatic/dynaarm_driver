@@ -73,7 +73,7 @@ namespace dynaarm_driver
             return mappingFromDynaarmToSerialAngles.transpose() * input;
         }
 
-        
+
     };
 
 } // namespace

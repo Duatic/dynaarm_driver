@@ -7,10 +7,10 @@ controller_manager:
 
     position_controller:
       type: forward_command_controller/ForwardCommandController
-    
+
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-    
+
     dynaarm_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
 
@@ -19,11 +19,11 @@ controller_manager:
 
 dynaarm_controller:
   ros__parameters:
-    joints:    
+    joints:
       - SH_ROT
       - SH_FLE
       - EL_FLE
-      - FA_ROT 
+      - FA_ROT
     command_interfaces:
       - position
     state_interfaces:
@@ -39,8 +39,8 @@ position_controller:
       - SH_ROT
       - SH_FLE
       - EL_FLE
-      - FA_ROT      
-    interface_name: position      
+      - FA_ROT
+    interface_name: position
 
 effort_controller:
   ros__parameters:
@@ -48,7 +48,7 @@ effort_controller:
       - SH_ROT
       - SH_FLE
       - EL_FLE
-      - FA_ROT 
+      - FA_ROT
 
 gravity_compensation_controller:
   ros__parameters:
@@ -56,16 +56,16 @@ gravity_compensation_controller:
       - SH_ROT
       - SH_FLE
       - EL_FLE
-      - FA_ROT           
+      - FA_ROT
     command_interfaces:
-      - position   
-      - velocity  
-      - effort       
+      - position
+      - velocity
+      - effort
     state_interfaces:
       - position
       - velocity
       - effort
-    gains:      
+    gains:
       SH_ROT: {p: 0.0, i: 0.0, d: 0.0}
       SH_FLE: {p: 0.0, i: 0.0, d: 0.0}
       EL_FLE: {p: 0.0, i: 0.0, d: 0.0}

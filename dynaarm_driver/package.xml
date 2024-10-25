@@ -15,20 +15,20 @@
   <exec_depend>rqt_joint_trajectory_controller</exec_depend>
   <exec_depend>rqt_controller_manager</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
-  
+
   <depend>dynaarm_description</depend>
   <depend>dynaarm_controllers</depend>
 
   <depend>eigen</depend>
   <depend>rclcpp</depend>
-  <depend>rclcpp_lifecycle</depend>  
+  <depend>rclcpp_lifecycle</depend>
   <depend>pluginlib</depend>
   <depend>urdf</depend>
-  
+
   <depend>ethercat_sdk_master</depend>
-  <depend>rsl_drive_sdk</depend>  
+  <depend>rsl_drive_sdk</depend>
   <depend>hardware_interface</depend>
-  
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

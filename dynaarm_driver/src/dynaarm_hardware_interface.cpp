@@ -35,7 +35,7 @@ namespace dynaarm_driver
         // configure ethercat bus and drives
         const auto ethercat_bus = system_info.hardware_parameters.at("ethercat_bus");
         const ecat_master::EthercatMasterConfiguration ecat_master_config = {.name = name, .networkInterface = ethercat_bus, .timeStep = 0.001}; //TODO set timestep according to the update rate of ros2control (or spin asynchronously)
-        
+
         // Obtain an instance of the bus from the singleton - if there is no instance it will be created
         ecat_master_ = std::make_shared<ecat_master::EthercatMaster>();
         ecat_master_->loadEthercatMasterConfiguration(ecat_master_config);
@@ -49,19 +49,19 @@ namespace dynaarm_driver
             const auto address = std::stoi(joint.parameters.at("address"));
             const auto joint_name = joint.name;
 
-            const std::string device_file_path = system_info.hardware_parameters.at("drive_config_file");            
+            const std::string device_file_path = system_info.hardware_parameters.at("drive_config_file");
             auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address, rsl_drive_sdk::PdoTypeEnum::C);
 
-            // Store in our internal list so that we can easy refer to them afterwards            
+            // Store in our internal list so that we can easy refer to them afterwards
             drives_[joint_name] = drive;
-            
+
             // And attach it to the ethercat master
             if (ecat_master_->attachDevice(drive) == false)
             {
                 RCLCPP_ERROR_STREAM(logger, "Could not attach the slave drive to the master.");
             }
 
-            RCLCPP_INFO_STREAM(logger, "Configuring drive: " << joint_name << " at bus address: " << address);            
+            RCLCPP_INFO_STREAM(logger, "Configuring drive: " << joint_name << " at bus address: " << address);
         }
 
         if (ecat_master_->startup(startupAbortFlag_) == false)
@@ -69,7 +69,7 @@ namespace dynaarm_driver
             RCLCPP_ERROR_STREAM(logger, "Could not start the Ethercat Master.");
             return hardware_interface::CallbackReturn::ERROR;
         }
-        
+
         RCLCPP_INFO_STREAM(logger, "Successfully started Ethercat Master on Network Interface: "
                                        << ecat_master_->getBusPtr()->getName());
 
@@ -93,7 +93,7 @@ namespace dynaarm_driver
             state_interfaces.emplace_back(hardware_interface::StateInterface(joint.name, "temperature_coil_C", &state_vectors_.at(joint.name).last_temperature_coil_C));
 
             state_interfaces.emplace_back(hardware_interface::StateInterface(joint.name, "bus_voltage", &state_vectors_.at(joint.name).last_bus_voltage));
-            
+
             // TODO expose drive state, warnings, imu?
         }
 
@@ -124,13 +124,13 @@ namespace dynaarm_driver
         // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
         for (const auto &joint : info_.joints)
         {
-            auto &drive = drives_[joint.name];            
+            auto &drive = drives_[joint.name];
 
-            
-            // Put into controlOP, in blocking mode.            
+
+            // Put into controlOP, in blocking mode.
             drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
 
-            // Log the firmware information of the drive. Might be usefull for debugging issues at customer
+            // Log the firmware information of the drive. Might be useful for debugging issues at customer
             rsl_drive_sdk::common::BuildInfo info;
             drive->getBuildInfo(info);
             RCLCPP_INFO_STREAM(logger, "Drive info: " << joint.name << " Build date: " << info.buildDate << " tag: " << info.gitTag);
@@ -138,7 +138,7 @@ namespace dynaarm_driver
 
         if (ecat_master_->setRealtimePriority(48) == false)
         {
-            RCLCPP_WARN_STREAM(logger, "Could not incrase thread priority - check user privileges.");
+            RCLCPP_WARN_STREAM(logger, "Could not increase thread priority - check user privileges.");
         }
 
         if (ecat_master_->activate())
@@ -150,10 +150,10 @@ namespace dynaarm_driver
         read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0)));
 
         for (const auto &joint : info_.joints)
-        {    
+        {
             command_vectors_[joint.name].target_position = state_vectors_[joint.name].last_position;
-            RCLCPP_INFO_STREAM(logger, "Start position of joint: " << joint.name << " is: " << state_vectors_[joint.name].last_position);            
-            auto &drive = drives_[joint.name];      
+            RCLCPP_INFO_STREAM(logger, "Start position of joint: " << joint.name << " is: " << state_vectors_[joint.name].last_position);
+            auto &drive = drives_[joint.name];
 
 
             //In case wie are in error state clear the error and try again
@@ -178,12 +178,12 @@ namespace dynaarm_driver
 
         for (const auto &joint : info_.joints)
         {
-            auto &drive = drives_.at(joint.name);            
-            drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 3.0, 0.01);            
-            
+            auto &drive = drives_.at(joint.name);
+            drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 3.0, 0.01);
+
             rsl_drive_sdk::Command cmd;
             cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
-            drive->setCommand(cmd);            
+            drive->setCommand(cmd);
         }
 
 
@@ -202,9 +202,9 @@ namespace dynaarm_driver
         // The ethercat update is the first in the read function to directly get all controller states
         ecat_master_->update(ecat_master::UpdateMode::NonStandalone);
 
-        for (size_t i = 0; i < info_.joints.size(); ++i) 
+        for (size_t i = 0; i < info_.joints.size(); ++i)
         {
-            std::string joint_name = info_.joints[i].name;            
+            std::string joint_name = info_.joints[i].name;
 
             // Get a reading from the specific drive and
             rsl_drive_sdk::ReadingExtended reading;
@@ -216,10 +216,10 @@ namespace dynaarm_driver
 
             auto &state_vector = state_vectors_[joint_name];
 
-            state_joint_positions_[i] = state.getJointPosition(); 
-            state_joint_velocities_[i] = state.getJointVelocity(); 
-            state_joint_torques_[i] = state.getJointTorque(); 
-            
+            state_joint_positions_[i] = state.getJointPosition();
+            state_joint_velocities_[i] = state.getJointVelocity();
+            state_joint_torques_[i] = state.getJointTorque();
+
             state_vector.last_temperature = state.getTemperature();
             state_vector.last_temperature_coil_A = state.getCoilTemp1();
             state_vector.last_temperature_coil_B = state.getCoilTemp2();
@@ -232,8 +232,8 @@ namespace dynaarm_driver
         Eigen::Vector4d transformed_positions = command_translator_.mapFromDynaarmToSerialCoordinates(state_joint_positions_);
         Eigen::Vector4d transformed_velocities = command_translator_.mapFromDynaarmToSerialCoordinates(state_joint_velocities_);
         Eigen::Vector4d transformed_torques = command_translator_.mapFromDynaarmToSerialTorques(state_joint_torques_);
-        
-        for (size_t i = 0; i < info_.joints.size(); ++i) 
+
+        for (size_t i = 0; i < info_.joints.size(); ++i)
         {
             std::string joint_name = info_.joints[i].name;
             state_vectors_[joint_name].last_position = transformed_positions[i];
@@ -245,28 +245,28 @@ namespace dynaarm_driver
     }
 
     hardware_interface::return_type DynaArmHardwareInterface::write(const rclcpp::Time &time, const rclcpp::Duration &period)
-    {       
-        for (size_t i = 0; i < info_.joints.size(); ++i) 
+    {
+        for (size_t i = 0; i < info_.joints.size(); ++i)
         {
             std::string joint_name = info_.joints[i].name;
             const auto & command_vector = command_vectors_[joint_name];
 
-            command_joint_positions_[i] = command_vector.target_position; 
-            command_joint_velocities_[i] = command_vector.target_velocity; 
-            command_joint_torques_[i] = command_vector.target_effort; 
+            command_joint_positions_[i] = command_vector.target_position;
+            command_joint_velocities_[i] = command_vector.target_velocity;
+            command_joint_torques_[i] = command_vector.target_effort;
         }
         // Transform the joint positions using the matrix transformation
         Eigen::Vector4d transformed_positions = command_translator_.mapFromSerialToDynaarmCoordinates(command_joint_positions_);
         Eigen::Vector4d transformed_velocities = command_translator_.mapFromSerialToDynaarmCoordinates(command_joint_velocities_);
         Eigen::Vector4d transformed_torques = command_translator_.mapFromSerialToDynaarmTorques(command_joint_torques_);
 
-        for (size_t i = 0; i < info_.joints.size(); ++i) 
+        for (size_t i = 0; i < info_.joints.size(); ++i)
         {
             std::string joint_name = info_.joints[i].name;
 
             // Obtain reference to the specific drive
             auto &drive = drives_[joint_name];
-                        
+
             //Only write the command if we are already in the correct state
             if(drive->goalStateHasBeenReached())
             {
@@ -279,15 +279,15 @@ namespace dynaarm_driver
                 gains.setP(command_vector.target_pid.p);
                 gains.setI(command_vector.target_pid.i);
                 gains.setD(command_vector.target_pid.d);
-                
+
                 //std::cout << joint_name << " P:" << gains.getP() << " I:" << gains.getI() << " D:" << gains.getD() << std::endl;
-                //std::cout << joint_name << ": " << command_vector.target_effort << std::endl;         
+                //std::cout << joint_name << ": " << command_vector.target_effort << std::endl;
 
                 // if (joint_name == "FA_ROT")
                 // {
                 //     std::cout << joint_name << ": " << transformed_positions[i] << " " << transformed_velocities[i] << " " << transformed_torques[i] << std::endl;
-                // }                
-                
+                // }
+
                 // std::cout << "Mode: " << desired_mode_ << std::endl;
 
                 cmd.setJointPosition(transformed_positions[i]);
@@ -295,8 +295,8 @@ namespace dynaarm_driver
                 cmd.setJointTorque(transformed_torques[i]);
                 cmd.setPidGains(gains);
                 cmd.setModeEnum(desired_mode_);
-                
-                //We always fill all command fields but depending on the mode only a subset is used                
+
+                //We always fill all command fields but depending on the mode only a subset is used
                 drive->setCommand(cmd);
             }
         }
@@ -336,7 +336,7 @@ namespace dynaarm_driver
                 command_vectors_[joint_name].target_pid.p = gains.getP();
                 command_vectors_[joint_name].target_pid.i = gains.getI();
                 command_vectors_[joint_name].target_pid.d = gains.getD();
-                //std::cout << joint_name << command_vectors_[joint_name].target_pid.p << std::endl;                      
+                //std::cout << joint_name << command_vectors_[joint_name].target_pid.p << std::endl;
                 //std::cout << "P: " << gains.getP() << " I: " << gains.getI() << " D: " << gains.getD() << std::endl;
             }
 
@@ -348,15 +348,15 @@ namespace dynaarm_driver
     void DynaArmHardwareInterface::shutdown()
     {
         shutdownWorkerThread_ = std::make_unique<std::thread>([this]() -> void
-        {            
+        {
             // here the watchdog on the slave is activated. therefore don't block/sleep for 100ms..
-            while (!abrtFlag_) 
+            while (!abrtFlag_)
             {
-                ecat_master_->update(ecat_master::UpdateMode::StandaloneEnforceStep);            
+                ecat_master_->update(ecat_master::UpdateMode::StandaloneEnforceStep);
             }
 
             // make sure that bus is in SAFE_OP state, if preShutdown(true) should already do it, but makes sense to have this call here.
-            ecat_master_->deactivate(); 
+            ecat_master_->deactivate();
         });
 
         // call preShutdown before terminating the cyclic PDO communication!!
