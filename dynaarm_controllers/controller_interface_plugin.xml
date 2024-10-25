@@ -7,4 +7,12 @@
       Dynaarm gravitiy compensation controller.
     </description>
   </class>
+
+  <class name="dynaarm_controllers/StatusController"
+         type="dynaarm_controllers::StatusController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm status controller.
+    </description>
+  </class>
 </library>
