@@ -13,9 +13,6 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include <pinocchio/algorithm/rnea.hpp>
 
-// ROS 2
-#include <ament_index_cpp/get_package_share_directory.hpp>
-
 namespace dynaarm_controllers
 {
 class GravityCompensationController : public controller_interface::ControllerInterface
