@@ -17,7 +17,7 @@ find_package(ethercat_sdk_master REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 add_library(dynaarm_driver SHARED
-  src/dynaarm_hardware_interface.cpp  
+  src/dynaarm_hardware_interface.cpp
 )
 target_include_directories(dynaarm_driver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -59,7 +59,7 @@ ament_export_dependencies(
   urdf
   rsl_drive_sdk
   ethercat_sdk_master
-  
+
 )
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 

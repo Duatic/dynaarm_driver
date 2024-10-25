@@ -26,7 +26,7 @@ generate_parameter_library(
 
 
 
-add_library(${PROJECT_NAME} SHARED   
+add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_controller.cpp)
 target_include_directories(
@@ -58,7 +58,7 @@ install(
   DIRECTORY include/
   DESTINATION include/
 )
-install(TARGETS  ${PROJECT_NAME} 
+install(TARGETS  ${PROJECT_NAME}
 DESTINATION lib/)
 
 
@@ -90,4 +90,3 @@ ament_export_dependencies(
         moveit_core
 )
 ament_package()
-

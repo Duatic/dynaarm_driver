@@ -18,8 +18,8 @@ namespace dynaarm_controllers
 {
 class GravityCompensationController : public controller_interface::ControllerInterface
 {
-    public:        
-        GravityCompensationController();        
+    public:
+        GravityCompensationController();
         controller_interface::InterfaceConfiguration command_interface_configuration() const override;
         controller_interface::InterfaceConfiguration state_interface_configuration() const override;
         controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
@@ -30,16 +30,16 @@ class GravityCompensationController : public controller_interface::ControllerInt
         controller_interface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State &previous_state) override;
         controller_interface::CallbackReturn on_error(const rclcpp_lifecycle::State &previous_state) override;
         controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State &previous_state) override;
-    
+
     protected:
-    
+
         pinocchio::Model model;
         pinocchio::Data data;
-        
+
         std::vector<std::string> joint_names_;
         std::vector<std::string> command_interface_types_;
         std::vector<std::string> state_interface_types_;
-               
+
         std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interface_;
         std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_velocity_command_interface_;
         std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interface_;

@@ -26,7 +26,7 @@ namespace dynaarm_controllers
     class StatusController : public controller_interface::ControllerInterface
     {
     public:
-        //Some convienent typedef for easier handling of messages
+        //Some convenient typedef for easier handling of messages
         using ArmState = dynaarm_msgs::msg::ArmState;
         using ArmStatePublisher = realtime_tools::RealtimePublisher<ArmState>;
         using DriveState = dynaarm_msgs::msg::DriveState;
@@ -57,7 +57,7 @@ namespace dynaarm_controllers
         rclcpp::Publisher<ArmState>::SharedPtr arm_state_pub_;
         std::unique_ptr<ArmStatePublisher> arm_state_pub_rt_;
 
-        //State interface references 
+        //State interface references
         StateInterfaceReferences joint_position_interfaces_;
         StateInterfaceReferences joint_velocity_interfaces_;
         StateInterfaceReferences joint_effort_interfaces_;
@@ -69,6 +69,6 @@ namespace dynaarm_controllers
         //TODO add additional interfaces
 
 
-  
+
     };
 }

@@ -49,10 +49,10 @@ namespace dynaarm_controllers
         std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg_;
 
         std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>>
-            joint_position_command_interface_;        
+            joint_position_command_interface_;
         std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>>
             joint_position_state_interface_;
-  
+
 
         std::unordered_map<
             std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> *>

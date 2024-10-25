@@ -1,4 +1,4 @@
-# Timestamp 
+# Timestamp
 builtin_interfaces/Time timestamp
 
 # The configured drive name
@@ -28,4 +28,3 @@ float32 temperature_phase_c
 float32 bus_voltage
 
 #TODO add drive state, warnings
-
