@@ -9,9 +9,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>ament_index_cpp</build_depend>
-
-  <exec_depend>ament_index_cpp</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>ros2_controllers</exec_depend>
   <exec_depend>ros2_control</exec_depend>
