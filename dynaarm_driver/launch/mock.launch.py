@@ -19,24 +19,19 @@ from ament_index_python.packages import get_package_share_directory
 
 def launch_setup(context, *args, **kwargs):
 
-    ethercat_bus = LaunchConfiguration("ethercat_bus")
     start_rviz = LaunchConfiguration("start_rviz")
-    use_fake = LaunchConfiguration("use_fake")
+    dof = LaunchConfiguration("dof")
+    covers = LaunchConfiguration("covers")
 
-    ethercat_bus_value = ethercat_bus.perform(context)
-    use_fake_value = use_fake.perform(context)
-
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("dynaarm_description"), "rviz", "config.rviz"]
-    )
-    pkg_share_description = FindPackageShare(package="dynaarm_description").find(
-        "dynaarm_description"
-    )
-
-    doc = xacro.parse(open(os.path.join(pkg_share_description, "urdf/dynaarm.xacro")))
-    xacro.process_doc(
-        doc, mappings={"use_fake": use_fake_value, "ethercat_bus": ethercat_bus_value}
-    )
+    dof_value = dof.perform(context)
+    covers_value = covers.perform(context)
+   
+    # Robot description package
+    pkg_share_description = FindPackageShare(package="dynaarm_description").find("dynaarm_description")
+    doc = xacro.parse(open(os.path.join(pkg_share_description, "xacro/dynaarm_standalone.urdf.xacro")))
+    xacro.process_doc(doc, mappings={'dof': dof_value, 
+                                    'covers': covers_value,
+                                    'mode': 'mock'})    
     robot_description = {"robot_description": doc.toxml()}
 
     # Subscribe to the joint states of the robot, and publish the 3D pose of each link.
@@ -47,7 +42,8 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # Launch RViz
+    # Launch RViz    
+    rviz_config_file = PathJoinSubstitution([pkg_share_description, "launch/config.rviz"])
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -90,9 +86,7 @@ def launch_setup(context, *args, **kwargs):
         },
     )
 
-    # startup_controller_name = 'position_controller'
-    startup_controller_name = "dynaarm_controller"  # JTC
-    # startup_controller_name = 'gravity_compensation_controller'
+    startup_controller_name = "joint_trajectory_controller" 
 
     startup_controller_node = Node(
         package="controller_manager",
@@ -123,18 +117,18 @@ def generate_launch_description():
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
-            "ethercat_bus",
-            default_value="enp86s0",
-            description="The ethercat bus id or name.",
+            name="dof",
+            default_value="6dof",
+            description="Select the desired degrees of freedom (dof)",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_fake",
+            name="covers",
             default_value="false",
-            description="Use fake hardware.",
+            description="Show or hide the covers of the robot",
         )
-    )
+    )    
     declared_arguments.append(
         DeclareLaunchArgument(
             "start_rviz",

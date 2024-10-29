@@ -1,0 +1,9 @@
+<library path="dynaarm_mock_hardware_interface">
+  <class name="dynaarm_mock_hardware_interface/DynaarmMockHardwareInterface"
+    type="dynaarm_mock_hardware_interface::DynaarmMockHardwareInterface"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ROS Control System driver for the Dynaarm
+    </description>
+  </class>
+</library>

@@ -11,27 +11,26 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-    dynaarm_controller:
+    joint_trajectory_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
 
     effort_controller:
       type: effort_controllers/JointGroupEffortController
 
-dynaarm_controller:
+joint_trajectory_controller:
   ros__parameters:
     joints:
       - SH_ROT
       - SH_FLE
       - EL_FLE
       - FA_ROT
+      - WRIST_1
+      - WRIST_2
     command_interfaces:
       - position
     state_interfaces:
       - position
-      - velocity
-    action_monitor_rate: 20.0
-    allow_partial_joints_goal: false
-    open_loop_control: true
+      - velocity    
 
 position_controller:
   ros__parameters:
@@ -40,6 +39,8 @@ position_controller:
       - SH_FLE
       - EL_FLE
       - FA_ROT
+      - WRIST_1
+      - WRIST_2
     interface_name: position
 
 effort_controller:
@@ -49,6 +50,8 @@ effort_controller:
       - SH_FLE
       - EL_FLE
       - FA_ROT
+      - WRIST_1
+      - WRIST_2
 
 gravity_compensation_controller:
   ros__parameters:
@@ -57,6 +60,8 @@ gravity_compensation_controller:
       - SH_FLE
       - EL_FLE
       - FA_ROT
+      - WRIST_1
+      - WRIST_2
     command_interfaces:
       - position
       - velocity
@@ -66,7 +71,9 @@ gravity_compensation_controller:
       - velocity
       - effort
     gains:
-      SH_ROT: {p: 0.0, i: 0.0, d: 0.0}
-      SH_FLE: {p: 0.0, i: 0.0, d: 0.0}
-      EL_FLE: {p: 0.0, i: 0.0, d: 0.0}
-      FA_ROT: {p: 0.0, i: 0.0, d: 0.0}
+      SH_ROT: {p: 100.0, i: 0.0, d: 15.0}
+      SH_FLE: {p: 100.0, i: 0.0, d: 15.0}
+      EL_FLE: {p: 100.0, i: 0.0, d: 15.0}
+      FA_ROT: {p: 50.0, i: 0.0, d: 15.0}
+      WRIST_1: {p: 50.0, i: 0.0, d: 15.0}
+      WRIST_2: {p: 50.0, i: 0.0, d: 15.0}
