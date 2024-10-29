@@ -141,7 +141,7 @@ namespace dynaarm_controllers
     controller_interface::return_type StatusController::update(const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period)
     {
 
-        if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+        if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
         {
             return controller_interface::return_type::OK;
         }
