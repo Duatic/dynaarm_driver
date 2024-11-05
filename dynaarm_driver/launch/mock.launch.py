@@ -1,20 +1,36 @@
-# Author: Timo Schwarzer
-# Date: December 22, 2023
-# Description: Launch a Mitsubishi RV-2FR robot URDF file using Rviz.
-# http://www.robolynk.de
+# Copyright 2024 Duatic AG
+#
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that
+# the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list of conditions, and
+#    the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions, and
+#    the following disclaimer in the documentation and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or
+#    promote products derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 import os
 import xacro
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, RegisterEventHandler, OpaqueFunction
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
-
-from ament_index_python.packages import get_package_share_directory
 
 
 def launch_setup(context, *args, **kwargs):
@@ -25,13 +41,17 @@ def launch_setup(context, *args, **kwargs):
 
     dof_value = dof.perform(context)
     covers_value = covers.perform(context)
-   
+
     # Robot description package
-    pkg_share_description = FindPackageShare(package="dynaarm_description").find("dynaarm_description")
-    doc = xacro.parse(open(os.path.join(pkg_share_description, "xacro/dynaarm_standalone.urdf.xacro")))
-    xacro.process_doc(doc, mappings={'dof': dof_value, 
-                                    'covers': covers_value,
-                                    'mode': 'mock'})    
+    pkg_share_description = FindPackageShare(package="dynaarm_description").find(
+        "dynaarm_description"
+    )
+    doc = xacro.parse(
+        open(os.path.join(pkg_share_description, "xacro/dynaarm_standalone.urdf.xacro"))
+    )
+    xacro.process_doc(
+        doc, mappings={"dof": dof_value, "covers": covers_value, "mode": "mock"}
+    )
     robot_description = {"robot_description": doc.toxml()}
 
     # Subscribe to the joint states of the robot, and publish the 3D pose of each link.
@@ -42,8 +62,10 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # Launch RViz    
-    rviz_config_file = PathJoinSubstitution([pkg_share_description, "launch/config.rviz"])
+    # Launch RViz
+    rviz_config_file = PathJoinSubstitution(
+        [pkg_share_description, "launch/config.rviz"]
+    )
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -86,7 +108,7 @@ def launch_setup(context, *args, **kwargs):
         },
     )
 
-    startup_controller_name = "joint_trajectory_controller" 
+    startup_controller_name = "joint_trajectory_controller"
 
     startup_controller_node = Node(
         package="controller_manager",
@@ -95,9 +117,12 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # The controller to start variable
-    delay_robot_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner_node, on_exit=[startup_controller_node]
+    delay_robot_controller_spawner_after_joint_state_broadcaster_spawner = (
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=joint_state_broadcaster_spawner_node,
+                on_exit=[startup_controller_node],
+            )
         )
     )
 
@@ -128,7 +153,7 @@ def generate_launch_description():
             default_value="false",
             description="Show or hide the covers of the robot",
         )
-    )    
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "start_rviz",
@@ -137,4 +162,6 @@ def generate_launch_description():
         )
     )
 
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(
+        declared_arguments + [OpaqueFunction(function=launch_setup)]
+    )
