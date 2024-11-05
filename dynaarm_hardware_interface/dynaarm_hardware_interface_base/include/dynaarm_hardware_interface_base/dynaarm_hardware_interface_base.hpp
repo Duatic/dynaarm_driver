@@ -27,14 +27,13 @@ namespace dynaarm_hardware_interface_base
     {
     public:
         RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterfaceBase)
-
+        
         virtual ~DynaArmHardwareInterfaceBase();
-
         DynaArmHardwareInterfaceBase() : logger_(rclcpp::get_logger("DynaArmHardwareInterfaceBase"))
         {
             // This is only here otherwise the compiler will complain about the logger var.
             // We initilize the logger in on_init properly
-        }
+        }       
 
         hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info);
         virtual hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo &system_info) = 0;
@@ -62,9 +61,13 @@ namespace dynaarm_hardware_interface_base
         {
             return hardware_interface::return_type::OK;
         }
-        virtual void shutdown() = 0;
+
+        void safeShutdown();       
 
     protected:
+
+        virtual void shutdown() = 0;
+
         rclcpp::Logger logger_;
 
         std::vector<dynaarm_hardware_interface_common::JointState> joint_state_vector_;

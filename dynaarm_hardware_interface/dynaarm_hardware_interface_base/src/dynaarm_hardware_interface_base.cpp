@@ -5,9 +5,18 @@ namespace dynaarm_hardware_interface_base
 {
     DynaArmHardwareInterfaceBase::~DynaArmHardwareInterfaceBase()
     {
-        // If controller manager is shutdown via Ctrl + C, the on_deactivate methods won't be called.
-        // We need to call them here to ensure that the device is stopped and disconnected.
-        shutdown();
+        safeShutdown();
+    }
+
+    void DynaArmHardwareInterfaceBase::safeShutdown()
+    {
+        try {
+            shutdown();
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(logger_, "Exception during safe shutdown: %s", e.what());
+        } catch (...) {
+            RCLCPP_ERROR(logger_, "Unknown exception during safe shutdown");
+        }
     }
 
     hardware_interface::CallbackReturn DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo &system_info)
@@ -126,7 +135,7 @@ namespace dynaarm_hardware_interface_base
 
     hardware_interface::CallbackReturn DynaArmHardwareInterfaceBase::on_error(const rclcpp_lifecycle::State & /*previous_state*/)
     {
-        shutdown();
+        safeShutdown();
         return hardware_interface::CallbackReturn::FAILURE;
     }
 
