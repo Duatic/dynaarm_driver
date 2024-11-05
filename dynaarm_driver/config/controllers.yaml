@@ -2,6 +2,9 @@ controller_manager:
   ros__parameters:
     update_rate: 1000
 
+    dynaarm_status_controller:
+      type: dynaarm_controllers/StatusController
+
     gravity_compensation_controller:
       type: dynaarm_controllers/GravityCompensationController
 
@@ -16,6 +19,16 @@ controller_manager:
 
     effort_controller:
       type: effort_controllers/JointGroupEffortController
+
+dynaarm_status_controller:
+  ros__parameters:
+    joints:
+      - SH_ROT
+      - SH_FLE
+      - EL_FLE
+      - FA_ROT
+      - WRIST_1
+      - WRIST_2    
 
 joint_trajectory_controller:
   ros__parameters:

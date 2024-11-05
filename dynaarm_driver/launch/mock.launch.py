@@ -108,12 +108,22 @@ def launch_setup(context, *args, **kwargs):
         },
     )
 
-    startup_controller_name = "joint_trajectory_controller"
-
-    startup_controller_node = Node(
+    gravity_compensation_controller_node = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=[startup_controller_name, "-c", "/controller_manager"],
+        arguments=["gravity_compensation_controller"],
+    )
+
+    joint_trajectory_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_trajectory_controller", "--inactive"],
+    )
+
+    status_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["dynaarm_status_controller"],
     )
 
     # The controller to start variable
@@ -121,7 +131,9 @@ def launch_setup(context, *args, **kwargs):
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner_node,
-                on_exit=[startup_controller_node],
+                on_exit=[gravity_compensation_controller_node,
+                        status_controller_node,
+                        joint_trajectory_controller_node],
             )
         )
     )

@@ -56,11 +56,11 @@ controller_interface::InterfaceConfiguration StatusController::state_interface_c
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_EFFORT);
-    config.names.emplace_back(joint + "/temperature_system");
-    config.names.emplace_back(joint + "/temperature_coil_A");
-    config.names.emplace_back(joint + "/temperature_coil_B");
-    config.names.emplace_back(joint + "/temperature_coil_C");
-    config.names.emplace_back(joint + "/bus_voltage");
+    config.names.emplace_back(joint + "/motor_temperature_system");
+    config.names.emplace_back(joint + "/motor_temperature_coil_A");
+    config.names.emplace_back(joint + "/motor_temperature_coil_B");
+    config.names.emplace_back(joint + "/motor_temperature_coil_C");
+    config.names.emplace_back(joint + "/motor_bus_voltage");
   }
   return config;
 }
@@ -139,34 +139,34 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - effort");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "temperature_system",
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_temperature_system",
                                                     joint_temperature_system_interfaces_))
   {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - temperature_system");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_temperature_system");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "temperature_coil_A",
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_temperature_coil_A",
                                                     joint_temperature_phase_a_interfaces_))
   {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - temperature_coil_A");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_temperature_coil_A");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "temperature_coil_B",
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_temperature_coil_B",
                                                     joint_temperature_phase_b_interfaces_))
   {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - temperature_coil_B");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_temperature_coil_B");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "temperature_coil_C",
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_temperature_coil_C",
                                                     joint_temperature_phase_c_interfaces_))
   {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - temperature_coil_C");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_temperature_coil_C");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "bus_voltage",
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_bus_voltage",
                                                     joint_bus_voltage_interfaces_))
   {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - bus_voltage");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_bus_voltage");
     return controller_interface::CallbackReturn::FAILURE;
   }
   return controller_interface::CallbackReturn::SUCCESS;
