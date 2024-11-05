@@ -55,12 +55,12 @@ namespace dynaarm_controllers
         return conf;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_configure(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         return CallbackReturn::SUCCESS;
     }
 
-    controller_interface::return_type GravityCompensationController::update(const rclcpp::Time &time, const rclcpp::Duration &period)
+    controller_interface::return_type GravityCompensationController::update([[maybe_unused]] const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period)
     {
         Eigen::VectorXd q = pinocchio::neutral(model);
         // convert ROS joint config to pinocchio config
@@ -96,7 +96,7 @@ namespace dynaarm_controllers
         return controller_interface::return_type::OK;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_activate(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         // clear out vectors in case of restart
         joint_position_command_interface_.clear();
@@ -125,22 +125,22 @@ namespace dynaarm_controllers
         return CallbackReturn::SUCCESS;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_deactivate(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         return CallbackReturn::SUCCESS;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_cleanup(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_cleanup([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         return CallbackReturn::SUCCESS;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_error(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_error([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         return CallbackReturn::SUCCESS;
     }
 
-    controller_interface::CallbackReturn GravityCompensationController::on_shutdown(const rclcpp_lifecycle::State &previous_state)
+    controller_interface::CallbackReturn GravityCompensationController::on_shutdown([[maybe_unused]] const rclcpp_lifecycle::State &previous_state)
     {
         return CallbackReturn::SUCCESS;
     }
