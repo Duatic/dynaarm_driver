@@ -22,6 +22,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+
 #include "dynaarm_controllers/gravity_compensation_controller.hpp"
 
 using namespace std::chrono_literals;
@@ -113,14 +115,6 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
       joint_effort_command_interface_[i].get().set_value(new_effort);
     }
   }
-
-  // for (size_t i = 0; i < joint_p_command_interface_.size(); ++i)
-  // {
-  //     std::cout << i << std::endl;
-  //     joint_p_command_interface_[i].get().set_value(0.0);
-  //     joint_i_command_interface_[i].get().set_value(0.0);
-  //     joint_d_command_interface_[i].get().set_value(0.0);
-  // }
 
   return controller_interface::return_type::OK;
 }

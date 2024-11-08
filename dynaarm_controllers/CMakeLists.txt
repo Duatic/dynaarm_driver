@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(dynaarm_controllers)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  #add_compile_options(-Wall -Wextra -Wpedantic -Wno-maybe-uninitialized)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")  
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
@@ -17,11 +16,6 @@ find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(dynaarm_msgs REQUIRED)
-
-# Conditionally add compile options for pinocchio and Eigen
-if(pinocchio_FOUND OR EIGEN3_INCLUDE_DIRS)
-  add_compile_options(-Wno-maybe-uninitialized)
-endif()
 
 find_package(generate_parameter_library REQUIRED)
 generate_parameter_library(
