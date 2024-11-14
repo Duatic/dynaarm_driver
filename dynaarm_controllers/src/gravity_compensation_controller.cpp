@@ -93,28 +93,45 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
 controller_interface::return_type GravityCompensationController::update([[maybe_unused]] const rclcpp::Time& time,
                                                                         [[maybe_unused]] const rclcpp::Duration& period)
 {
+  //
+  // THE OLD VERSION WHICH ITERATED OVER ALL JOINTS
+  //
+  // Eigen::VectorXd q = pinocchio::neutral(model);
+  // // convert ROS joint config to pinocchio config
+  // for (int i = 0; i < model.nv; i++)
+  // {
+  //   int jidx = model.getJointId(model.names[i + 1]);
+  //   int qidx = model.idx_qs[jidx];
+  //   q[qidx] = joint_position_state_interface_[i].get().get_value();
+  // }
+
+  // Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model, data, q);
+  // std::cout << std::fixed << std::setprecision(10);
+  
+  // // add gravity compensation torque to base command
+  // for (int i = 0; i < model.nv; i++)
+  // {
+  //   double new_effort = gravity[i] * 1.0;
+
+  //   if (i == 1)
+  //   {
+  //     // std::cout << i << " - NEW: " << new_effort << std::endl;
+  //     joint_effort_command_interface_[i].get().set_value(new_effort);
+  //   }
+  // }  
+
+  // Set up pinocchio configuration
   Eigen::VectorXd q = pinocchio::neutral(model);
-  // convert ROS joint config to pinocchio config
-  for (int i = 0; i < model.nv; i++)
-  {
-    int jidx = model.getJointId(model.names[i + 1]);
-    int qidx = model.idx_qs[jidx];
-    q[qidx] = joint_position_state_interface_[i].get().get_value();
-  }
+  int jidx = model.getJointId(model.names[2]);  // Directly access joint ID for i == 1 (+1)
+  int qidx = model.idx_qs[jidx];
+  q[qidx] = joint_position_state_interface_[1].get().get_value();
 
+  // Compute gravity compensation torque for the configuration
   Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model, data, q);
-  std::cout << std::fixed << std::setprecision(10);
-  // add gravity compensation torque to base command
-  for (int i = 0; i < model.nv; i++)
-  {
-    double new_effort = gravity[i] * 1.0;
 
-    if (i == 1)
-    {
-      // std::cout << i << " - NEW: " << new_effort << std::endl;
-      joint_effort_command_interface_[i].get().set_value(new_effort);
-    }
-  }
+  // Apply the gravity compensation torque directly for joint i == 1
+  double new_effort = gravity[1] * 1.0;
+  joint_effort_command_interface_[1].get().set_value(new_effort);
 
   return controller_interface::return_type::OK;
 }
