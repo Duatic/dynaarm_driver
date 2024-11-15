@@ -34,10 +34,13 @@
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 // Pinocchio
-#include <pinocchio/algorithm/joint-configuration.hpp>
-#include <pinocchio/parsers/sample-models.hpp>
-#include "pinocchio/parsers/urdf.hpp"
+#include <pinocchio/algorithm/compute-all-terms.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
+// Project
+#include "dynaarm_controllers/interface_utils.hpp"
 
 namespace dynaarm_controllers
 {
@@ -57,34 +60,14 @@ public:
   controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
 protected:
-  pinocchio::Model model;
-  pinocchio::Data data;
+  pinocchio::Model pinocchio_model_;
+  pinocchio::Data pinocchio_data_;
 
   std::vector<std::string> joint_names_;
-  std::vector<std::string> command_interface_types_;
-  std::vector<std::string> state_interface_types_;
 
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_velocity_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_p_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_i_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_d_command_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interface_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_effort_state_interface_;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
 
-  std::unordered_map<std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>>*>
-      command_interface_map_ = { { "position", &joint_position_command_interface_ },
-                                 { "velocity", &joint_velocity_command_interface_ },
-                                 { "effort", &joint_effort_command_interface_ },
-                                 { "p", &joint_p_command_interface_ },
-                                 { "i", &joint_i_command_interface_ },
-                                 { "d", &joint_d_command_interface_ } };
-
-  std::unordered_map<std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>>*>
-      state_interface_map_ = { { "position", &joint_position_state_interface_ },
-                               { "velocity", &joint_velocity_state_interface_ },
-                               { "effort", &joint_effort_state_interface_ } };
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
 };
 }  // namespace dynaarm_controllers
