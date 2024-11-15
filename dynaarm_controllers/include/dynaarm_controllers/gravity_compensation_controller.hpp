@@ -26,7 +26,7 @@
 
 #include <string>
 #include <unordered_map>
-#include <vector> >
+#include <vector>
 
 #include <controller_interface/controller_interface.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
