@@ -46,8 +46,7 @@ public:
   static Eigen::VectorXd mapFromDynaarmToSerialCoordinates(const Eigen::VectorXd& input)
   {
     int size = input.size();
-    if (size < 4)
-    {
+    if (size < 4) {
       throw std::invalid_argument("Input vector must have at least 4 elements");
     }
 
@@ -64,8 +63,7 @@ public:
   static Eigen::VectorXd mapFromDynaarmToSerialTorques(const Eigen::VectorXd& input)
   {
     int size = input.size();
-    if (size < 4)
-    {
+    if (size < 4) {
       throw std::invalid_argument("Input vector must have at least 4 elements");
     }
 
@@ -88,8 +86,7 @@ public:
   static Eigen::VectorXd mapFromSerialToDynaarmCoordinates(const Eigen::VectorXd& input)
   {
     int size = input.size();
-    if (size < 4)
-    {
+    if (size < 4) {
       throw std::invalid_argument("Input vector must have at least 4 elements");
     }
 
@@ -106,8 +103,7 @@ public:
   static Eigen::VectorXd mapFromSerialToDynaarmTorques(const Eigen::VectorXd& input)
   {
     int size = input.size();
-    if (size < 4)
-    {
+    if (size < 4) {
       throw std::invalid_argument("Input vector must have at least 4 elements");
     }
 

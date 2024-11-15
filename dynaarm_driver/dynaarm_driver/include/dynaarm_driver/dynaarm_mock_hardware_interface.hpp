@@ -22,6 +22,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma once
+
 // System
 #include <limits>
 #include <memory>
@@ -63,4 +65,4 @@ public:
   void shutdown() override;
 };
 
-}  // namespace dynaarm_mock_hardware_interface
+}  // namespace dynaarm_driver

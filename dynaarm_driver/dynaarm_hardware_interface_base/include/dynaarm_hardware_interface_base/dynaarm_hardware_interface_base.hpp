@@ -22,6 +22,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma once
+
 // System
 #include <limits>
 #include <memory>
@@ -56,7 +58,7 @@ public:
   DynaArmHardwareInterfaceBase() : logger_(rclcpp::get_logger("DynaArmHardwareInterfaceBase"))
   {
     // This is only here otherwise the compiler will complain about the logger var.
-    // We initilize the logger in on_init properly
+    // We initialize the logger in on_init properly
   }
 
   hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& system_info);

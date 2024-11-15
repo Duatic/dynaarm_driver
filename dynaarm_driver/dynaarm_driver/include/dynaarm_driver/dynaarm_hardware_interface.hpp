@@ -22,6 +22,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma once
+
 // System
 #include <limits>
 #include <memory>
@@ -75,4 +77,4 @@ private:
   std::unique_ptr<std::thread> shutdownWorkerThread_;
 };
 
-}  // namespace dynaarm_hardware_interface
+}  // namespace dynaarm_driver

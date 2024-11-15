@@ -21,7 +21,7 @@ foreach(Dependency IN ITEMS ${PACKAGE_DEPENDENCIES})
 endforeach()
 
 add_library(dynaarm_hardware_interface_base SHARED
-  src/dynaarm_hardware_interface_base.cpp  
+  src/dynaarm_hardware_interface_base.cpp
 )
 target_include_directories(dynaarm_hardware_interface_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

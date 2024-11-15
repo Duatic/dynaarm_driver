@@ -32,7 +32,7 @@ using config_type = controller_interface::interface_configuration_type;
 
 namespace dynaarm_controllers
 {
-    
+
 GravityCompensationController::GravityCompensationController() : controller_interface::ControllerInterface()
 {
 }
@@ -57,10 +57,8 @@ controller_interface::InterfaceConfiguration GravityCompensationController::comm
   controller_interface::InterfaceConfiguration conf = { config_type::INDIVIDUAL, {} };
   conf.names.reserve(joint_names_.size() * command_interface_types_.size());
 
-  for (const auto& joint_name : joint_names_)
-  {
-    for (const auto& interface_type : command_interface_types_)
-    {
+  for (const auto& joint_name : joint_names_) {
+    for (const auto& interface_type : command_interface_types_) {
       conf.names.push_back(joint_name + "/" + interface_type);
     }
   }
@@ -73,10 +71,8 @@ controller_interface::InterfaceConfiguration GravityCompensationController::stat
   controller_interface::InterfaceConfiguration conf = { config_type::INDIVIDUAL, {} };
   conf.names.reserve(joint_names_.size() * state_interface_types_.size());
 
-  for (const auto& joint_name : joint_names_)
-  {
-    for (const auto& interface_type : state_interface_types_)
-    {
+  for (const auto& joint_name : joint_names_) {
+    for (const auto& interface_type : state_interface_types_) {
       conf.names.push_back(joint_name + "/" + interface_type);
     }
   }
@@ -107,7 +103,7 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
 
   // Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model, data, q);
   // std::cout << std::fixed << std::setprecision(10);
-  
+
   // // add gravity compensation torque to base command
   // for (int i = 0; i < model.nv; i++)
   // {
@@ -118,7 +114,7 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
   //     // std::cout << i << " - NEW: " << new_effort << std::endl;
   //     joint_effort_command_interface_[i].get().set_value(new_effort);
   //   }
-  // }  
+  // }
 
   // Set up pinocchio configuration
   Eigen::VectorXd q = pinocchio::neutral(model);
@@ -152,14 +148,12 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
   joint_effort_state_interface_.clear();
 
   // assign command interfaces
-  for (auto& interface : command_interfaces_)
-  {
+  for (auto& interface : command_interfaces_) {
     command_interface_map_[interface.get_interface_name()]->push_back(interface);
   }
 
   // assign state interfaces
-  for (auto& interface : state_interfaces_)
-  {
+  for (auto& interface : state_interfaces_) {
     state_interface_map_[interface.get_interface_name()]->push_back(interface);
   }
 

@@ -31,12 +31,12 @@
 #include <map>
 
 /*ROS2*/
+#include "realtime_tools/realtime_buffer.h"
+#include "realtime_tools/realtime_publisher.h"
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/subscription.hpp>
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
 #include <rclcpp_lifecycle/state.hpp>
-#include <realtime_tools/realtime_buffer.h>
-#include <realtime_tools/realtime_publisher.h>
 #include <rclcpp/logging.hpp>
 /*Project*/
 #include "dynaarm_status_controller_parameters.hpp"
@@ -90,6 +90,5 @@ private:
   StateInterfaceReferences joint_temperature_phase_b_interfaces_;
   StateInterfaceReferences joint_temperature_phase_c_interfaces_;
   StateInterfaceReferences joint_bus_voltage_interfaces_;
-  // TODO add additional interfaces
 };
 }  // namespace dynaarm_controllers

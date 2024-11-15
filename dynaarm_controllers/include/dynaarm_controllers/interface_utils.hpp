@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <vector>
 #include <controller_interface/controller_interface.hpp>
 
 /**

@@ -28,7 +28,7 @@ foreach(Dependency IN ITEMS ${PACKAGE_DEPENDENCIES})
 endforeach()
 
 add_library(${PROJECT_NAME} SHARED
-  src/dynaarm_hardware_interface.cpp  
+  src/dynaarm_hardware_interface.cpp
   src/dynaarm_mock_hardware_interface.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC

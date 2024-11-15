@@ -22,14 +22,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DYNAARM_GRAVITY_COMPENSATION_CONTROLLERS_HPP_
-#define DYNAARM_GRAVITY_COMPENSATION_CONTROLLERS_HPP_
+#pragma once
 
-#include "controller_interface/controller_interface.hpp"
+#include <string>
+#include <unordered_map>
+#include <vector> >
+
+#include <controller_interface/controller_interface.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
-#include "trajectory_msgs/msg/joint_trajectory.hpp"
-#include "realtime_tools/realtime_buffer.h"
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 // Pinocchio
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -86,5 +88,3 @@ protected:
                                { "effort", &joint_effort_state_interface_ } };
 };
 }  // namespace dynaarm_controllers
-
-#endif  // DYNAARM_GRAVITY_COMPENSATION_CONTROLLERS_HPP_
