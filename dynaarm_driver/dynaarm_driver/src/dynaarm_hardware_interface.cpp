@@ -22,10 +22,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_hardware_interface/dynaarm_hardware_interface.hpp"
+#include "dynaarm_driver/dynaarm_hardware_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
-namespace dynaarm_hardware_interface
+namespace dynaarm_driver
 {
 hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo& system_info)
@@ -244,4 +244,4 @@ void DynaArmHardwareInterface::shutdown()
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(dynaarm_hardware_interface::DynaArmHardwareInterface, hardware_interface::SystemInterface)
+PLUGINLIB_EXPORT_CLASS(dynaarm_driver::DynaArmHardwareInterface, hardware_interface::SystemInterface)

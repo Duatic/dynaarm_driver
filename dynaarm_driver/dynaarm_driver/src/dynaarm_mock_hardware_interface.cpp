@@ -22,10 +22,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_mock_hardware_interface/dynaarm_mock_hardware_interface.hpp"
+#include "dynaarm_driver/dynaarm_mock_hardware_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
-namespace dynaarm_mock_hardware_interface
+namespace dynaarm_driver
 {
 hardware_interface::CallbackReturn
 DynaarmMockHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo& /*system_info*/)
@@ -75,5 +75,5 @@ void DynaarmMockHardwareInterface::shutdown()
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(dynaarm_mock_hardware_interface::DynaarmMockHardwareInterface,
+PLUGINLIB_EXPORT_CLASS(dynaarm_driver::DynaarmMockHardwareInterface,
                        hardware_interface::SystemInterface)

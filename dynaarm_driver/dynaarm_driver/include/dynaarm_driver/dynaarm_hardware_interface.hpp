@@ -45,22 +45,34 @@
 // hardware interface
 #include <dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp>
 
-namespace dynaarm_mock_hardware_interface
+// sdk
+#include "ethercat_sdk_master/EthercatMaster.hpp"
+#include <rsl_drive_sdk/Drive.hpp>
+
+namespace dynaarm_driver
 {
-class DynaarmMockHardwareInterface : public dynaarm_hardware_interface_base::DynaArmHardwareInterfaceBase
+class DynaArmHardwareInterface : public dynaarm_hardware_interface_base::DynaArmHardwareInterfaceBase
 {
 public:
-  RCLCPP_SHARED_PTR_DEFINITIONS(DynaarmMockHardwareInterface)
+  RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterface)
 
   hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) override;
 
-  hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state) override;
-  hardware_interface::CallbackReturn on_deactivate_derived(const rclcpp_lifecycle::State& previous_state) override;
+  hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state);
+  hardware_interface::CallbackReturn on_deactivate_derived(const rclcpp_lifecycle::State& previous_state);
 
   void read_motor_states() override;
   void write_motor_commands() override;
 
   void shutdown() override;
+
+private:
+  ecat_master::EthercatMaster::SharedPtr ecat_master_;
+  std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
+
+  std::atomic<bool> startupAbortFlag_{ false };
+  std::atomic<bool> abrtFlag_{ false };
+  std::unique_ptr<std::thread> shutdownWorkerThread_;
 };
 
-}  // namespace dynaarm_mock_hardware_interface
+}  // namespace dynaarm_hardware_interface
