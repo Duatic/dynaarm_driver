@@ -42,8 +42,8 @@
 #include <rclcpp_lifecycle/state.hpp>
 
 // Urdf
-#include "dynaarm_hardware_interface_common/types.hpp"
-#include "dynaarm_hardware_interface_common/command_translator.hpp"
+#include "dynaarm_hardware_interface_base/types.hpp"
+#include "dynaarm_hardware_interface_base/command_translator.hpp"
 
 namespace dynaarm_hardware_interface_base
 {

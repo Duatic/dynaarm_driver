@@ -43,7 +43,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 // hardware interface
-#include "dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp"
+#include <dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp>
 
 namespace dynaarm_mock_hardware_interface
 {

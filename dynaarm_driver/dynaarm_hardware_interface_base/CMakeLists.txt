@@ -14,7 +14,6 @@ set(PACKAGE_DEPENDENCIES
   rclcpp
   pluginlib
   hardware_interface
-  dynaarm_hardware_interface_common
 )
 
 foreach(Dependency IN ITEMS ${PACKAGE_DEPENDENCIES})
