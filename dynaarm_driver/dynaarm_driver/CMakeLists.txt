@@ -27,11 +27,11 @@ foreach(Dependency IN ITEMS ${PACKAGE_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-add_library(dynaarm_driver SHARED
+add_library(${PROJECT_NAME} SHARED
   src/dynaarm_hardware_interface.cpp  
   src/dynaarm_mock_hardware_interface.cpp
 )
-target_include_directories(dynaarm_driver PUBLIC
+target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${YAML_CPP_INCLUDE_DIR}
@@ -40,18 +40,18 @@ target_include_directories(dynaarm_driver PUBLIC
 ament_target_dependencies(${PROJECT_NAME} ${PACKAGE_DEPENDENCIES})
 target_link_libraries(${PROJECT_NAME} ${YAML_CPP_LIBRARIES})
 
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(${PACKAGE_DEPENDENCIES} yaml-cpp)
 
-pluginlib_export_plugin_description_file(dynaarm_driver hardware_interface_plugin.xml)
+ament_export_dependencies(${PACKAGE_DEPENDENCIES} yaml-cpp)
+ament_export_libraries(
+  ${PROJECT_NAME}
+)
+
+pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 
 
 install(
   TARGETS ${PROJECT_NAME}
-  EXPORT export_${PROJECT_NAME}
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION bin
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(

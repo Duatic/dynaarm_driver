@@ -1,5 +1,5 @@
 <library path="dynaarm_driver">
-  <class name="dynaarm_hardware_interface/DynaArmHardwareInterface"
+  <class name="dynaarm_driver/DynaArmHardwareInterface"
     type="dynaarm_driver::DynaArmHardwareInterface"
     base_class_type="hardware_interface::SystemInterface">
     <description>
