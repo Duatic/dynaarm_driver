@@ -72,10 +72,34 @@ controller_interface::InterfaceConfiguration GravityCompensationController::stat
 controller_interface::CallbackReturn
 GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  // TODO(timo) - This currently does not make sure that the joint order matches between the pinocchio model and our
-  // interfaces lists!
   pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
+
+  // Extract joint names from Pinocchio model
+  std::vector<std::string> pinocchio_joint_names;
+  for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
+  {
+    std::string joint_name = pinocchio_model_.names[i];
+    pinocchio_joint_names.push_back(joint_name);
+  }
+
+  // 1. Validate joint names (amount)
+  if (pinocchio_joint_names.size() != joint_names_.size()) {
+    RCLCPP_ERROR(get_node()->get_logger(),
+                 "Joint count mismatch: Pinocchio model has %zu joints, but interface has %zu joints.",
+                 pinocchio_joint_names.size(), joint_names_.size());
+    return CallbackReturn::ERROR;
+  }
+
+  // 2. Validate joint names order
+  for (size_t i = 0; i < pinocchio_joint_names.size(); ++i) {
+    if (pinocchio_joint_names[i] != joint_names_[i]) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Joint name mismatch at index %zu: Pinocchio joint is '%s', interface joint is '%s'.", i,
+                   pinocchio_joint_names[i].c_str(), joint_names_[i].c_str());
+      return CallbackReturn::ERROR;
+    }
+  }
 
   return CallbackReturn::SUCCESS;
 }
