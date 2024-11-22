@@ -25,6 +25,8 @@
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 
 #include "dynaarm_controllers/gravity_compensation_controller.hpp"
+#include <hardware_interface/types/hardware_interface_type_values.hpp>
+#include <controller_interface/helpers.hpp>
 
 using namespace std::chrono_literals;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -41,13 +43,6 @@ controller_interface::CallbackReturn GravityCompensationController::on_init()
 {
   // should have error handling
   joint_names_ = auto_declare<std::vector<std::string>>("joints", joint_names_);
-  command_interface_types_ = auto_declare<std::vector<std::string>>("command_interfaces", command_interface_types_);
-  state_interface_types_ = auto_declare<std::vector<std::string>>("state_interfaces", state_interface_types_);
-
-  std::string urdf_string = get_robot_description();
-
-  pinocchio::urdf::buildModelFromXML(urdf_string, model);
-  data = pinocchio::Data(model);
 
   return CallbackReturn::SUCCESS;
 }
@@ -55,12 +50,8 @@ controller_interface::CallbackReturn GravityCompensationController::on_init()
 controller_interface::InterfaceConfiguration GravityCompensationController::command_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration conf = { config_type::INDIVIDUAL, {} };
-  conf.names.reserve(joint_names_.size() * command_interface_types_.size());
-
   for (const auto& joint_name : joint_names_) {
-    for (const auto& interface_type : command_interface_types_) {
-      conf.names.push_back(joint_name + "/" + interface_type);
-    }
+    conf.names.emplace_back(joint_name + "/" + hardware_interface::HW_IF_EFFORT);
   }
 
   return conf;
@@ -69,12 +60,10 @@ controller_interface::InterfaceConfiguration GravityCompensationController::comm
 controller_interface::InterfaceConfiguration GravityCompensationController::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration conf = { config_type::INDIVIDUAL, {} };
-  conf.names.reserve(joint_names_.size() * state_interface_types_.size());
 
   for (const auto& joint_name : joint_names_) {
-    for (const auto& interface_type : state_interface_types_) {
-      conf.names.push_back(joint_name + "/" + interface_type);
-    }
+    conf.names.emplace_back(joint_name + "/" + hardware_interface::HW_IF_POSITION);
+    conf.names.emplace_back(joint_name + "/" + hardware_interface::HW_IF_VELOCITY);
   }
 
   return conf;
@@ -83,51 +72,57 @@ controller_interface::InterfaceConfiguration GravityCompensationController::stat
 controller_interface::CallbackReturn
 GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
+  pinocchio_data_ = pinocchio::Data(pinocchio_model_);
+
+  // Extract joint names from Pinocchio model
+  std::vector<std::string> pinocchio_joint_names;
+  for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
+  {
+    std::string joint_name = pinocchio_model_.names[i];
+    pinocchio_joint_names.push_back(joint_name);
+  }
+
+  // 1. Validate joint names (amount)
+  if (pinocchio_joint_names.size() != joint_names_.size()) {
+    RCLCPP_ERROR(get_node()->get_logger(),
+                 "Joint count mismatch: Pinocchio model has %zu joints, but interface has %zu joints.",
+                 pinocchio_joint_names.size(), joint_names_.size());
+    return CallbackReturn::ERROR;
+  }
+
+  // 2. Validate joint names order
+  for (size_t i = 0; i < pinocchio_joint_names.size(); ++i) {
+    if (pinocchio_joint_names[i] != joint_names_[i]) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Joint name mismatch at index %zu: Pinocchio joint is '%s', interface joint is '%s'.", i,
+                   pinocchio_joint_names[i].c_str(), joint_names_[i].c_str());
+      return CallbackReturn::ERROR;
+    }
+  }
+
   return CallbackReturn::SUCCESS;
 }
 
 controller_interface::return_type GravityCompensationController::update([[maybe_unused]] const rclcpp::Time& time,
                                                                         [[maybe_unused]] const rclcpp::Duration& period)
 {
-  //
-  // THE OLD VERSION WHICH ITERATED OVER ALL JOINTS
-  //
-  // Eigen::VectorXd q = pinocchio::neutral(model);
-  // // convert ROS joint config to pinocchio config
-  // for (int i = 0; i < model.nv; i++)
-  // {
-  //   int jidx = model.getJointId(model.names[i + 1]);
-  //   int qidx = model.idx_qs[jidx];
-  //   q[qidx] = joint_position_state_interface_[i].get().get_value();
-  // }
+  const std::size_t joint_count = joint_position_state_interfaces_.size();
 
-  // Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model, data, q);
-  // std::cout << std::fixed << std::setprecision(10);
+  Eigen::VectorXd joint_position = Eigen::VectorXd::Zero(joint_count);
+  Eigen::VectorXd joint_velocity = Eigen::VectorXd::Zero(joint_count);
 
-  // // add gravity compensation torque to base command
-  // for (int i = 0; i < model.nv; i++)
-  // {
-  //   double new_effort = gravity[i] * 1.0;
+  for (std::size_t i = 0; i < joint_position_state_interfaces_.size(); i++) {
+    joint_position[i] = joint_position_state_interfaces_.at(i).get().get_value();
+    joint_velocity[i] = joint_velocity_state_interfaces_.at(i).get().get_value();
+  }
+  forwardKinematics(pinocchio_model_, pinocchio_data_, joint_position, joint_velocity);
+  const auto joint_effort_grav_comp = pinocchio::rnea(pinocchio_model_, pinocchio_data_, joint_position, joint_velocity,
+                                                      Eigen::VectorXd::Zero(pinocchio_model_.nv));
 
-  //   if (i == 1)
-  //   {
-  //     // std::cout << i << " - NEW: " << new_effort << std::endl;
-  //     joint_effort_command_interface_[i].get().set_value(new_effort);
-  //   }
-  // }
-
-  // Set up pinocchio configuration
-  Eigen::VectorXd q = pinocchio::neutral(model);
-  int jidx = model.getJointId(model.names[2]);  // Directly access joint ID for i == 1 (+1)
-  int qidx = model.idx_qs[jidx];
-  q[qidx] = joint_position_state_interface_[1].get().get_value();
-
-  // Compute gravity compensation torque for the configuration
-  Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model, data, q);
-
-  // Apply the gravity compensation torque directly for joint i == 1
-  double new_effort = gravity[1] * 1.0;
-  joint_effort_command_interface_[1].get().set_value(new_effort);
+  for (std::size_t i = 0; i < joint_count; i++) {
+    joint_effort_command_interfaces_.at(i).get().set_value(joint_effort_grav_comp[i]);
+  }
 
   return controller_interface::return_type::OK;
 }
@@ -136,25 +131,27 @@ controller_interface::CallbackReturn
 GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // clear out vectors in case of restart
-  joint_position_command_interface_.clear();
-  joint_velocity_command_interface_.clear();
-  joint_effort_command_interface_.clear();
-  joint_p_command_interface_.clear();
-  joint_i_command_interface_.clear();
-  joint_d_command_interface_.clear();
+  joint_effort_command_interfaces_.clear();
 
-  joint_position_state_interface_.clear();
-  joint_velocity_state_interface_.clear();
-  joint_effort_state_interface_.clear();
+  joint_position_state_interfaces_.clear();
+  joint_velocity_state_interfaces_.clear();
 
-  // assign command interfaces
-  for (auto& interface : command_interfaces_) {
-    command_interface_map_[interface.get_interface_name()]->push_back(interface);
+  // get the actual interface in an ordered way (same order as the joints parameter)
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, joint_names_, hardware_interface::HW_IF_POSITION,
+                                                    joint_position_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - position");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, joint_names_, hardware_interface::HW_IF_VELOCITY,
+                                                    joint_velocity_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - velocity");
+    return controller_interface::CallbackReturn::FAILURE;
   }
 
-  // assign state interfaces
-  for (auto& interface : state_interfaces_) {
-    state_interface_map_[interface.get_interface_name()]->push_back(interface);
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, joint_names_, hardware_interface::HW_IF_EFFORT,
+                                                    joint_effort_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - effort");
+    return controller_interface::CallbackReturn::FAILURE;
   }
 
   return CallbackReturn::SUCCESS;
