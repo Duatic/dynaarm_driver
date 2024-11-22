@@ -139,18 +139,18 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(state_interfaces_, joint_names_, hardware_interface::HW_IF_POSITION,
                                                     joint_position_state_interfaces_)) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - position");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - position");
     return controller_interface::CallbackReturn::FAILURE;
   }
   if (!controller_interface::get_ordered_interfaces(state_interfaces_, joint_names_, hardware_interface::HW_IF_VELOCITY,
                                                     joint_velocity_state_interfaces_)) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - velocity");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - velocity");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
   if (!controller_interface::get_ordered_interfaces(command_interfaces_, joint_names_, hardware_interface::HW_IF_EFFORT,
                                                     joint_effort_command_interfaces_)) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - velocity");
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - effort");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
