@@ -27,6 +27,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #include <controller_interface/controller_interface.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
@@ -40,6 +41,7 @@
 #include <pinocchio/parsers/urdf.hpp>
 
 // Project
+#include "gravity_compensation_controller_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
 namespace dynaarm_controllers
@@ -59,11 +61,13 @@ public:
   controller_interface::CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state) override;
   controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
-protected:
+private:
+  // Access to controller parameters via generate_parameter_library
+  std::unique_ptr<gravity_compensation_controller::ParamListener> param_listener_;
+  gravity_compensation_controller::Params params_;
+
   pinocchio::Model pinocchio_model_;
   pinocchio::Data pinocchio_data_;
-
-  std::vector<std::string> joint_names_;
 
   std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
 

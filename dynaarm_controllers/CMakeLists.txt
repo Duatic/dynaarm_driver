@@ -23,6 +23,11 @@ generate_parameter_library(
     src/dynaarm_status_controller_parameters.yaml
 )
 
+generate_parameter_library(
+  gravity_compensation_controller_parameters
+  src/gravity_compensation_controller_parameters.yaml # path to input yaml file
+)
+
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_controller.cpp)
@@ -33,7 +38,9 @@ target_include_directories(
     include
     ${EIGEN3_INCLUDE_DIRS}
 )
-target_link_libraries(${PROJECT_NAME} dynaarm_status_controller_parameters)
+target_link_libraries(${PROJECT_NAME}
+  dynaarm_status_controller_parameters
+  gravity_compensation_controller_parameters)
 
 ament_target_dependencies(
   ${PROJECT_NAME}
