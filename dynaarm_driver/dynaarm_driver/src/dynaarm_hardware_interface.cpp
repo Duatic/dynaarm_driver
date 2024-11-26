@@ -48,7 +48,8 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     // TODO(firesurfer) this should be configurable and not be hardcoded
     const std::string package_share_directory = ament_index_cpp::get_package_share_directory("dynaarm_driver");
     const std::string device_file_path =
-        ament_index_cpp::get_package_share_directory("dynaarm_driver") + "config/" + joint_name + ".yaml";
+        ament_index_cpp::get_package_share_directory("dynaarm_driver") + "/config/" + joint_name + ".yaml";
+    std::cout << device_file_path << std::endl;
     auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address,
                                                                     rsl_drive_sdk::PdoTypeEnum::C);
 
