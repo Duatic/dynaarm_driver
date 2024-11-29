@@ -104,6 +104,8 @@ protected:
   std::vector<dynaarm_hardware_interface_common::MotorCommand> motor_command_vector_;
 
   double command_freeze_mode_{ 1.0 };  // start in freeze mode
+
+  std::atomic<bool> active_{ false };
 };
 
 }  // namespace dynaarm_hardware_interface_base

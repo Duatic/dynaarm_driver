@@ -172,6 +172,9 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
                                                             << " is: " << joint_state_vector_[i].position);
   }
 
+  // Basically lock the read/write methods until on_activate has finished
+  active_ = true;
+
   return callbackReturn;
 }
 
@@ -191,6 +194,9 @@ DynaArmHardwareInterfaceBase::on_error(const rclcpp_lifecycle::State& /*previous
 hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp::Time& /*time*/,
                                                                    const rclcpp::Duration& /*period*/)
 {
+  if (!active_)
+    return hardware_interface::return_type::OK;
+
   // updates the motor states. Assumed that after this function the motor_state_vector is correctly updated
   read_motor_states();
 
@@ -223,6 +229,9 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
 hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp::Time& /*time*/,
                                                                     const rclcpp::Duration& /*period*/)
 {
+  if (!active_)
+    return hardware_interface::return_type::OK;
+
   Eigen::VectorXd joint_position(info_.joints.size());
   Eigen::VectorXd joint_velocity(info_.joints.size());
   Eigen::VectorXd joint_effort(info_.joints.size());
