@@ -28,9 +28,16 @@ generate_parameter_library(
   src/gravity_compensation_controller_parameters.yaml # path to input yaml file
 )
 
+generate_parameter_library(
+  freedrive_controller_parameters
+  src/freedrive_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
-  src/dynaarm_status_controller.cpp)
+  src/dynaarm_status_controller.cpp
+  src/freedrive_controller.cpp
+)
 
 target_include_directories(
     ${PROJECT_NAME}
@@ -40,7 +47,9 @@ target_include_directories(
 )
 target_link_libraries(${PROJECT_NAME}
   dynaarm_status_controller_parameters
-  gravity_compensation_controller_parameters)
+  gravity_compensation_controller_parameters
+  freedrive_controller_parameters
+)
 
 ament_target_dependencies(
   ${PROJECT_NAME}
