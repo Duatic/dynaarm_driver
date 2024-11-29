@@ -49,7 +49,8 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     const std::string package_share_directory = ament_index_cpp::get_package_share_directory("dynaarm_driver");
     const std::string device_file_path =
         ament_index_cpp::get_package_share_directory("dynaarm_driver") + "/config/" + joint_name + ".yaml";
-    std::cout << device_file_path << std::endl;
+    RCLCPP_INFO_STREAM(logger_, "Drive file path " << device_file_path);
+
     auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address,
                                                                     rsl_drive_sdk::PdoTypeEnum::C);
 
@@ -95,6 +96,20 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
 hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
+    auto& drive = drives_[i];
+    // In case we are in error state clear the error and try again
+    rsl_drive_sdk::ReadingExtended reading;
+    drive->getReading(reading);
+
+    if (reading.getState().getStatusword().getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
+      RCLCPP_FATAL_STREAM(logger_, "Drive is in error, trying to reset.");
+      drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
+      drive->updateWrite();
+      drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
+    }
+  }
+
   // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
   for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
     auto& drive = drives_[i];
@@ -115,20 +130,7 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     joint_command_vector_[i].p_gain = gains.getP();
     joint_command_vector_[i].i_gain = gains.getI();
     joint_command_vector_[i].d_gain = gains.getD();
-  }
-
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
-    auto& drive = drives_[i];
-    // In case we are in error state clear the error and try again
-    rsl_drive_sdk::ReadingExtended reading;
-    drive->getReading(reading);
-
-    if (reading.getState().getStatusword().getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
-      drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
-      drive->updateWrite();
-      drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
-    }
-  }
+  }  
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -189,8 +191,6 @@ void DynaArmHardwareInterface::write_motor_commands()
       gains.setI(motor_command_vector_[i].i_gain);
       gains.setD(motor_command_vector_[i].d_gain);
 
-      // std::cout << gains << std::endl;
-
       cmd.setJointPosition(motor_command_vector_[i].position);
       cmd.setJointVelocity(motor_command_vector_[i].velocity);
       cmd.setJointTorque(motor_command_vector_[i].effort);
@@ -199,8 +199,7 @@ void DynaArmHardwareInterface::write_motor_commands()
       if (command_freeze_mode_ == 1.0) {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
       } else {
-        // cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);
-        cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorque);
+        cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);        
       }
 
       // We always fill all command fields but depending on the mode only a subset is used
