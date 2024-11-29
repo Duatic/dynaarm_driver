@@ -18,24 +18,29 @@ find_package(pinocchio REQUIRED)
 find_package(dynaarm_msgs REQUIRED)
 
 find_package(generate_parameter_library REQUIRED)
-
 generate_parameter_library(
     dynaarm_status_controller_parameters
     src/dynaarm_status_controller_parameters.yaml
 )
 
-
+generate_parameter_library(
+  gravity_compensation_controller_parameters
+  src/gravity_compensation_controller_parameters.yaml # path to input yaml file
+)
 
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_controller.cpp)
+
 target_include_directories(
     ${PROJECT_NAME}
     PUBLIC
     include
     ${EIGEN3_INCLUDE_DIRS}
 )
-target_link_libraries(${PROJECT_NAME} dynaarm_status_controller_parameters)
+target_link_libraries(${PROJECT_NAME}
+  dynaarm_status_controller_parameters
+  gravity_compensation_controller_parameters)
 
 ament_target_dependencies(
   ${PROJECT_NAME}
@@ -48,7 +53,6 @@ ament_target_dependencies(
   realtime_tools
   pinocchio
   dynaarm_msgs
-
 )
 # prevent pluginlib from using boost
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
@@ -58,9 +62,10 @@ install(
   DIRECTORY include/
   DESTINATION include/
 )
-install(TARGETS  ${PROJECT_NAME}
-DESTINATION lib/)
-
+install(
+  TARGETS  ${PROJECT_NAME}
+  DESTINATION lib/
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -90,4 +95,3 @@ ament_export_dependencies(
         moveit_core
 )
 ament_package()
-
