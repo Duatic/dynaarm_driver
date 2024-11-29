@@ -102,10 +102,13 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     rsl_drive_sdk::Statusword status_word;
     drive->getStatuswordSdo(status_word);
     if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
+      RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
       drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
       drive->updateRead();
       drive->updateWrite();
-      drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10);
+      if (drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
+        RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
+      }
     }
   }
 
@@ -115,7 +118,10 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
 
     // Put into controlOP, in blocking mode.
     if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
-      RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
+      RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
+                                             << " did not go into ControlOP - this is trouble some and a reason to "
+                                                "abort. Try to reboot the hardware");
+      return hardware_interface::CallbackReturn::ERROR;
     }
 
     // Log the firmware information of the drive. Might be useful for debugging issues at customer
