@@ -84,11 +84,8 @@ public:
     return hardware_interface::return_type::OK;
   }
 
-  hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& /*start_interfaces*/,
-                                                              const std::vector<std::string>& /*stop_interfaces*/)
-  {
-    return hardware_interface::return_type::OK;
-  }
+  hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces,
+                                                              const std::vector<std::string>& stop_interfaces);
 
   void safeShutdown();
 

@@ -94,9 +94,9 @@ DynaArmHardwareInterface::on_activate_derived(const rclcpp_lifecycle::State& /*p
 
     rsl_drive_sdk::mode::PidGainsF gains;
     drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
-    motor_command_vector_[i].p_gain = gains.getP();
-    motor_command_vector_[i].i_gain = gains.getI();
-    motor_command_vector_[i].d_gain = gains.getD();
+    joint_command_vector_[i].p_gain = gains.getP();
+    joint_command_vector_[i].i_gain = gains.getI();
+    joint_command_vector_[i].d_gain = gains.getD();    
   }
 
   if (ecat_master_->setRealtimePriority(48) == false) {
@@ -182,16 +182,20 @@ void DynaArmHardwareInterface::write_motor_commands()
       gains.setI(motor_command_vector_[i].i_gain);
       gains.setD(motor_command_vector_[i].d_gain);
 
+      //std::cout << gains << std::endl;
+
       cmd.setJointPosition(motor_command_vector_[i].position);
       cmd.setJointVelocity(motor_command_vector_[i].velocity);
       cmd.setJointTorque(motor_command_vector_[i].effort);
       cmd.setPidGains(gains);
-      if (motor_command_vector_[i].command_freeze_mode == 1.0) {
+      
+      if (command_freeze_mode_ == 1.0) {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
       } else {
-        cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);
-      }
-
+        //cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);        
+        cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorque);
+      }      
+      
       // We always fill all command fields but depending on the mode only a subset is used
       drive->setCommand(cmd);
     }
