@@ -24,55 +24,52 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <vector>
+/*std*/
 #include <memory>
+#include <string>
+#include <vector>
+#include <map>
 
+/*ROS2*/
 #include <controller_interface/controller_interface.hpp>
-#include <hardware_interface/loaned_command_interface.hpp>
-#include <hardware_interface/loaned_state_interface.hpp>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <rclcpp/subscription.hpp>
+#include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
+#include <rclcpp_lifecycle/state.hpp>
+#include <rclcpp/logging.hpp>
 
-// Pinocchio
-#include <pinocchio/algorithm/compute-all-terms.hpp>
-#include <pinocchio/algorithm/kinematics.hpp>
-#include <pinocchio/algorithm/rnea.hpp>
-#include <pinocchio/parsers/urdf.hpp>
-
-// Project
-#include "gravity_compensation_controller_parameters.hpp"
+/*project*/
+#include "freedrive_controller_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
 namespace dynaarm_controllers
 {
-class GravityCompensationController : public controller_interface::ControllerInterface
+class FreeDriveController : public controller_interface::ControllerInterface
 {
 public:
-  GravityCompensationController();
+  FreeDriveController();
+  ~FreeDriveController() = default;
+
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
+
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
-  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+
   controller_interface::CallbackReturn on_init() override;
+
   controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
+
   controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+
   controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
-  controller_interface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State& previous_state) override;
-  controller_interface::CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state) override;
-  controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
+
+  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
 private:
   // Access to controller parameters via generate_parameter_library
-  std::unique_ptr<gravity_compensation_controller::ParamListener> param_listener_;
-  gravity_compensation_controller::Params params_;
+  std::unique_ptr<freedrive_controller::ParamListener> param_listener_;
+  freedrive_controller::Params params_;
 
-  pinocchio::Model pinocchio_model_;
-  pinocchio::Data pinocchio_data_;
-
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
-
+  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
 
   std::atomic_bool active_{ false };
 };

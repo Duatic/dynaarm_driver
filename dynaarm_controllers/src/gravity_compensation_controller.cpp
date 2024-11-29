@@ -131,6 +131,8 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
 controller_interface::CallbackReturn
 GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  active_ = true;
+
   // clear out vectors in case of restart
   joint_effort_command_interfaces_.clear();
 
@@ -161,6 +163,7 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
 controller_interface::CallbackReturn
 GravityCompensationController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  active_ = false;
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
