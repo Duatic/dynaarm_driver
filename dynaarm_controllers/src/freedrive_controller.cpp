@@ -37,6 +37,7 @@ controller_interface::InterfaceConfiguration FreeDriveController::command_interf
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+
   const auto joints = params_.joints;
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
@@ -93,6 +94,25 @@ controller_interface::CallbackReturn
 FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   active_ = true;
+
+  // clear out vectors in case of restart
+  joint_position_command_interfaces_.clear();
+  joint_position_state_interfaces_.clear();
+
+  // get the actual interface in an ordered way (same order as the joints parameter)
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints,
+                                                    hardware_interface::HW_IF_POSITION,
+                                                    joint_position_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - position");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  if (!controller_interface::get_ordered_interfaces(
+          state_interfaces_, params_.joints, hardware_interface::HW_IF_POSITION, joint_position_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - position");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 };
 
@@ -106,14 +126,19 @@ FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::Stat
 controller_interface::return_type FreeDriveController::update([[maybe_unused]] const rclcpp::Time& time,
                                                               [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // This only works as long as we are only claming joint interfaces
-  for (std::size_t i = 0; i < state_interfaces_.size(); i++) {
-    if (!command_interfaces_.at(i).set_value(state_interfaces_.at(i).get_value())) {
+  const std::size_t joint_count = joint_position_state_interfaces_.size();
+
+  for (std::size_t i = 0; i < joint_count; i++) {
+    double joint_position = joint_position_state_interfaces_.at(i).get().get_value();
+    bool success = joint_position_command_interfaces_.at(i).get().set_value(joint_position);
+
+    if (!success) {
       RCLCPP_ERROR_STREAM(get_node()->get_logger(),
-                          "Error wring value to command interface: " << command_interfaces_.at(i).get_name());
+                          "Error wring value to command interface: " << joint_position_command_interfaces_.at(i).get().get_name());
       return controller_interface::return_type::ERROR;
     }
   }
+
   return controller_interface::return_type::OK;
 };
 

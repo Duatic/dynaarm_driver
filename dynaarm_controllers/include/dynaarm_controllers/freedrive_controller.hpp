@@ -68,6 +68,9 @@ private:
   std::unique_ptr<freedrive_controller::ParamListener> param_listener_;
   freedrive_controller::Params params_;
 
+  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interfaces_;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
+
   std::atomic_bool active_{ false };
 };
 }  // namespace dynaarm_controllers
