@@ -91,6 +91,12 @@ DynaArmHardwareInterface::on_activate_derived(const rclcpp_lifecycle::State& /*p
     drive->getBuildInfo(info);
     RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
                                                << " tag: " << info.gitTag);
+
+    rsl_drive_sdk::mode::PidGainsF gains;
+    drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
+    motor_command_vector_[i].p_gain = gains.getP();
+    motor_command_vector_[i].i_gain = gains.getI();
+    motor_command_vector_[i].d_gain = gains.getD();
   }
 
   if (ecat_master_->setRealtimePriority(48) == false) {
