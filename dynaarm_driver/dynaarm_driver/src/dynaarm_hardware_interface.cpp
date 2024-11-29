@@ -215,7 +215,7 @@ void DynaArmHardwareInterface::write_motor_commands()
   }
 }
 
-void DynaArmHardwareInterface::shutdown()
+DynaArmHardwareInterface::~DynaArmHardwareInterface()
 {
   // call preShutdown before terminating the cyclic PDO communication!!
   if (ecat_master_) {

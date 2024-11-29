@@ -29,18 +29,6 @@ namespace dynaarm_hardware_interface_base
 {
 DynaArmHardwareInterfaceBase::~DynaArmHardwareInterfaceBase()
 {
-  safeShutdown();
-}
-
-void DynaArmHardwareInterfaceBase::safeShutdown()
-{
-  try {
-    shutdown();
-  } catch (const std::exception& e) {
-    RCLCPP_ERROR(logger_, "Exception during safe shutdown: %s", e.what());
-  } catch (...) {
-    RCLCPP_ERROR(logger_, "Unknown exception during safe shutdown");
-  }
 }
 
 hardware_interface::CallbackReturn
@@ -187,7 +175,6 @@ DynaArmHardwareInterfaceBase::on_deactivate(const rclcpp_lifecycle::State& previ
 hardware_interface::CallbackReturn
 DynaArmHardwareInterfaceBase::on_error(const rclcpp_lifecycle::State& /*previous_state*/)
 {
-  safeShutdown();
   return hardware_interface::CallbackReturn::FAILURE;
 }
 

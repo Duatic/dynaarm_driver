@@ -90,11 +90,7 @@ public:
   hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces,
                                                               const std::vector<std::string>& stop_interfaces);
 
-  void safeShutdown();
-
 protected:
-  virtual void shutdown() = 0;
-
   rclcpp::Logger logger_;
 
   std::vector<dynaarm_hardware_interface_common::JointState> joint_state_vector_;

@@ -61,8 +61,6 @@ public:
 
   void read_motor_states() override;
   void write_motor_commands() override;
-
-  void shutdown() override;
 };
 
 }  // namespace dynaarm_driver
