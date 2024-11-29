@@ -133,8 +133,8 @@ controller_interface::return_type FreeDriveController::update([[maybe_unused]] c
     bool success = joint_position_command_interfaces_.at(i).get().set_value(joint_position);
 
     if (!success) {
-      RCLCPP_ERROR_STREAM(get_node()->get_logger(),
-                          "Error wring value to command interface: " << joint_position_command_interfaces_.at(i).get().get_name());
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Error wring value to command interface: "
+                                                        << joint_position_command_interfaces_.at(i).get().get_name());
       return controller_interface::return_type::ERROR;
     }
   }
