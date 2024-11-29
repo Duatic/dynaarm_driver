@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <thread>
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Dense"
 
@@ -59,7 +60,7 @@ public:
   RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterface)
 
   hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) override;
-  
+
   hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state);
   hardware_interface::CallbackReturn on_deactivate_derived(const rclcpp_lifecycle::State& previous_state);
 
@@ -74,7 +75,8 @@ private:
 
   std::atomic<bool> startupAbortFlag_{ false };
   std::atomic<bool> abrtFlag_{ false };
-  std::unique_ptr<std::thread> shutdownWorkerThread_;
+
+  std::unique_ptr<std::thread> ecat_worker_thread_{};
 };
 
 }  // namespace dynaarm_driver

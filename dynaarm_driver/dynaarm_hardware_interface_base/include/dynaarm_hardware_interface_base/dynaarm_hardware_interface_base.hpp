@@ -81,6 +81,9 @@ public:
   hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& /*start_interfaces*/,
                                                               const std::vector<std::string>& /*stop_interfaces*/)
   {
+    if (!active_) {
+      return hardware_interface::return_type::ERROR;
+    }
     return hardware_interface::return_type::OK;
   }
 

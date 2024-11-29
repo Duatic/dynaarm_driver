@@ -164,7 +164,7 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
   // Basically lock the read/write methods until on_activate has finished
   active_ = true;
 
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {    
+  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
     std::cout << joint_command_vector_[i].p_gain << std::endl;
   }
 
@@ -177,12 +177,9 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
     joint_command_vector_[i].effort = 0.0;
     RCLCPP_INFO_STREAM(logger_, "Start position of joint: " << info_.joints[i].name
                                                             << " is: " << joint_state_vector_[i].position);
-    
+
     std::cout << joint_command_vector_[i].p_gain << std::endl;
   }
-
-  
-
 
   return callbackReturn;
 }
@@ -275,21 +272,18 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
 }
 
 hardware_interface::return_type DynaArmHardwareInterfaceBase::perform_command_mode_switch(
-  const std::vector<std::string>& start_interfaces,
-  const std::vector<std::string>& stop_interfaces)
+    const std::vector<std::string>& start_interfaces, const std::vector<std::string>& stop_interfaces)
 {
   if (start_interfaces.empty() && !stop_interfaces.empty()) {
-      command_freeze_mode_ = 1.0;
-      RCLCPP_INFO(logger_, "Enabled freeze mode.");
+    command_freeze_mode_ = 1.0;
+    RCLCPP_INFO(logger_, "Enabled freeze mode.");
 
-  }
-  else {
-      command_freeze_mode_ = 0.0; 
-      RCLCPP_INFO(logger_, "Disabled freeze mode.");
+  } else {
+    command_freeze_mode_ = 0.0;
+    RCLCPP_INFO(logger_, "Disabled freeze mode.");
   }
 
   return hardware_interface::return_type::OK;
 }
 
 }  // namespace dynaarm_hardware_interface_base
-

@@ -55,7 +55,7 @@ public:
   RCLCPP_SHARED_PTR_DEFINITIONS(DynaarmMockHardwareInterface)
 
   hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) override;
-  
+
   hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state) override;
   hardware_interface::CallbackReturn on_deactivate_derived(const rclcpp_lifecycle::State& previous_state) override;
 
