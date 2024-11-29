@@ -37,15 +37,16 @@ controller_interface::InterfaceConfiguration FreeDriveController::command_interf
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-   const auto joints = params_.joints;
+  const auto joints = params_.joints;
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
   }
   return config;
 };
 
-controller_interface::InterfaceConfiguration FreeDriveController::state_interface_configuration() const {
-      // Claim the necessary state interfaces
+controller_interface::InterfaceConfiguration FreeDriveController::state_interface_configuration() const
+{
+  // Claim the necessary state interfaces
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
@@ -71,7 +72,8 @@ controller_interface::CallbackReturn FreeDriveController::on_init()
   return controller_interface::CallbackReturn::SUCCESS;
 };
 
-controller_interface::CallbackReturn FreeDriveController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+FreeDriveController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // update the dynamic map parameters
   param_listener_->refresh_dynamic_parameters();
@@ -87,27 +89,31 @@ controller_interface::CallbackReturn FreeDriveController::on_configure([[maybe_u
   return controller_interface::CallbackReturn::SUCCESS;
 };
 
-controller_interface::CallbackReturn FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-    active_ = true;
+  active_ = true;
   return controller_interface::CallbackReturn::SUCCESS;
 };
 
-controller_interface::CallbackReturn FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-    active_ = false;
+  active_ = false;
   return controller_interface::CallbackReturn::SUCCESS;
 };
 
-controller_interface::return_type FreeDriveController::update([[maybe_unused]] const rclcpp::Time& time,[[maybe_unused]] const rclcpp::Duration& period)
-{   
-    // This only works as long as we are only claming joint interfaces
-    for(std::size_t i = 0; i< state_interfaces_.size();i++){
-        if(!command_interfaces_.at(i).set_value(state_interfaces_.at(i).get_value())){
-            RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Error wring value to command interface: " << command_interfaces_.at(i).get_name());
-                 return controller_interface::return_type::ERROR;
-        }
+controller_interface::return_type FreeDriveController::update([[maybe_unused]] const rclcpp::Time& time,
+                                                              [[maybe_unused]] const rclcpp::Duration& period)
+{
+  // This only works as long as we are only claming joint interfaces
+  for (std::size_t i = 0; i < state_interfaces_.size(); i++) {
+    if (!command_interfaces_.at(i).set_value(state_interfaces_.at(i).get_value())) {
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(),
+                          "Error wring value to command interface: " << command_interfaces_.at(i).get_name());
+      return controller_interface::return_type::ERROR;
     }
+  }
   return controller_interface::return_type::OK;
 };
 

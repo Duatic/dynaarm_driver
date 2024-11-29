@@ -24,13 +24,11 @@
 
 #pragma once
 
-
 /*std*/
 #include <memory>
 #include <string>
 #include <vector>
 #include <map>
-
 
 /*ROS2*/
 #include <controller_interface/controller_interface.hpp>
@@ -43,35 +41,33 @@
 #include "freedrive_controller_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
-
-
 namespace dynaarm_controllers
 {
-    class FreeDriveController: public controller_interface::ControllerInterface
-    {
-        public:
-            FreeDriveController();
-            ~FreeDriveController() = default;
+class FreeDriveController : public controller_interface::ControllerInterface
+{
+public:
+  FreeDriveController();
+  ~FreeDriveController() = default;
 
-            controller_interface::InterfaceConfiguration command_interface_configuration() const override;
+  controller_interface::InterfaceConfiguration command_interface_configuration() const override;
 
-            controller_interface::InterfaceConfiguration state_interface_configuration() const override;
+  controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
-            controller_interface::CallbackReturn on_init() override;
+  controller_interface::CallbackReturn on_init() override;
 
-            controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
+  controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
 
-            controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+  controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
 
-            controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
+  controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
 
-            controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
-        private:
-            // Access to controller parameters via generate_parameter_library
-            std::unique_ptr<freedrive_controller::ParamListener> param_listener_;
-            freedrive_controller::Params params_;
+private:
+  // Access to controller parameters via generate_parameter_library
+  std::unique_ptr<freedrive_controller::ParamListener> param_listener_;
+  freedrive_controller::Params params_;
 
-            std::atomic_bool active_{false};
-    };
-}
+  std::atomic_bool active_{ false };
+};
+}  // namespace dynaarm_controllers
