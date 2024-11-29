@@ -67,9 +67,6 @@ void DynaarmMockHardwareInterface::write_motor_commands()
 {
 }
 
-void DynaarmMockHardwareInterface::shutdown()
-{
-}
 }  // namespace dynaarm_driver
 
 #include "pluginlib/class_list_macros.hpp"

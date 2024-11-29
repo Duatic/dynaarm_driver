@@ -81,20 +81,16 @@ public:
   hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& /*start_interfaces*/,
                                                               const std::vector<std::string>& /*stop_interfaces*/)
   {
+    if (!active_) {
+      return hardware_interface::return_type::ERROR;
+    }
     return hardware_interface::return_type::OK;
   }
 
-  hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& /*start_interfaces*/,
-                                                              const std::vector<std::string>& /*stop_interfaces*/)
-  {
-    return hardware_interface::return_type::OK;
-  }
-
-  void safeShutdown();
+  hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces,
+                                                              const std::vector<std::string>& stop_interfaces);
 
 protected:
-  virtual void shutdown() = 0;
-
   rclcpp::Logger logger_;
 
   std::vector<dynaarm_hardware_interface_common::JointState> joint_state_vector_;

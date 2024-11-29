@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <thread>
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Dense"
 
@@ -58,6 +59,8 @@ class DynaArmHardwareInterface : public dynaarm_hardware_interface_base::DynaArm
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterface)
 
+  virtual ~DynaArmHardwareInterface();
+
   hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) override;
 
   hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state);
@@ -66,15 +69,14 @@ public:
   void read_motor_states() override;
   void write_motor_commands() override;
 
-  void shutdown() override;
-
 private:
   ecat_master::EthercatMaster::SharedPtr ecat_master_;
   std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
   std::atomic<bool> startupAbortFlag_{ false };
   std::atomic<bool> abrtFlag_{ false };
-  std::unique_ptr<std::thread> shutdownWorkerThread_;
+
+  std::unique_ptr<std::thread> ecat_worker_thread_{};
 };
 
 }  // namespace dynaarm_driver
