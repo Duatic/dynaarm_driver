@@ -29,28 +29,29 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace utils {
+namespace utils
+{
 
-    /**
-     * @brief Interpret a string as a bool
-     * False, FALSE, false, 0 -> false
-     * True, TRUE, 1 -> true
-     * 
-     * @throw std::invalid_argument if string could not be parsed
-     * @note create a copy of the passed string as it needs to transform it
-     */
-    [[nodiscard]] inline bool sttobool(std::string s)
-    {   
-        //Transform to lower case
-        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-        
-        //Check for all the necessary cases
-        if (s == "false" || s == "0") {
-            return false;
-        } else if (s == "true" || s == "1") {
-            return true;
-        }
-        throw std::invalid_argument("Passed string could not be intepreted as bool: " + std::string(s));
-    }
+/**
+ * @brief Interpret a string as a bool
+ * False, FALSE, false, 0 -> false
+ * True, TRUE, 1 -> true
+ *
+ * @throw std::invalid_argument if string could not be parsed
+ * @note create a copy of the passed string as it needs to transform it
+ */
+[[nodiscard]] inline bool sttobool(std::string s)
+{
+  // Transform to lower case
+  std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 
+  // Check for all the necessary cases
+  if (s == "false" || s == "0") {
+    return false;
+  } else if (s == "true" || s == "1") {
+    return true;
+  }
+  throw std::invalid_argument("Passed string could not be interpreted as bool: " + std::string(s));
 }
+
+}  // namespace utils
