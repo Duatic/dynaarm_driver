@@ -50,7 +50,7 @@ DynaarmMockHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::Stat
 
 void DynaarmMockHardwareInterface::read_motor_states()
 {
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_state_vector_[i].position = motor_command_vector_[i].position;
     motor_state_vector_[i].velocity = motor_command_vector_[i].velocity;
     motor_state_vector_[i].effort = motor_command_vector_[i].effort;

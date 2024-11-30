@@ -48,7 +48,6 @@ struct JointCommand
   double p_gain = 0.0;
   double i_gain = 0.0;
   double d_gain = 0.0;
-  double command_freeze_mode = 1.0;  // start in freeze mode
 };
 
 struct MotorState
@@ -75,7 +74,6 @@ struct MotorCommand
   double p_gain = 0.0;
   double i_gain = 0.0;
   double d_gain = 0.0;
-  double command_freeze_mode = 1.0;  // start in freeze mode
 };
 
 }  // namespace dynaarm_hardware_interface_common

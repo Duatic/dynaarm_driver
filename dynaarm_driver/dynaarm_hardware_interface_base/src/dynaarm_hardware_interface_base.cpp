@@ -22,8 +22,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include "dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp"
+#include "dynaarm_hardware_interface_base/string_utils.hpp"
 
 namespace dynaarm_hardware_interface_base
 {
@@ -43,7 +44,7 @@ DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& sy
   info_ = system_info;
 
   // Initialize the state vectors with 0 values
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_.push_back(dynaarm_hardware_interface_common::JointState{ .name = info_.joints[i].name });
     joint_command_vector_.push_back(dynaarm_hardware_interface_common::JointCommand{ .name = info_.joints[i].name });
     motor_state_vector_.push_back(dynaarm_hardware_interface_common::MotorState{ .name = info_.joints[i].name });
@@ -51,6 +52,12 @@ DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& sy
   }
 
   RCLCPP_INFO_STREAM(logger_, "Successfully initialized dynaarm hardware interface for DynaArmHardwareInterfaceBase");
+
+  // Check if we want to start in freeze mode (parameter is optional). If so we enable the freeze mode
+  // The user than has to disable the freeze mode manually
+  if (info_.hardware_parameters.find("start_in_freeze_mode") != info_.hardware_parameters.end()) {
+    command_freeze_mode_ = utils::sttobool(info_.hardware_parameters.at("start_in_freeze_mode")) ? 1.0 : 0.0;
+  }
 
   return on_init_derived(system_info);
 }
@@ -81,8 +88,6 @@ std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::ex
         hardware_interface::StateInterface(joint_command.name, "i_gain_commanded", &joint_command.i_gain));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_command.name, "d_gain_commanded", &joint_command.d_gain));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(joint_command.name, "command_freeze_mode",
-                                                                     &joint_command.command_freeze_mode));
   }
 
   for (auto& motor_state : motor_state_vector_) {
@@ -135,11 +140,9 @@ std::vector<hardware_interface::CommandInterface> DynaArmHardwareInterfaceBase::
         hardware_interface::CommandInterface(joint_command.name, "i_gain", &joint_command.i_gain));
     command_interfaces.emplace_back(
         hardware_interface::CommandInterface(joint_command.name, "d_gain", &joint_command.d_gain));
-
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_command.name, "command_freeze_mode",
-                                                                         &joint_command.command_freeze_mode));
   }
-  // Expose a dummy command interface for the freeze mode
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(get_hardware_info().name, "freeze_mode", &command_freeze_mode_));
 
   return command_interfaces;
 }
@@ -155,7 +158,7 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
   // Perform a reading once to obtain the current positions
   read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0)));
 
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_command_vector_[i].position = joint_state_vector_[i].position;
     joint_command_vector_[i].velocity = 0.0;
     joint_command_vector_[i].effort = 0.0;
@@ -191,7 +194,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   Eigen::VectorXd motor_velocity(info_.joints.size());
   Eigen::VectorXd motor_effort(info_.joints.size());
 
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_position(i) = motor_state_vector_[i].position;
     motor_velocity(i) = motor_state_vector_[i].velocity;
     motor_effort(i) = motor_state_vector_[i].effort;
@@ -204,7 +207,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   Eigen::VectorXd joint_effort =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialTorques(motor_effort);
 
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_[i].position = joint_position[i];
     joint_state_vector_[i].velocity = joint_velocity[i];
     joint_state_vector_[i].effort = joint_effort[i];
@@ -222,7 +225,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
   Eigen::VectorXd joint_position(info_.joints.size());
   Eigen::VectorXd joint_velocity(info_.joints.size());
   Eigen::VectorXd joint_effort(info_.joints.size());
-   for (std::size_t i = 0; i < info_.joints.size(); i++) {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_position[i] = joint_command_vector_[i].position;
     joint_velocity[i] = joint_command_vector_[i].velocity;
     joint_effort[i] = joint_command_vector_[i].effort;
@@ -236,14 +239,13 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
   Eigen::VectorXd motor_effort =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromSerialToDynaarmTorques(joint_effort);
 
-   for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_command_vector_[i].position = motor_position[i];
     motor_command_vector_[i].velocity = motor_velocity[i];
     motor_command_vector_[i].effort = motor_effort[i];
     motor_command_vector_[i].p_gain = joint_command_vector_[i].p_gain;
     motor_command_vector_[i].i_gain = joint_command_vector_[i].i_gain;
     motor_command_vector_[i].d_gain = joint_command_vector_[i].d_gain;
-    motor_command_vector_[i].command_freeze_mode = command_freeze_mode_;
   }
 
   // writes motor commands to the drives, simulation or directly into motor_state for mock
@@ -251,19 +253,17 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
 
   return hardware_interface::return_type::OK;
 }
+hardware_interface::return_type DynaArmHardwareInterfaceBase::prepare_command_mode_switch(
+    [[maybe_unused]] const std::vector<std::string>& start_interfaces,
+    [[maybe_unused]] const std::vector<std::string>& stop_interfaces)
+{
+  return hardware_interface::return_type::OK;
+}
 
 hardware_interface::return_type DynaArmHardwareInterfaceBase::perform_command_mode_switch(
-    const std::vector<std::string>& start_interfaces, const std::vector<std::string>& stop_interfaces)
+    [[maybe_unused]] const std::vector<std::string>& start_interfaces,
+    [[maybe_unused]] const std::vector<std::string>& stop_interfaces)
 {
-  if (start_interfaces.empty() && !stop_interfaces.empty()) {
-    command_freeze_mode_ = 1.0;
-    RCLCPP_INFO(logger_, "Enabled freeze mode.");
-
-  } else {
-    command_freeze_mode_ = 0.0;
-    RCLCPP_INFO(logger_, "Disabled freeze mode.");
-  }
-
   return hardware_interface::return_type::OK;
 }
 

@@ -78,14 +78,8 @@ public:
   hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period);
   virtual void write_motor_commands() = 0;
 
-  hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& /*start_interfaces*/,
-                                                              const std::vector<std::string>& /*stop_interfaces*/)
-  {
-    if (!active_) {
-      return hardware_interface::return_type::ERROR;
-    }
-    return hardware_interface::return_type::OK;
-  }
+  hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& start_interfaces,
+                                                              const std::vector<std::string>& stop_interfaces);
 
   hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces,
                                                               const std::vector<std::string>& stop_interfaces);
@@ -99,7 +93,8 @@ protected:
   std::vector<dynaarm_hardware_interface_common::JointCommand> joint_command_vector_;
   std::vector<dynaarm_hardware_interface_common::MotorCommand> motor_command_vector_;
 
-  double command_freeze_mode_{ 1.0 };  // start in freeze mode
+  double command_freeze_mode_{ 0.0 };  // do not start in freeze mode per default -> We allow overriding this via a
+                                       // ros2control parameters
 
   std::atomic<bool> active_{ false };
 };
