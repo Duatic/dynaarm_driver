@@ -43,6 +43,12 @@ DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& sy
   // Store the system information
   info_ = system_info;
 
+  // Check the amount of joints. We only support 4 or 6
+  if (info_.joints.size() != 6 || info_.joints.size() != 4) {
+    RCLCPP_FATAL_STREAM(logger_, "We need either 4 or 6 DoF but: " << info_.joints.size() << " were configured");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+
   // Initialize the state vectors with 0 values
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_.push_back(dynaarm_hardware_interface_common::JointState{ .name = info_.joints[i].name });
