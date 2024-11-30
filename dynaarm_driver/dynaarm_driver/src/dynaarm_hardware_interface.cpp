@@ -145,7 +145,7 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
 hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /*previous_state*/)
 {
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     auto& drive = drives_.at(i);
     drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 3.0, 0.01);
 
@@ -159,7 +159,7 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
 
 void DynaArmHardwareInterface::read_motor_states()
 {
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
+   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Get a reading from the specific drive and
     rsl_drive_sdk::ReadingExtended reading;
     // NOTE: getReading uses a recursive mutex -> It would be better if we could do something like: tryLock and if we
@@ -183,7 +183,7 @@ void DynaArmHardwareInterface::read_motor_states()
 
 void DynaArmHardwareInterface::write_motor_commands()
 {
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); ++i) {
+  for (std::size_t i = 0; i < info_.joints.size(); i++)  {
     // Obtain reference to the specific drive
     auto& drive = drives_[i];
 
@@ -217,6 +217,7 @@ void DynaArmHardwareInterface::write_motor_commands()
 
 DynaArmHardwareInterface::~DynaArmHardwareInterface()
 {
+  RCLCPP_INFO_STREAM(logger_, "Destructor of DynaArm Hardware Interface called");
   // call preShutdown before terminating the cyclic PDO communication!!
   if (ecat_master_) {
     ecat_master_->preShutdown(true);
