@@ -159,7 +159,7 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
 
 void DynaArmHardwareInterface::read_motor_states()
 {
-   for (std::size_t i = 0; i < info_.joints.size(); i++) {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Get a reading from the specific drive and
     rsl_drive_sdk::ReadingExtended reading;
     // NOTE: getReading uses a recursive mutex -> It would be better if we could do something like: tryLock and if we
@@ -183,7 +183,7 @@ void DynaArmHardwareInterface::read_motor_states()
 
 void DynaArmHardwareInterface::write_motor_commands()
 {
-  for (std::size_t i = 0; i < info_.joints.size(); i++)  {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Obtain reference to the specific drive
     auto& drive = drives_[i];
 
