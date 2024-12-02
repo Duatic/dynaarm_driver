@@ -5,40 +5,6 @@ gravity_compensation_controller:
     description: "Names of joints used by the controller"
     validation:
       unique<>: null
-  # command_interfaces:
-  #   type: string_array
-  #   description: "Name of the command interface to claim"
-  #   validation:
-  #     size_gt<>: [0]
-  #     unique<>: null
-  #     subset_of<>: [["effort"]]
-  # state_interfaces:
-  #   type: string_array
-  #   description: "Name of the state interface to claim"
-  #   validation:
-  #     size_gt<>: [0]
-  #     unique<>: null
-  #     subset_of<>: [["position", "velocity"]]
-  # gains:
-  #   __map_joints:
-  #     p:
-  #       type: double
-  #       default_value: 50.0
-  #       description: "proportional gain term"
-  #       validation:
-  #         gt_eq<>: [ 0.0 ]
-  #     i:
-  #       type: double
-  #       default_value: 0.0
-  #       description: "integral gain term"
-  #       validation:
-  #         gt_eq<>: [ 0.0 ]
-  #     d:
-  #       type: double
-  #       default_value: 15.0
-  #       description: "derivative gain term"
-  #       validation:
-  #         gt_eq<>: [ 0.0 ]
   arm_name:
     type: string
     default_value: "dynaarm"
