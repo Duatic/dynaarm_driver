@@ -85,7 +85,5 @@ private:
   std::vector<Gains> previous_gains_;
 
   std::atomic_bool active_{ false };
-
-  double filter_factor_{ 0.9 };
 };
 }  // namespace dynaarm_controllers

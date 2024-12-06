@@ -5,7 +5,3 @@ freedrive_controller:
     description: "Names of joints used by the controller"
     validation:
       unique<>: null
-  follow_factor:
-    type: double
-    default_value: 0.9
-    description: "Determines how fast the arm follows"
