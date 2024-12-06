@@ -67,6 +67,11 @@ void DynaarmMockHardwareInterface::write_motor_commands()
 {
 }
 
+DynaarmMockHardwareInterface::~DynaarmMockHardwareInterface()
+{
+  RCLCPP_INFO_STREAM(logger_, "Destroy DynaarmMockHardwareInterface");
+}
+
 }  // namespace dynaarm_driver
 
 #include "pluginlib/class_list_macros.hpp"

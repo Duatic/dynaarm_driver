@@ -162,7 +162,10 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
   active_ = true;
 
   // Perform a reading once to obtain the current positions
-  read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0)));
+  if (read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0))) != hardware_interface::return_type::OK) {
+    RCLCPP_ERROR_STREAM(logger_, "Could not perform initial read - this is critical");
+    return hardware_interface::CallbackReturn::FAILURE;
+  }
 
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_command_vector_[i].position = joint_state_vector_[i].position;
