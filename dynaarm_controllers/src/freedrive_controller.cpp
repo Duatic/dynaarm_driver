@@ -82,6 +82,13 @@ FreeDriveController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
 
+  filter_factor_ = std::clamp(params_.follow_factor, 0.001, 0.999);
+  if (params_.follow_factor < 0.001 || params_.follow_factor > 0.999) {
+    RCLCPP_WARN_STREAM(get_node()->get_logger(),
+                       "follow factor needs to be between (0.001,0.999). It was clamped to: " << filter_factor_);
+  }
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "follow_factor: " << filter_factor_);
+
   // check if joints are empty
   if (params_.joints.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "'joints' parameter is empty.");
@@ -129,8 +136,11 @@ controller_interface::return_type FreeDriveController::update([[maybe_unused]] c
   const std::size_t joint_count = joint_position_state_interfaces_.size();
 
   for (std::size_t i = 0; i < joint_count; i++) {
-    double joint_position = joint_position_state_interfaces_.at(i).get().get_value();
-    bool success = joint_position_command_interfaces_.at(i).get().set_value(joint_position);
+    const double current_joint_position = joint_position_state_interfaces_.at(i).get().get_value();
+    const double previous_command = joint_position_command_interfaces_.at(i).get().get_value();
+    const double target = filter_factor_ * previous_command + (1.0 - filter_factor_) * current_joint_position;
+
+    bool success = joint_position_command_interfaces_.at(i).get().set_value(target);
 
     if (!success) {
       RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Error wring value to command interface: "

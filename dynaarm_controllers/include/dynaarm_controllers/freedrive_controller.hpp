@@ -72,5 +72,7 @@ private:
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
 
   std::atomic_bool active_{ false };
+
+  double filter_factor_{ 0.9 };
 };
 }  // namespace dynaarm_controllers
