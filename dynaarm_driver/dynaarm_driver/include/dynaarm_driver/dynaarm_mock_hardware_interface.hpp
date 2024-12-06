@@ -54,6 +54,8 @@ class DynaarmMockHardwareInterface : public dynaarm_hardware_interface_base::Dyn
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(DynaarmMockHardwareInterface)
 
+  ~DynaarmMockHardwareInterface();
+
   hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) override;
 
   hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state) override;
