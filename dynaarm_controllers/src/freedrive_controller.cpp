@@ -41,6 +41,9 @@ controller_interface::InterfaceConfiguration FreeDriveController::command_interf
   const auto joints = params_.joints;
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
+    config.names.emplace_back(joint + "/" + "p_gain");
+    config.names.emplace_back(joint + "/" + "i_gain");
+    config.names.emplace_back(joint + "/" + "d_gain");
   }
   return config;
 };
@@ -114,10 +117,51 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "p_gain",
+                                                    joint_p_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - p_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "i_gain",
+                                                    joint_i_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - i_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "d_gain",
+                                                    joint_d_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - d_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
   if (!controller_interface::get_ordered_interfaces(
           state_interfaces_, params_.joints, hardware_interface::HW_IF_POSITION, joint_position_state_interfaces_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - position");
     return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  // Store previous gains
+  previous_gains_.clear();
+  const std::size_t joint_count = joint_position_state_interfaces_.size();
+  for (std::size_t i = 0; i < joint_count; i++) {
+    Gains g;
+    g.p = joint_p_gain_command_interfaces_[i].get().get_value();
+    g.i = joint_i_gain_command_interfaces_[i].get().get_value();
+    g.d = joint_d_gain_command_interfaces_[i].get().get_value();
+    previous_gains_.emplace_back(g);
+
+    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+                       "Previous gains: " << params_.joints[i] << " p: " << g.p << " i: " << g.i << " d: " << g.d);
+  }
+
+  // Manipulate gains
+  for (std::size_t i = 0; i < joint_count; i++) {
+    // We disable the position tracking
+    joint_p_gain_command_interfaces_[i].get().set_value(0.0);
+    joint_i_gain_command_interfaces_[i].get().set_value(0.0);
+    RCLCPP_INFO_STREAM(get_node()->get_logger(), "Set gains: " << params_.joints[i] << "p: " << 0.0 << " i: " << 0.0
+                                                               << " d: " << previous_gains_[i].d);
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -126,6 +170,18 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
 controller_interface::CallbackReturn
 FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  // Restore controller gains
+
+  const std::size_t joint_count = joint_position_state_interfaces_.size();
+  for (std::size_t i = 0; i < joint_count; i++) {
+    const auto& g = previous_gains_[i];
+    joint_p_gain_command_interfaces_[i].get().set_value(g.p);
+    joint_i_gain_command_interfaces_[i].get().set_value(g.i);
+    joint_d_gain_command_interfaces_[i].get().set_value(g.d);
+    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+                       "Restore gains: " << params_.joints[i] << " p: " << g.p << " i: " << g.i << " d: " << g.d);
+  }
+
   active_ = false;
   return controller_interface::CallbackReturn::SUCCESS;
 };
@@ -135,12 +191,11 @@ controller_interface::return_type FreeDriveController::update([[maybe_unused]] c
 {
   const std::size_t joint_count = joint_position_state_interfaces_.size();
 
+  // Never the less we command the current joint position. This is only important when switching from this controller to
+  // another one
   for (std::size_t i = 0; i < joint_count; i++) {
     const double current_joint_position = joint_position_state_interfaces_.at(i).get().get_value();
-    const double previous_command = joint_position_command_interfaces_.at(i).get().get_value();
-    const double target = filter_factor_ * previous_command + (1.0 - filter_factor_) * current_joint_position;
-
-    bool success = joint_position_command_interfaces_.at(i).get().set_value(target);
+    bool success = joint_position_command_interfaces_.at(i).get().set_value(current_joint_position);
 
     if (!success) {
       RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Error wring value to command interface: "

@@ -64,12 +64,25 @@ public:
   controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
 private:
+  struct Gains
+  {
+    double p;
+    double i;
+    double d;
+  };
+
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<freedrive_controller::ParamListener> param_listener_;
   freedrive_controller::Params params_;
 
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interfaces_;
-  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
+  CommandInterfaceReferences joint_position_command_interfaces_;
+
+  CommandInterfaceReferences joint_p_gain_command_interfaces_;
+  CommandInterfaceReferences joint_i_gain_command_interfaces_;
+  CommandInterfaceReferences joint_d_gain_command_interfaces_;
+  StateInterfaceReferences joint_position_state_interfaces_;
+
+  std::vector<Gains> previous_gains_;
 
   std::atomic_bool active_{ false };
 
