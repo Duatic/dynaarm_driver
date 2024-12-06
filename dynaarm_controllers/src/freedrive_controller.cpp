@@ -85,13 +85,6 @@ FreeDriveController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
 
-  filter_factor_ = std::clamp(params_.follow_factor, 0.001, 0.999);
-  if (params_.follow_factor < 0.001 || params_.follow_factor > 0.999) {
-    RCLCPP_WARN_STREAM(get_node()->get_logger(),
-                       "follow factor needs to be between (0.001,0.999). It was clamped to: " << filter_factor_);
-  }
-  RCLCPP_INFO_STREAM(get_node()->get_logger(), "follow_factor: " << filter_factor_);
-
   // check if joints are empty
   if (params_.joints.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "'joints' parameter is empty.");
