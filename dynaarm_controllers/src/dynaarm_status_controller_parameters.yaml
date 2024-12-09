@@ -1,14 +1,39 @@
 dynaarm_status_controller:
-  joints: {
-    type: string_array,
-    default_value: [],
-    description: "Names of joints used by the controller",
-    validation: {
-      unique<>: null,
-    }
-  }
-  arm_name: {
-    type: string,
-    default_value: "dynaarm",
+  joints:
+    type: string_array
+    default_value: []
+    description: "Names of joints used by the controller"
+    validation:
+      unique<>: null  
+  arm_name:
+    type: string
+    default_value: "dynaarm"
     description: "name of the arm hardware interface"
-  }
+  extended_control:
+    type: bool
+    default_value: false
+    description: "Enable or disable extended control"
+  pid:
+    __map_joints:
+      freeze_mode:
+        type: bool
+        default_value: true
+        description: "default value to set the drive mode into"
+      p:
+        type: double
+        default_value: 50.0
+        description: "proportional gain term"
+        validation:
+          bounds<>: [0, 200]
+      i:
+        type: double
+        default_value: 0.0
+        description: "integral gain term"
+        validation:
+          bounds<>: [0, 5] 
+      d:
+        type: double
+        default_value: 15.0
+        description: "derivative gain term"
+        validation:
+          bounds<>: [0, 50]    

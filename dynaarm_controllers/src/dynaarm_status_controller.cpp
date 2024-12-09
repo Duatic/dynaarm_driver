@@ -41,6 +41,14 @@ controller_interface::InterfaceConfiguration StatusController::command_interface
   // In our case that are none as this is just a status controller
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+
+  const auto joints = params_.joints;
+  for (auto& joint : joints) {
+    config.names.emplace_back(joint + "/p_gain");
+    config.names.emplace_back(joint + "/i_gain");
+    config.names.emplace_back(joint + "/d_gain");
+  }
+
   return config;
 }
 
@@ -114,6 +122,10 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
   joint_temperature_phase_b_interfaces_.clear();
   joint_temperature_phase_c_interfaces_.clear();
   joint_bus_voltage_interfaces_.clear();
+    
+  joint_p_gain_command_interfaces_.clear();
+  joint_i_gain_command_interfaces_.clear();
+  joint_d_gain_command_interfaces_.clear();
 
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
@@ -156,6 +168,23 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_bus_voltage");
     return controller_interface::CallbackReturn::FAILURE;
   }
+
+  if (!controller_interface::get_ordered_interfaces(
+          command_interfaces_, params_.joints, "p_gain", joint_p_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - p_gains");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(
+          command_interfaces_, params_.joints, "i_gain", joint_i_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - i_gains");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(
+          command_interfaces_, params_.joints, "d_gain", joint_d_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - d_gains");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -200,6 +229,45 @@ controller_interface::return_type StatusController::update(const rclcpp::Time& t
     arm_state_pub_rt_->msg_ = state_msg;
     arm_state_pub_rt_->unlockAndPublish();
   }
+
+  if (params_.extended_control) {
+
+    // update the dynamic map parameters
+    param_listener_->refresh_dynamic_parameters();
+    // get parameters from the listener in case they were updated
+    params_ = param_listener_->get_params();
+    
+    for (std::size_t i = 0; i < params_.joints.size(); i++) {
+      auto joint_name = params_.joints.at(i);
+      
+      auto p_gain = params_.pid.joints_map.at(joint_name).p;
+      bool success = joint_p_gain_command_interfaces_.at(i).get().set_value(p_gain);
+      if (!success) 
+      {
+        RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new p_gain value for joint interface at index %zu.", i);
+        return controller_interface::return_type::ERROR;
+      }
+
+      auto i_gain = params_.pid.joints_map.at(joint_name).i;      
+      success = joint_i_gain_command_interfaces_.at(i).get().set_value(i_gain);
+      if (!success) 
+      {
+        RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new i_gain value for joint interface at index %zu.", i);
+        return controller_interface::return_type::ERROR;
+      }
+
+      auto d_gain = params_.pid.joints_map.at(joint_name).d;
+      success = joint_d_gain_command_interfaces_.at(i).get().set_value(d_gain);
+      if (!success) 
+      {
+        RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new d_gain value for joint interface at index %zu.", i);
+        return controller_interface::return_type::ERROR;
+      }
+      
+    }
+
+  }
+
   return controller_interface::return_type::OK;
 }
 }  // namespace dynaarm_controllers

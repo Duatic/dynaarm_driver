@@ -81,6 +81,11 @@ private:
   rclcpp::Publisher<ArmState>::SharedPtr arm_state_pub_;
   std::unique_ptr<ArmStatePublisher> arm_state_pub_rt_;
 
+  // Command interface 
+  CommandInterfaceReferences joint_p_gain_command_interfaces_;
+  CommandInterfaceReferences joint_i_gain_command_interfaces_;
+  CommandInterfaceReferences joint_d_gain_command_interfaces_;
+  
   // State interface references
   StateInterfaceReferences joint_position_interfaces_;
   StateInterfaceReferences joint_velocity_interfaces_;
