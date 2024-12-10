@@ -102,6 +102,10 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
   joint_position_command_interfaces_.clear();
   joint_position_state_interfaces_.clear();
 
+  joint_p_gain_command_interfaces_.clear();
+  joint_i_gain_command_interfaces_.clear();
+  joint_d_gain_command_interfaces_.clear();
+
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints,
                                                     hardware_interface::HW_IF_POSITION,
@@ -151,8 +155,8 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
   // Manipulate gains
   for (std::size_t i = 0; i < joint_count; i++) {
     // We disable the position tracking
-    joint_p_gain_command_interfaces_[i].get().set_value(0.0);
-    joint_i_gain_command_interfaces_[i].get().set_value(0.0);
+    (void)joint_p_gain_command_interfaces_[i].get().set_value(0.0);
+    (void)joint_i_gain_command_interfaces_[i].get().set_value(0.0);
     RCLCPP_INFO_STREAM(get_node()->get_logger(), "Set gains: " << params_.joints[i] << "p: " << 0.0 << " i: " << 0.0
                                                                << " d: " << previous_gains_[i].d);
   }
@@ -168,9 +172,9 @@ FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::Stat
   const std::size_t joint_count = joint_position_state_interfaces_.size();
   for (std::size_t i = 0; i < joint_count; i++) {
     const auto& g = previous_gains_[i];
-    joint_p_gain_command_interfaces_[i].get().set_value(g.p);
-    joint_i_gain_command_interfaces_[i].get().set_value(g.i);
-    joint_d_gain_command_interfaces_[i].get().set_value(g.d);
+    (void)joint_p_gain_command_interfaces_[i].get().set_value(g.p);
+    (void)joint_i_gain_command_interfaces_[i].get().set_value(g.i);
+    (void)joint_d_gain_command_interfaces_[i].get().set_value(g.d);
     RCLCPP_INFO_STREAM(get_node()->get_logger(),
                        "Restore gains: " << params_.joints[i] << " p: " << g.p << " i: " << g.i << " d: " << g.d);
   }
