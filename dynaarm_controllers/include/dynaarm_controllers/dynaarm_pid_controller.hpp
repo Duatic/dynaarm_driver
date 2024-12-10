@@ -42,11 +42,17 @@
 #include "dynaarm_pid_controller_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
+/*msgs*/
+#include <dynaarm_msgs/msg/pid_gains.hpp>
+
 namespace dynaarm_controllers
 {
 class PIDController : public controller_interface::ControllerInterface
 {
 public:
+  using PIDGains = dynaarm_msgs::msg::PIDGains;
+  using PIDGainsPublisher = realtime_tools::RealtimePublisher<PIDGains>;
+
   PIDController();
   ~PIDController() = default;
 
@@ -72,6 +78,12 @@ private:
   CommandInterfaceReferences joint_p_gain_command_interfaces_;
   CommandInterfaceReferences joint_i_gain_command_interfaces_;
   CommandInterfaceReferences joint_d_gain_command_interfaces_;
+
+  [[nodiscard]] double limit_gain(const double gain)
+  {
+    // TODO(firesurfer) remove magic values
+    return std::clamp<double>(gain, 0.0, 150.0);
+  }
 };
 
 }  // namespace dynaarm_controllers

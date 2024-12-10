@@ -90,6 +90,51 @@ controller_interface::CallbackReturn PIDController::on_configure(const rclcpp_li
 
 controller_interface::CallbackReturn PIDController::on_activate(const rclcpp_lifecycle::State& previous_state)
 {
+  joint_p_gain_command_interfaces_.clear();
+  joint_i_gain_command_interfaces_.clear();
+  joint_d_gain_command_interfaces_.clear();
+
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "p_gain",
+                                                    joint_p_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - p_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "i_gain",
+                                                    joint_i_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - i_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints, "d_gain",
+                                                    joint_d_gain_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - d_gain");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
+  // Declare a parameter for each pid gain for each joint
+  const auto joint_size = params_.joints.size();
+  auto&& node = get_node();
+  for (std::size_t i = 0; i < joint_size; i++) {
+    const std::string param_name_base = params_.joints[i] + "/";
+    const std::string p_gain_param = param_name_base + "p_gain";
+    const std::string i_gain_param = param_name_base + "i_gain";
+    const std::string d_gain_param = param_name_base + "d_gain";
+
+    auto set_param = [&node](const std::string& name, const CommandInterfaceReference& interface) {
+      // Either declare or update the parameter
+      if (!node->has_parameter(name)) {
+        node->declare_parameter(name, interface.get().get_value());
+      } else {
+        node->set_parameter(rclcpp::Parameter(name, interface.get().get_value()));
+      }
+    };
+
+    set_param(p_gain_param, joint_p_gain_command_interfaces_[i]);
+    set_param(i_gain_param, joint_i_gain_command_interfaces_[i]);
+    set_param(d_gain_param, joint_d_gain_command_interfaces_[i]);
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -103,6 +148,27 @@ controller_interface::return_type PIDController::update(const rclcpp::Time& time
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     return controller_interface::return_type::OK;
   }
+
+  const auto joint_size = params_.joints.size();
+  auto&& node = get_node();
+  for (std::size_t i = 0; i < joint_size; i++) {
+    // Build the param names
+    const std::string param_name_base = params_.joints[i] + "/";
+    const std::string p_gain_param = param_name_base + "p_gain";
+    const std::string i_gain_param = param_name_base + "i_gain";
+    const std::string d_gain_param = param_name_base + "d_gain";
+
+    // Obtain the target gains and limit them
+    const double p_gain = limit_gain(node->get_parameter(p_gain_param).as_double());
+    const double i_gain = limit_gain(node->get_parameter(i_gain_param).as_double());
+    const double d_gain = limit_gain(node->get_parameter(d_gain_param).as_double());
+
+    // Set the target gains
+    (void)joint_p_gain_command_interfaces_[i].get().set_value(p_gain);
+    (void)joint_i_gain_command_interfaces_[i].get().set_value(i_gain);
+    (void)joint_d_gain_command_interfaces_[i].get().set_value(d_gain);
+  }
+
   return controller_interface::return_type::OK;
 }
 }  // namespace dynaarm_controllers
