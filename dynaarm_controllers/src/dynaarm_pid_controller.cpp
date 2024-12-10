@@ -85,6 +85,21 @@ controller_interface::CallbackReturn PIDController::on_configure(const rclcpp_li
     RCLCPP_ERROR(get_node()->get_logger(), "'joints' parameter is empty.");
     return controller_interface::CallbackReturn::FAILURE;
   }
+
+  for (const auto& joint : params_.joints) {
+    gain_subscriptions_.push_back(
+        get_node()->create_subscription<PIDGains>("~/" + joint + "/pid_gains", 10, [joint, this](const PIDGains& msg) {
+          const std::string param_name_base = joint + "/";
+          const std::string p_gain_param = param_name_base + "p_gain";
+          const std::string i_gain_param = param_name_base + "i_gain";
+          const std::string d_gain_param = param_name_base + "d_gain";
+
+          get_node()->set_parameter(rclcpp::Parameter(p_gain_param, msg.p));
+          get_node()->set_parameter(rclcpp::Parameter(i_gain_param, msg.i));
+          get_node()->set_parameter(rclcpp::Parameter(d_gain_param, msg.d));
+        }));
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 

@@ -51,7 +51,7 @@ class PIDController : public controller_interface::ControllerInterface
 {
 public:
   using PIDGains = dynaarm_msgs::msg::PIDGains;
-  using PIDGainsPublisher = realtime_tools::RealtimePublisher<PIDGains>;
+  using PIDGainsSubscription = rclcpp::Subscription<PIDGains>;
 
   PIDController();
   ~PIDController() = default;
@@ -83,6 +83,12 @@ private:
   {
     // TODO(firesurfer) remove magic values
     return std::clamp<double>(gain, 0.0, 150.0);
+  }
+
+  std::vector<PIDGainsSubscription::SharedPtr> gain_subscriptions_;
+
+  void on_gain_update(const PIDGains& msg)
+  {
   }
 };
 
