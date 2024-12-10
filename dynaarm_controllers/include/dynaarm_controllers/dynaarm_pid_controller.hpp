@@ -68,6 +68,10 @@ private:
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<dynaarm_pid_controller::ParamListener> param_listener_;
   dynaarm_pid_controller::Params params_;
+
+  CommandInterfaceReferences joint_p_gain_command_interfaces_;
+  CommandInterfaceReferences joint_i_gain_command_interfaces_;
+  CommandInterfaceReferences joint_d_gain_command_interfaces_;
 };
 
 }  // namespace dynaarm_controllers

@@ -39,6 +39,13 @@ controller_interface::InterfaceConfiguration PIDController::command_interface_co
 
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  const auto joints = params_.joints;
+  for (auto& joint : joints) {
+    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
+    config.names.emplace_back(joint + "/" + "p_gain");
+    config.names.emplace_back(joint + "/" + "i_gain");
+    config.names.emplace_back(joint + "/" + "d_gain");
+  }
   return config;
 }
 
