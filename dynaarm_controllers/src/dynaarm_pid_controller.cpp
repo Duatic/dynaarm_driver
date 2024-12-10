@@ -41,7 +41,6 @@ controller_interface::InterfaceConfiguration PIDController::command_interface_co
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   const auto joints = params_.joints;
   for (auto& joint : joints) {
-    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
     config.names.emplace_back(joint + "/" + "p_gain");
     config.names.emplace_back(joint + "/" + "i_gain");
     config.names.emplace_back(joint + "/" + "d_gain");
@@ -91,7 +90,7 @@ PIDController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& prev
     // TODO(firesurfer) this is the easiest way to implement this but also the one with the lowest performance
     // (parameter calls are quite expensive)
     gain_subscriptions_.push_back(
-        get_node()->create_subscription<PIDGains>("~/" + joint + "/pid_gains", 10, [joint, this](const PIDGains& msg) {
+        get_node()->create_subscription<PIDGains>("~/" + joint + "/pid_gains/set", 10, [joint, this](const PIDGains& msg) {
           const std::string param_name_base = joint + "/";
           const std::string p_gain_param = param_name_base + "p_gain";
           const std::string i_gain_param = param_name_base + "i_gain";
