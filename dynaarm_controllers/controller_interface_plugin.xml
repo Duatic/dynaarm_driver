@@ -23,4 +23,12 @@
       Dynaarm freedrive controller - to be used in combination with the gravity compensation controller.
     </description>
   </class>
+
+  <class name="dynaarm_controllers/PIDController"
+         type="dynaarm_controllers::PIDController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm pid controller - tune the drive pid parameters.
+    </description>
+  </class>
 </library>

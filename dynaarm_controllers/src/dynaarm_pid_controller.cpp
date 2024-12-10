@@ -193,3 +193,7 @@ controller_interface::return_type PIDController::update([[maybe_unused]] const r
   return controller_interface::return_type::OK;
 }
 }  // namespace dynaarm_controllers
+
+#include "pluginlib/class_list_macros.hpp"
+
+PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::PIDController, controller_interface::ControllerInterface)
