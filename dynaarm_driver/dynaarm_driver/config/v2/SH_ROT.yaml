@@ -6,13 +6,13 @@ set_reading_to_nan_on_disconnect: true
 
 error_state_behavior: 0
 
-max_current: 25.0
+max_current: 30.0
 
 max_freeze_current: 10.0
 
-max_motor_velocity: 50.0 # 50
+max_motor_velocity: 100.0 # 50
 
-max_joint_torque: 40.0 # 45
+max_joint_torque: 120.0 # 45
 
 current_integrator_saturation: 15.0
 
@@ -107,12 +107,12 @@ modes:
       p: 60.0
       i: 0.05
       d: 5.0
-  
+
   - name: JointPositionVelocityTorquePidGains
     gains:
-      p: 60.0
-      i: 0.05
-      d: 5.0
+      p: 100.0
+      i: 0.03
+      d: 15.0
 
 goal_states:
   startup: "Configure"
