@@ -86,10 +86,6 @@ private:
   }
 
   std::vector<PIDGainsSubscription::SharedPtr> gain_subscriptions_;
-
-  void on_gain_update(const PIDGains& msg)
-  {
-  }
 };
 
 }  // namespace dynaarm_controllers

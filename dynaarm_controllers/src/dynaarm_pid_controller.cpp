@@ -72,7 +72,8 @@ controller_interface::CallbackReturn PIDController::on_init()
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn PIDController::on_configure(const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+PIDController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // update the dynamic map parameters
   param_listener_->refresh_dynamic_parameters();
@@ -87,6 +88,8 @@ controller_interface::CallbackReturn PIDController::on_configure(const rclcpp_li
   }
 
   for (const auto& joint : params_.joints) {
+    // TODO(firesurfer) this is the easiest way to implement this but also the one with the lowest performance
+    // (parameter calls are quite expensive)
     gain_subscriptions_.push_back(
         get_node()->create_subscription<PIDGains>("~/" + joint + "/pid_gains", 10, [joint, this](const PIDGains& msg) {
           const std::string param_name_base = joint + "/";
@@ -103,7 +106,8 @@ controller_interface::CallbackReturn PIDController::on_configure(const rclcpp_li
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn PIDController::on_activate(const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+PIDController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   joint_p_gain_command_interfaces_.clear();
   joint_i_gain_command_interfaces_.clear();
@@ -153,12 +157,14 @@ controller_interface::CallbackReturn PIDController::on_activate(const rclcpp_lif
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn PIDController::on_deactivate(const rclcpp_lifecycle::State& previous_state)
+controller_interface::CallbackReturn
+PIDController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type PIDController::update(const rclcpp::Time& time, const rclcpp::Duration& period)
+controller_interface::return_type PIDController::update([[maybe_unused]] const rclcpp::Time& time,
+                                                        [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     return controller_interface::return_type::OK;
