@@ -53,8 +53,13 @@ public:
     // Create a dynamic matrix with size 'size'
     Eigen::MatrixXd mapping = Eigen::MatrixXd::Identity(size, size);
 
-    // Modify the first 4x4 submatrix
-    mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+    // clang-format off
+            // Modify the first 4x4 submatrix
+            mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0,
+                                        0.0, 1.0, 0.0, 0.0,
+                                        0.0, -1.0, 1.0, 0.0,
+                                        0.0, 0.0, 0.0, 1.0;
+    // clang-format on
 
     // Return the transformed vector
     return mapping * input;
@@ -70,8 +75,13 @@ public:
     // Create a dynamic matrix with size 'size'
     Eigen::MatrixXd mapping = Eigen::MatrixXd::Identity(size, size);
 
-    // Modify the first 4x4 submatrix
-    mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+    // clang-format off
+            // Modify the first 4x4 submatrix
+            mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0;
+    // clang-format on
 
     // Return the transformed vector
     return mapping * input;
@@ -93,8 +103,13 @@ public:
     // Create a dynamic matrix with size 'size'
     Eigen::MatrixXd mapping = Eigen::MatrixXd::Identity(size, size);
 
-    // Modify the first 4x4 submatrix
-    mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+    // clang-format off
+            // Modify the first 4x4 submatrix
+            mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0;
+    // clang-format on
 
     // Return the transformed vector
     return mapping * input;
@@ -110,8 +125,13 @@ public:
     // Create a dynamic matrix with size 'size'
     Eigen::MatrixXd mapping = Eigen::MatrixXd::Identity(size, size);
 
-    // Modify the first 4x4 submatrix
-    mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+    // clang-format off
+            // Modify the first 4x4 submatrix
+            mapping.block<4, 4>(0, 0) << 1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, -1.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0;
+    // clang-format on
 
     // Return the transformed vector
     return mapping * input;
