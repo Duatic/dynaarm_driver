@@ -14,6 +14,9 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
+
+find_package(Eigen3 REQUIRED)
+find_package(eigen3_cmake_module REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(dynaarm_msgs REQUIRED)
 
@@ -49,6 +52,7 @@ target_link_libraries(${PROJECT_NAME}
   dynaarm_status_controller_parameters
   gravity_compensation_controller_parameters
   freedrive_controller_parameters
+  pinocchio::pinocchio
 )
 
 ament_target_dependencies(
@@ -62,6 +66,8 @@ ament_target_dependencies(
   realtime_tools
   pinocchio
   dynaarm_msgs
+  Eigen3
+  eigen3_cmake_module
 )
 # prevent pluginlib from using boost
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")

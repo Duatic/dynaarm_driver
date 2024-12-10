@@ -19,6 +19,8 @@
   <depend>pluginlib</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>rcutils</depend>
+  <depend>eigen</depend>
+  <depend>eigen3_cmake_module</depend>
   <depend>pinocchio</depend>
   <depend>generate_parameter_library</depend>
   <depend>realtime_tools</depend>
