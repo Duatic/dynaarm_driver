@@ -112,7 +112,7 @@ modes:
     gains:
       p: 100.0
       i: 0.03
-      d: 0.1
+      d: 10.0
 
 goal_states:
   startup: "Configure"
