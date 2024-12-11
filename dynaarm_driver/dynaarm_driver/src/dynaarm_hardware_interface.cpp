@@ -55,8 +55,7 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
       RCLCPP_WARN_STREAM(logger_, "No configuration found for joint: " << joint_name << " in: " << base_directory
                                                                        << " Loading drive parameters from default "
                                                                           "location");
-      device_file_path =
-          ament_index_cpp::get_package_share_directory("dynaarm_driver") + "/config/default/" + joint_name + ".yaml";
+      device_file_path = info_.hardware_parameters.at("drive_parameter_folder_default") + "/" + joint_name + ".yaml";
     }
     RCLCPP_INFO_STREAM(logger_, "Drive file path " << device_file_path);
 
