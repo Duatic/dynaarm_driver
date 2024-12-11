@@ -22,6 +22,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <filesystem>
 #include "dynaarm_driver/dynaarm_hardware_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
@@ -41,14 +42,22 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
   ecat_master_->loadEthercatMasterConfiguration(ecat_master_config);
 
   // Every joint refers to a drive
-  for (int i = 0; i < static_cast<int>(info_.joints.size()); i++) {
+  for (std::size_t i = 0; i < info_.joints.size(); i++) {
     const auto address = std::stoi(info_.joints[i].parameters.at("address"));
     const auto joint_name = info_.joints[i].name;
 
-    // TODO(firesurfer) this should be configurable and not be hardcoded
-    const std::string package_share_directory = ament_index_cpp::get_package_share_directory("dynaarm_driver");
-    const std::string device_file_path =
-        ament_index_cpp::get_package_share_directory("dynaarm_driver") + "/config/" + joint_name + ".yaml";
+    // Obtain the parameter file for the currently processed drive
+    const std::string base_directory = info_.hardware_parameters.at("drive_parameter_folder") + "/config/";
+    std::string device_file_path = base_directory + joint_name + ".yaml";
+    // If there is no configuration available for the current joint in the passed parameter folder we load it from the
+    // default folder
+    if (!std::filesystem::exists(device_file_path)) {
+      RCLCPP_WARN_STREAM(logger_, "No configuration found for joint: " << joint_name << " in: " << base_directory
+                                                                       << " Loading drive parameters from default "
+                                                                          "location");
+      device_file_path =
+          ament_index_cpp::get_package_share_directory("dynaarm_driver") + "/config/default/" + joint_name + ".yaml";
+    }
     RCLCPP_INFO_STREAM(logger_, "Drive file path " << device_file_path);
 
     auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address,
