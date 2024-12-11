@@ -60,7 +60,7 @@ controller_interface::CallbackReturn PIDTuner::on_init()
 {
   try {
     // Obtains necessary parameters
-    param_listener_ = std::make_unique<dynaarm_pid_controller::ParamListener>(get_node());
+    param_listener_ = std::make_unique<dynaarm_pid_tuner::ParamListener>(get_node());
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
   } catch (const std::exception& e) {

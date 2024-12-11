@@ -39,7 +39,7 @@
 #include <rclcpp_lifecycle/state.hpp>
 #include <rclcpp/logging.hpp>
 /*Project*/
-#include "dynaarm_pid_controller_parameters.hpp"
+#include "dynaarm_pid_tuner_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
 /*msgs*/
@@ -72,8 +72,8 @@ public:
 
 private:
   // Access to controller parameters via generate_parameter_library
-  std::unique_ptr<dynaarm_pid_controller::ParamListener> param_listener_;
-  dynaarm_pid_controller::Params params_;
+  std::unique_ptr<dynaarm_pid_tuner::ParamListener> param_listener_;
+  dynaarm_pid_tuner::Params params_;
 
   CommandInterfaceReferences joint_p_gain_command_interfaces_;
   CommandInterfaceReferences joint_i_gain_command_interfaces_;

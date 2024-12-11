@@ -37,15 +37,15 @@ generate_parameter_library(
 )
 
 generate_parameter_library(
-  dynaarm_pid_controller_parameters
-  src/dynaarm_pid_controller_parameters.yaml
+  dynaarm_pid_tuner_parameters
+  src/dynaarm_pid_tuner_parameters.yaml
 )
 
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_controller.cpp
   src/freedrive_controller.cpp
-  src/dynaarm_pid_controller.cpp
+  src/dynaarm_pid_tuner.cpp
 )
 
 target_include_directories(
@@ -58,7 +58,7 @@ target_link_libraries(${PROJECT_NAME}
   dynaarm_status_controller_parameters
   gravity_compensation_controller_parameters
   freedrive_controller_parameters
-  dynaarm_pid_controller_parameters
+  dynaarm_pid_tuner_parameters
   pinocchio::pinocchio
 )
 
