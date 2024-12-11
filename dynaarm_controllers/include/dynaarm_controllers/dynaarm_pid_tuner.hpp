@@ -47,14 +47,14 @@
 
 namespace dynaarm_controllers
 {
-class PIDController : public controller_interface::ControllerInterface
+class PIDTuner : public controller_interface::ControllerInterface
 {
 public:
   using PIDGains = dynaarm_msgs::msg::PIDGains;
   using PIDGainsSubscription = rclcpp::Subscription<PIDGains>;
 
-  PIDController();
-  ~PIDController() = default;
+  PIDTuner();
+  ~PIDTuner() = default;
 
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
 

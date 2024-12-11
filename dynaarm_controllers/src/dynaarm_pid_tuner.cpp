@@ -22,7 +22,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_controllers/dynaarm_pid_controller.hpp"
+#include "dynaarm_controllers/dynaarm_pid_tuner.hpp"
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
@@ -30,10 +30,10 @@
 
 namespace dynaarm_controllers
 {
-PIDController::PIDController()
+PIDTuner::PIDTuner()
 {
 }
-controller_interface::InterfaceConfiguration PIDController::command_interface_configuration() const
+controller_interface::InterfaceConfiguration PIDTuner::command_interface_configuration() const
 {
   // Claim the necessary command interfaces
 
@@ -48,7 +48,7 @@ controller_interface::InterfaceConfiguration PIDController::command_interface_co
   return config;
 }
 
-controller_interface::InterfaceConfiguration PIDController::state_interface_configuration() const
+controller_interface::InterfaceConfiguration PIDTuner::state_interface_configuration() const
 {
   // Claim the necessary state interfaces
   controller_interface::InterfaceConfiguration config;
@@ -56,7 +56,7 @@ controller_interface::InterfaceConfiguration PIDController::state_interface_conf
   return config;
 }
 
-controller_interface::CallbackReturn PIDController::on_init()
+controller_interface::CallbackReturn PIDTuner::on_init()
 {
   try {
     // Obtains necessary parameters
@@ -72,7 +72,7 @@ controller_interface::CallbackReturn PIDController::on_init()
 }
 
 controller_interface::CallbackReturn
-PIDController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+PIDTuner::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // update the dynamic map parameters
   param_listener_->refresh_dynamic_parameters();
@@ -106,7 +106,7 @@ PIDController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& prev
 }
 
 controller_interface::CallbackReturn
-PIDController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+PIDTuner::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   joint_p_gain_command_interfaces_.clear();
   joint_i_gain_command_interfaces_.clear();
@@ -157,13 +157,13 @@ PIDController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previ
 }
 
 controller_interface::CallbackReturn
-PIDController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+PIDTuner::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type PIDController::update([[maybe_unused]] const rclcpp::Time& time,
-                                                        [[maybe_unused]] const rclcpp::Duration& period)
+controller_interface::return_type PIDTuner::update([[maybe_unused]] const rclcpp::Time& time,
+                                                   [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     return controller_interface::return_type::OK;
@@ -195,4 +195,4 @@ controller_interface::return_type PIDController::update([[maybe_unused]] const r
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::PIDController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::PIDTuner, controller_interface::ControllerInterface)

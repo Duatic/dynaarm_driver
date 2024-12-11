@@ -55,16 +55,16 @@ fan:
 modes:
   - name: "Current"
     gains:
-      p: 0.7
-      i: 0.25
+      p: 0.75
+      i: 0.2
       d: 0.0
 
   # freeze controller gains
   - name: "MotorVelocity"
     gains:
-      p: 120
-      i: 1.0
-      d: 0.0
+      p: 50
+      i: 0.5
+      d: 50
 
   - name: "GearPosition"
     gains:
@@ -107,12 +107,12 @@ modes:
       p: 60.0
       i: 0.05
       d: 5.0
-  
+
   - name: JointPositionVelocityTorquePidGains
     gains:
       p: 60.0
       i: 0.05
-      d: 5.0
+      d: 0.5
 
 goal_states:
   startup: "Configure"

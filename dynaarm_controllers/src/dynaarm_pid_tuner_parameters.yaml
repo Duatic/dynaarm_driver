@@ -1,4 +1,4 @@
-dynaarm_pid_controller:
+dynaarm_pid_tuner:
   joints: {
     type: string_array,
     default_value: [],

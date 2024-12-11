@@ -24,11 +24,11 @@
     </description>
   </class>
 
-  <class name="dynaarm_controllers/PIDController"
-         type="dynaarm_controllers::PIDController"
+  <class name="dynaarm_controllers/PIDTuner"
+         type="dynaarm_controllers::PIDTuner"
          base_class_type="controller_interface::ControllerInterface">
     <description>
-      Dynaarm pid controller - tune the drive pid parameters.
+      Dynaarm pid tuner - tune the drive pid parameters.
     </description>
   </class>
 </library>
