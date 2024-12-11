@@ -20,7 +20,7 @@ joint_torque_integrator_saturation: 10.0
 
 dgainFilterCutoffFrequency: 50
 
-direction: -1
+direction: 1
 
 joint_position_limits:
   sdk:
