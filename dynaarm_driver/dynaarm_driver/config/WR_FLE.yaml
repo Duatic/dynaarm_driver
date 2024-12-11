@@ -10,7 +10,7 @@ max_current: 25.0
 
 max_freeze_current: 10.0
 
-max_motor_velocity: 50.0 # 50
+max_motor_velocity: 180.0 # 50
 
 max_joint_torque: 40.0 # 45
 
@@ -55,8 +55,8 @@ fan:
 modes:
   - name: "Current"
     gains:
-      p: 0.7
-      i: 0.25
+      p: 0.75
+      i: 0.2
       d: 0.0
 
   # freeze controller gains
@@ -112,7 +112,7 @@ modes:
     gains:
       p: 60.0
       i: 0.05
-      d: 5.0
+      d: 0.01
 
 goal_states:
   startup: "Configure"
