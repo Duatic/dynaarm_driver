@@ -161,8 +161,8 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
     auto d_gain_value = params_.d_gains[i];
     (void)joint_d_gain_command_interfaces_[i].get().set_value(d_gain_value);
 
-    RCLCPP_INFO_STREAM(get_node()->get_logger(), "Set gains: " << params_.joints[i] << "p: " << 0.0 << " i: " << 0.0
-                                                               << " d: " << d_gain_value);
+    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+                       "Set gains: " << params_.joints[i] << "p: " << 0.0 << " i: " << 0.0 << " d: " << d_gain_value);
   }
 
   return controller_interface::CallbackReturn::SUCCESS;

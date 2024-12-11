@@ -5,7 +5,7 @@ freedrive_controller:
     description: "Names of joints used by the controller"
     validation:
       unique<>: null
-  d_gains:    
+  d_gains:
     type: double_array
     default_value: [0.1, 0.1, 0.1, 0.01, 0.01, 0.01]
     read_only: true
