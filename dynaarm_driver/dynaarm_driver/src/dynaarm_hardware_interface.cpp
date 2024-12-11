@@ -47,7 +47,7 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     const auto joint_name = info_.joints[i].name;
 
     // Obtain the parameter file for the currently processed drive
-    const std::string base_directory = info_.hardware_parameters.at("drive_parameter_folder") + "/config/";
+    const std::string base_directory = info_.hardware_parameters.at("drive_parameter_folder") + "/";
     std::string device_file_path = base_directory + joint_name + ".yaml";
     // If there is no configuration available for the current joint in the passed parameter folder we load it from the
     // default folder

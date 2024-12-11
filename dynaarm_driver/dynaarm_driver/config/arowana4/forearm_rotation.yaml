@@ -107,7 +107,7 @@ modes:
       p: 60.0
       i: 0.05
       d: 5.0
-  
+
   - name: JointPositionVelocityTorquePidGains
     gains:
       p: 60.0
