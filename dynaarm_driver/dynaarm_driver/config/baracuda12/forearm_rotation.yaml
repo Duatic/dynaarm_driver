@@ -16,7 +16,7 @@ max_joint_torque: 40.0 # 45
 
 current_integrator_saturation: 15.0
 
-joint_torque_integrator_saturation: 10.0
+joint_torque_integrator_saturation: 20.0
 
 direction: 1
 

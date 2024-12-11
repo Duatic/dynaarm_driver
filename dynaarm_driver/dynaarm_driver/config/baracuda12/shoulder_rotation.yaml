@@ -12,11 +12,11 @@ max_freeze_current: 10.0
 
 max_motor_velocity: 50.0 # 50
 
-max_joint_torque: 40.0 # 45
+max_joint_torque: 80.0 # 45
 
 current_integrator_saturation: 15.0
 
-joint_torque_integrator_saturation: 10.0
+joint_torque_integrator_saturation: 80.0
 
 dgainFilterCutoffFrequency: 50
 
@@ -110,9 +110,9 @@ modes:
 
   - name: JointPositionVelocityTorquePidGains
     gains:
-      p: 100.0
-      i: 0.03
-      d: 10.0
+      p: 600
+      i: 1.2
+      d: 30.0
 
 goal_states:
   startup: "Configure"
