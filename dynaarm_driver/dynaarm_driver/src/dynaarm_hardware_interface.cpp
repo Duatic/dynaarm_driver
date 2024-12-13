@@ -97,8 +97,6 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     ecat_master_->deactivate();
   });
 
-  
-
   RCLCPP_INFO_STREAM(logger_, "Successfully initialized dynaarm hardware interface for DynaArmHardwareInterface");
   return hardware_interface::CallbackReturn::SUCCESS;
 }

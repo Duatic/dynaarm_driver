@@ -64,7 +64,6 @@ controller_interface::InterfaceConfiguration StatusController::state_interface_c
     config.names.emplace_back(joint + "/position_commanded");
     config.names.emplace_back(joint + "/velocity_commanded");
     config.names.emplace_back(joint + "/effort_commanded");
-
   }
   return config;
 }
@@ -140,13 +139,13 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
-                                                    "position_commanded", joint_position_commanded_interfaces_)) {
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "position_commanded",
+                                                    joint_position_commanded_interfaces_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - position_commanded");
     return controller_interface::CallbackReturn::FAILURE;
   }
-  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
-                                                   "velocity_commanded", joint_velocity_commanded_interfaces_)) {
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "velocity_commanded",
+                                                    joint_velocity_commanded_interfaces_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - velocity_commanded");
     return controller_interface::CallbackReturn::FAILURE;
   }
