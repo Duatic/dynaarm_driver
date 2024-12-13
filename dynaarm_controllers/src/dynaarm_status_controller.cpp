@@ -60,6 +60,11 @@ controller_interface::InterfaceConfiguration StatusController::state_interface_c
     config.names.emplace_back(joint + "/motor_temperature_coil_B");
     config.names.emplace_back(joint + "/motor_temperature_coil_C");
     config.names.emplace_back(joint + "/motor_bus_voltage");
+
+    config.names.emplace_back(joint + "/position_commanded");
+    config.names.emplace_back(joint + "/velocity_commanded");
+    config.names.emplace_back(joint + "/effort_commanded");
+
   }
   return config;
 }
@@ -109,6 +114,9 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
   joint_position_interfaces_.clear();
   joint_velocity_interfaces_.clear();
   joint_effort_interfaces_.clear();
+  joint_position_commanded_interfaces_.clear();
+  joint_velocity_commanded_interfaces_.clear();
+  joint_effort_commanded_interfaces_.clear();
   joint_temperature_system_interfaces_.clear();
   joint_temperature_phase_a_interfaces_.clear();
   joint_temperature_phase_b_interfaces_.clear();
@@ -131,6 +139,23 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - effort");
     return controller_interface::CallbackReturn::FAILURE;
   }
+
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
+                                                    "position_commanded", joint_position_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - position_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
+                                                   "velocity_commanded", joint_velocity_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - velocity_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "effort_commanded",
+                                                    joint_effort_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - effort_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
   if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "motor_temperature_system",
                                                     joint_temperature_system_interfaces_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_temperature_system");
@@ -190,6 +215,10 @@ controller_interface::return_type StatusController::update(const rclcpp::Time& t
     drive_state_msg.temperature_phase_b = joint_temperature_phase_b_interfaces_.at(i).get().get_value();
     drive_state_msg.temperature_phase_c = joint_temperature_phase_c_interfaces_.at(i).get().get_value();
     drive_state_msg.bus_voltage = joint_bus_voltage_interfaces_.at(i).get().get_value();
+
+    drive_state_msg.joint_position_commanded = joint_position_commanded_interfaces_.at(i).get().get_value();
+    drive_state_msg.joint_velocity_commanded = joint_velocity_commanded_interfaces_.at(i).get().get_value();
+    drive_state_msg.joint_effort_commanded = joint_effort_commanded_interfaces_.at(i).get().get_value();
 
     state_msg.states.emplace_back(drive_state_msg);
   }

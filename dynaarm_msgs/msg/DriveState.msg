@@ -9,8 +9,16 @@ int32 id
 float64 joint_position
 # Current joint velocity [rad/s]
 float64 joint_velocity
-#Current joint torque [Nm]
+# Current joint torque [Nm]
 float64 joint_effort
+
+# Currently commanded joint position [rad]
+float64 joint_position_commanded
+# Currently commanded joint velocity [rad/s]
+float64 joint_velocity_commanded
+# Currently commanded joint torque [Nm]
+float64 joint_effort_commanded
+
 
 #TODO add commanded values?
 #TODO refactor into using JointState message?
