@@ -183,6 +183,10 @@ void DynaArmHardwareInterface::read_motor_states()
     motor_state_vector_[i].velocity = state.getJointVelocity();
     motor_state_vector_[i].effort = state.getJointTorque();
 
+    motor_state_vector_[i].position_commanded = reading.getCommanded().getJointPosition();
+    motor_state_vector_[i].velocity_commanded = reading.getCommanded().getJointVelocity();
+    motor_state_vector_[i].effort_commanded = reading.getCommanded().getJointTorque();
+
     motor_state_vector_[i].temperature = state.getTemperature();
     motor_state_vector_[i].temperature_coil_A = state.getCoilTemp1();
     motor_state_vector_[i].temperature_coil_B = state.getCoilTemp2();

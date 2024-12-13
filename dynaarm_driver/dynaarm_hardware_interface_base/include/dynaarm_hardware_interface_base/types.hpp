@@ -37,6 +37,10 @@ struct JointState
   double position = 0.0;
   double velocity = 0.0;
   double effort = 0.0;
+
+  double position_commanded = 0.0;
+  double velocity_commanded = 0.0;
+  double effort_commanded = 0.0;
 };
 
 struct JointCommand
@@ -63,6 +67,10 @@ struct MotorState
   double temperature_coil_A = 0.0;
   double temperature_coil_B = 0.0;
   double temperature_coil_C = 0.0;
+
+  double position_commanded = 0.0;
+  double velocity_commanded = 0.0;
+  double effort_commanded = 0.0;
 };
 
 struct MotorCommand
