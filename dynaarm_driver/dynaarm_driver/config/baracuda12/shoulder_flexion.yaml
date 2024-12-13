@@ -50,7 +50,7 @@ fan:
   mode: 1
   intensity: 5
   lower_temperature: 45.0
-  upper_temperature: 60.0
+  upper_temperature: 50.0
 
 modes:
   - name: "Current"
@@ -62,9 +62,9 @@ modes:
   # freeze controller gains
   - name: "MotorVelocity"
     gains:
-      p: 200
-      i: 1.5
-      d: 80
+      p: 300
+      i: 25
+      d: 1500
 
   - name: "GearPosition"
     gains:

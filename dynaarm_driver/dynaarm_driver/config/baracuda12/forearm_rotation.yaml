@@ -16,7 +16,7 @@ max_joint_torque: 40.0 # 45
 
 current_integrator_saturation: 15.0
 
-joint_torque_integrator_saturation: 20.0
+joint_torque_integrator_saturation: 30.0
 
 direction: 1
 
@@ -50,7 +50,7 @@ fan:
   mode: 1
   intensity: 5
   lower_temperature: 45.0
-  upper_temperature: 60.0
+  upper_temperature: 50.0
 
 modes:
   - name: "Current"
@@ -62,9 +62,9 @@ modes:
   # freeze controller gains
   - name: "MotorVelocity"
     gains:
-      p: 50
-      i: 0.5
-      d: 50
+      p: 100.0
+      i: 5.0
+      d: 400.0
 
   - name: "GearPosition"
     gains:
@@ -110,8 +110,8 @@ modes:
 
   - name: JointPositionVelocityTorquePidGains
     gains:
-      p: 60.0
-      i: 0.05
+      p: 90.0
+      i: 1.0
       d: 5.0
 
 goal_states:
