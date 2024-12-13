@@ -138,7 +138,7 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     rsl_drive_sdk::common::BuildInfo info;
     drive->getBuildInfo(info);
     RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
-                                               << " tag: " << info.gitTag);
+                                               << " tag: " << info.gitTag << " hash: " << info.gitHash);
 
     rsl_drive_sdk::mode::PidGainsF gains;
     drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
