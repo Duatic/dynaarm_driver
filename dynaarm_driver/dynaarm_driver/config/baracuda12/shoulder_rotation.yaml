@@ -116,4 +116,4 @@ modes:
 
 goal_states:
   startup: "Configure"
-  shutdown: "MotorOp"
+  shutdown: "Standby"
