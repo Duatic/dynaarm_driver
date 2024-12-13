@@ -246,6 +246,8 @@ DynaArmHardwareInterface::~DynaArmHardwareInterface()
     }
   }
 
+  ecat_master_->shutdown();
+
   RCLCPP_INFO_STREAM(logger_, "Fully shutdown.");
 }
 }  // namespace dynaarm_driver
