@@ -155,14 +155,20 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
   // Manipulate gains
   for (std::size_t i = 0; i < joint_count; i++) {
     // We disable the position tracking
-    (void)joint_p_gain_command_interfaces_[i].get().set_value(0.0);
-    (void)joint_i_gain_command_interfaces_[i].get().set_value(0.0);
+    if (!joint_p_gain_command_interfaces_[i].get().set_value(0.0)) {
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(), params_.joints[i] << ": error setting p-gain");
+    }
+    if (!joint_i_gain_command_interfaces_[i].get().set_value(0.0)) {
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(), params_.joints[i] << ": error setting i-gain");
+    }
 
     auto d_gain_value = params_.d_gains[i];
-    (void)joint_d_gain_command_interfaces_[i].get().set_value(d_gain_value);
+    if (!joint_d_gain_command_interfaces_[i].get().set_value(d_gain_value)) {
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(), params_.joints[i] << ": error setting d-gain");
+    }
 
     RCLCPP_INFO_STREAM(get_node()->get_logger(),
-                       "Set gains: " << params_.joints[i] << "p: " << 0.0 << " i: " << 0.0 << " d: " << d_gain_value);
+                       "Set gains: " << params_.joints[i] << " p: " << 0.0 << " i: " << 0.0 << " d: " << d_gain_value);
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
