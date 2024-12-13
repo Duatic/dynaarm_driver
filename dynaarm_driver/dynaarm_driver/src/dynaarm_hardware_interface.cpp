@@ -112,8 +112,8 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
       RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
       drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
-      drive->updateRead();
       drive->updateWrite();
+      drive->updateRead();
       if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
         RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
       } else {
@@ -138,7 +138,7 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     rsl_drive_sdk::common::BuildInfo info;
     drive->getBuildInfo(info);
     RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
-                                               << " tag: " << info.gitTag);
+                                               << " tag: " << info.gitTag << " hash: " << info.gitHash);
 
     rsl_drive_sdk::mode::PidGainsF gains;
     drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
@@ -182,6 +182,10 @@ void DynaArmHardwareInterface::read_motor_states()
     motor_state_vector_[i].position = state.getJointPosition();
     motor_state_vector_[i].velocity = state.getJointVelocity();
     motor_state_vector_[i].effort = state.getJointTorque();
+
+    motor_state_vector_[i].position_commanded = reading.getCommanded().getJointPosition();
+    motor_state_vector_[i].velocity_commanded = reading.getCommanded().getJointVelocity();
+    motor_state_vector_[i].effort_commanded = reading.getCommanded().getJointTorque();
 
     motor_state_vector_[i].temperature = state.getTemperature();
     motor_state_vector_[i].temperature_coil_A = state.getCoilTemp1();
@@ -241,6 +245,8 @@ DynaArmHardwareInterface::~DynaArmHardwareInterface()
       ecat_worker_thread_->join();
     }
   }
+
+  ecat_master_->shutdown();
 
   RCLCPP_INFO_STREAM(logger_, "Fully shutdown.");
 }

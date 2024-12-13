@@ -79,15 +79,16 @@ std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::ex
         joint_state.name, hardware_interface::HW_IF_VELOCITY, &joint_state.velocity));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_state.name, hardware_interface::HW_IF_EFFORT, &joint_state.effort));
+
+    state_interfaces.emplace_back(
+        hardware_interface::StateInterface(joint_state.name, "position_commanded", &joint_state.position_commanded));
+    state_interfaces.emplace_back(
+        hardware_interface::StateInterface(joint_state.name, "velocity_commanded", &joint_state.velocity_commanded));
+    state_interfaces.emplace_back(
+        hardware_interface::StateInterface(joint_state.name, "effort_commanded", &joint_state.effort_commanded));
   }
 
   for (auto& joint_command : joint_command_vector_) {
-    state_interfaces.emplace_back(
-        hardware_interface::StateInterface(joint_command.name, "position_commanded", &joint_command.position));
-    state_interfaces.emplace_back(
-        hardware_interface::StateInterface(joint_command.name, "velocity_commanded", &joint_command.velocity));
-    state_interfaces.emplace_back(
-        hardware_interface::StateInterface(joint_command.name, "effort_commanded", &joint_command.effort));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_command.name, "p_gain_commanded", &joint_command.p_gain));
     state_interfaces.emplace_back(
@@ -202,11 +203,18 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   Eigen::VectorXd motor_position(info_.joints.size());
   Eigen::VectorXd motor_velocity(info_.joints.size());
   Eigen::VectorXd motor_effort(info_.joints.size());
+  Eigen::VectorXd motor_position_commanded(info_.joints.size());
+  Eigen::VectorXd motor_velocity_commanded(info_.joints.size());
+  Eigen::VectorXd motor_effort_commanded(info_.joints.size());
 
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_position(i) = motor_state_vector_[i].position;
     motor_velocity(i) = motor_state_vector_[i].velocity;
     motor_effort(i) = motor_state_vector_[i].effort;
+
+    motor_position_commanded(i) = motor_state_vector_[i].position_commanded;
+    motor_velocity_commanded(i) = motor_state_vector_[i].velocity_commanded;
+    motor_effort_commanded(i) = motor_state_vector_[i].effort_commanded;
   }
   // Transform the joint positions using the matrix transformation
   Eigen::VectorXd joint_position =
@@ -216,10 +224,19 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   Eigen::VectorXd joint_effort =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialTorques(motor_effort);
 
+  Eigen::VectorXd joint_position_commanded =
+      dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_position_commanded);
+  Eigen::VectorXd joint_velocity_commanded =
+      dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_velocity_commanded);
+  Eigen::VectorXd joint_effort_commanded =
+      dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialTorques(motor_effort_commanded);
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_[i].position = joint_position[i];
     joint_state_vector_[i].velocity = joint_velocity[i];
     joint_state_vector_[i].effort = joint_effort[i];
+    joint_state_vector_[i].position_commanded = joint_position_commanded[i];
+    joint_state_vector_[i].velocity_commanded = joint_velocity_commanded[i];
+    joint_state_vector_[i].effort_commanded = joint_effort_commanded[i];
   }
 
   return hardware_interface::return_type::OK;

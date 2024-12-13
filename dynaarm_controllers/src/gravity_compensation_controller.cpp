@@ -164,13 +164,18 @@ controller_interface::CallbackReturn
 GravityCompensationController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   active_ = false;
+  const std::size_t joint_count = joint_position_state_interfaces_.size();
+  // Reset the commanded joint efforts to 0
+  for (std::size_t i = 0; i < joint_count; i++) {
+    (void)joint_effort_command_interfaces_.at(i).get().set_value(0.0);
+  }
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::return_type GravityCompensationController::update([[maybe_unused]] const rclcpp::Time& time,
                                                                         [[maybe_unused]] const rclcpp::Duration& period)
 {
-  if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+  if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
     return controller_interface::return_type::OK;
   }
 

@@ -85,6 +85,9 @@ private:
   StateInterfaceReferences joint_position_interfaces_;
   StateInterfaceReferences joint_velocity_interfaces_;
   StateInterfaceReferences joint_effort_interfaces_;
+  StateInterfaceReferences joint_position_commanded_interfaces_;
+  StateInterfaceReferences joint_velocity_commanded_interfaces_;
+  StateInterfaceReferences joint_effort_commanded_interfaces_;
   StateInterfaceReferences joint_temperature_system_interfaces_;
   StateInterfaceReferences joint_temperature_phase_a_interfaces_;
   StateInterfaceReferences joint_temperature_phase_b_interfaces_;
