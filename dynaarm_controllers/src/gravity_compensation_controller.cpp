@@ -167,7 +167,7 @@ GravityCompensationController::on_deactivate([[maybe_unused]] const rclcpp_lifec
   const std::size_t joint_count = joint_position_state_interfaces_.size();
   // Reset the commanded joint efforts to 0
   for (std::size_t i = 0; i < joint_count; i++) {
-    bool success = joint_effort_command_interfaces_.at(i).get().set_value(0.0);
+    (void)joint_effort_command_interfaces_.at(i).get().set_value(0.0);
   }
   return controller_interface::CallbackReturn::SUCCESS;
 }
