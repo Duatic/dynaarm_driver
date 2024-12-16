@@ -27,11 +27,11 @@ joint_position_limits:
     min: 0.0
     max: 0.0
   soft:
-    min: -1.50
-    max: 1.50
+    min: -1.75
+    max: 1.75
   hard:
-    min: -1.57
-    max: 1.57
+    min: -1.9
+    max: 1.9
 
 joint_position_configurations:
   - name: "zero"
@@ -62,9 +62,9 @@ modes:
   # freeze controller gains
   - name: "MotorVelocity"
     gains:
-      p: 100.0
-      i: 5.0
-      d: 400.0
+      p: 70.0
+      i: 2.0
+      d: 200.0
 
   - name: "GearPosition"
     gains:

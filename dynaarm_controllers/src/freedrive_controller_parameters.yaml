@@ -7,5 +7,5 @@ freedrive_controller:
       unique<>: null
   d_gains:
     type: double_array
-    default_value: [0.1, 0.1, 0.1, 0.01, 0.01, 0.01]
+    default_value: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
     read_only: true

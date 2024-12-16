@@ -27,11 +27,11 @@ joint_position_limits:
     min: 0.0
     max: 0.0
   soft:
-    min: 0.0
-    max: 3.10
+    min: -3.96
+    max: 1.62
   hard:
-    min: -0.05
-    max: 3.14
+    min: -4.16
+    max: 1.82
 
 joint_position_configurations:
   - name: "zero"
