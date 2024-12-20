@@ -21,7 +21,8 @@ All dependencies with their corresponding version are listed in the [repos.list]
 
 # Usage
 
-See the [dynaarm_demo](https://github.com/Duatic/dynaarm_demo) repositories for some examples on how to use this driver.
+Some simple example can be found in the [dynaarm_demo](https://github.com/Duatic/dynaarm_demo) repositoriy.
+For more detailed information please refer to the DynaArm [documentation](https://docs.duatic.com)
 
 # Contributing
 
