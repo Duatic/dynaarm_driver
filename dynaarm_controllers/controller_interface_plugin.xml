@@ -1,0 +1,34 @@
+<library path="dynaarm_controllers">
+
+  <class name="dynaarm_controllers/GravityCompensationController"
+         type="dynaarm_controllers::GravityCompensationController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm gravity compensation controller.
+    </description>
+  </class>
+
+  <class name="dynaarm_controllers/StatusController"
+         type="dynaarm_controllers::StatusController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm status controller.
+    </description>
+  </class>
+
+   <class name="dynaarm_controllers/FreeDriveController"
+         type="dynaarm_controllers::FreeDriveController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm freedrive controller - to be used in combination with the gravity compensation controller.
+    </description>
+  </class>
+
+  <class name="dynaarm_controllers/PIDTuner"
+         type="dynaarm_controllers::PIDTuner"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm pid tuner - tune the drive pid parameters.
+    </description>
+  </class>
+</library>
