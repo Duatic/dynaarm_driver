@@ -7,5 +7,6 @@ freedrive_controller:
       unique<>: null
   d_gains:
     type: double_array
+    # These mini d gain values are needed because otherwise the controller on the drive will be disabled.
     default_value: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
     read_only: true
