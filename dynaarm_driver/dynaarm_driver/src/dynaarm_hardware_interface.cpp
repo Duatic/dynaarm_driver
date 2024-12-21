@@ -60,7 +60,8 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     RCLCPP_INFO_STREAM(logger_, "Drive file path " << device_file_path);
 
     auto drive = rsl_drive_sdk::DriveEthercatDevice::deviceFromFile(device_file_path, joint_name, address,
-                                                                    rsl_drive_sdk::PdoTypeEnum::C);
+
+                                                                    rsl_drive_sdk::PdoTypeEnum::E);
 
     // Store in our internal list so that we can easy refer to them afterwards
     drives_.push_back(drive);
