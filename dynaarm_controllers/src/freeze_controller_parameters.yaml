@@ -1,0 +1,9 @@
+freeze_controller:
+  arm_name:
+    type: string
+    default_value: "DynaarmSystem"
+    description: "name of the arm hardware interface"
+  disable_at_deactivate:
+    type: bool
+    default_value: true
+    description: "disable freeze mode at controller deactivation"

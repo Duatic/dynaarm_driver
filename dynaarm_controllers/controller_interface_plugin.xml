@@ -31,4 +31,12 @@
       Dynaarm pid tuner - tune the drive pid parameters.
     </description>
   </class>
+
+   <class name="dynaarm_controllers/FreezeController"
+         type="dynaarm_controllers::FreezeController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Freeze the DynaArm in its current configuration.
+    </description>
+  </class>
 </library>
