@@ -17,5 +17,5 @@ jobs:
     with:
       ros_distro: jazzy
       ros_repo: main
-      upstream_workspace: ''
+      upstream_workspace: 'repos.list'
       ref_for_scheduled_build: main
