@@ -2,11 +2,11 @@ repositories:
   dynaarm_description:
     type: git
     url: https://github.com/Duatic/dynaarm_description.git
-    version: fix/use_dynaarm_driver
+    version: main
   ethercat_sdk_master:
     type: git
     url: https://github.com/Duatic/ethercat_sdk_master.git
-    version: feature/ros2control
+    version: master
   message_logger:
     type: git
     url: https://github.com/leggedrobotics/message_logger.git
@@ -18,4 +18,4 @@ repositories:
   soem_interface:
     type: git
     url: https://github.com/Duatic/soem_interface.git
-    version: feature/ament_package
+    version: master
