@@ -40,7 +40,7 @@ None
 
 ## Additional Information
 
-The controller works by disableing the P and I gains of the motor controller running on each actuator. The D gain acts as a dampening against sudden motions. 
+The controller works by disableing the P and I gains of the motor controller running on each actuator. The D gain acts as a dampening against sudden motions.
 The [Gravity Compensation Controller](./gravity_compensation_controller.md) then simply provides a feed forward torque for each actuator that keeps the arm upright at its current position. By disturbing this stable state via a manual interaction it is possible to freely move the arm around.
 
 ## References

@@ -37,14 +37,14 @@ pid_tuner:
 
 __~/<joint name>/pid_gains/set__ | [Subscription]:\
 type: [<dynaarm_msgs/msg/PIDGains](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/PIDGains.msg).\
-For each configured joint a new topic is created that awaits new PID-gains. \ 
+For each configured joint a new topic is created that awaits new PID-gains. \
 The received gains are then configured as a parameters of the controller node and set to the drive during the next update cycle.
 
 
 ## Additional Information
 
 During controller activation the current gains are set as parameter to the controller ROS node.
-They can be access via `ros2 param get <controller node name> <joint name>/<gain type>` with gain type beeing one of `[p_gain, i_gain,d_gain]`. 
+They can be access via `ros2 param get <controller node name> <joint name>/<gain type>` with gain type beeing one of `[p_gain, i_gain,d_gain]`.
 
 ## References
 

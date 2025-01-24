@@ -1,7 +1,7 @@
 # Gravity Compensation Controller
 
 Controller that calculates and commands feed forward torques for the current configuration and velocities.\
-It is recommended to always run this controller as it vastly improves the control performance. 
+It is recommended to always run this controller as it vastly improves the control performance.
 
 ## Parameters
 

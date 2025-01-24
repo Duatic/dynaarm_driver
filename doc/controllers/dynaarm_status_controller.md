@@ -1,6 +1,6 @@
 # DynaArm Status Controller
 
-Controller that provides additional status information about the configured DynaArm. 
+Controller that provides additional status information about the configured DynaArm.
 The published [ArmState](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/ArmState.msg) consists of an array of information about each configured [actuator](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/DriveState.msg)
 
 ## Parameters
@@ -48,4 +48,3 @@ The `DriveState` message contains not only the currently read position/velocity/
 ## References
 
 * [Source](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_controllers/include/dynaarm_controllers/dynaarm_status_controller.hpp)
-

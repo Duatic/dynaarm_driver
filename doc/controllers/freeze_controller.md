@@ -1,6 +1,6 @@
 # Freeze Controller
 
-Controller that enables the hardware level freeze mode of the actuators. 
+Controller that enables the hardware level freeze mode of the actuators.
 The freeze mode is enabled upon activation of the controller and disabled upon deactivation of the controller.
 
 ## Parameters
@@ -36,4 +36,3 @@ The freeze mode is implemented on hardware level by running the actuators in vel
 ## References
 
 * [Source](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_controllers/include/dynaarm_controllers/freeze_controller.hpp)
-
