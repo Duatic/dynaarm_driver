@@ -7,6 +7,7 @@ Please refer to the [demo](https://github.com/Duatic/dynaarm_demo) repository fo
 
 In general all "simple" default ros2_control controllers are supported: [Overview](https://control.ros.org/rolling/doc/ros2_controllers/doc/controllers_index.html#controllers-for-manipulators-and-other-robots) \
 
+In addition we also use for testing the [Cartesian Motion Controller](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/tree/ros2/cartesian_motion_controller) provided by the FZI.
 
 ## Shipped (custom) controllers
 
