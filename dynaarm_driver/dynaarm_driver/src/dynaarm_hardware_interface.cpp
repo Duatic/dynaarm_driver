@@ -84,6 +84,7 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
 
   // Actually run the ethercat master in a separate thread
   ecat_worker_thread_ = std::make_unique<std::thread>([this] {
+    // A rt priority > 48 seems to starve other processes on some systems.
     if (ecat_master_->setRealtimePriority(48) == false) {
       RCLCPP_WARN_STREAM(logger_, "Could not increase thread priority - check user privileges.");
     }
