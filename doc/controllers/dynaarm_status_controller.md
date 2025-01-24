@@ -3,18 +3,16 @@
 Controller that provides additional status information about the configured DynaArm. 
 The published [ArmState](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/ArmState.msg) consists of an array of information about each configured [actuator](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/DriveState.msg)
 
-## Parameters:
+## Parameters
 
 ### Definition:
 ```{literalinclude} ../../dynaarm_controllers/src/dynaarm_status_controller_parameters.yaml
 ```
 
-__joints__ | [Required]:
-
+__joints__ | [Required]:\
 List of managed joints by the controller. Always needs to be a list of all joints of an arm in the order specified in the urdf
 
-__arm_name__ | [Required]:
-
+__arm_name__ | [Required]:\
 Name of the arm as specified in the ros2control part of the urdf. Currently this is `${tf_prefix}DynaarmSystem`
 
 
@@ -42,6 +40,10 @@ dynaarm_status_controller:
 __~/state__ | [Publisher]:\
 type: [<dynaarm_msgs/msg/ArmState>](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_msgs/msg/ArmState.msg)
 Publishes the ArmState message with the configured controller update rate.
+
+## Additional Information
+
+The `DriveState` message contains not only the currently read position/velocity/effort information but also the position/velocity/effort commands that where actually command and confirmed by the drive. For certain advanced control scenarios this can be advantageous. The temperature information for each phase is only provided in case the drive was configured to use the `E-type PDO`.
 
 ## References
 
