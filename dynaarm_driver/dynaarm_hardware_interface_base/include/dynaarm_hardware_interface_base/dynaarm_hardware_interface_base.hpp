@@ -34,9 +34,9 @@
 
 // ros2_control hardware_interface
 #include <rclcpp/rclcpp.hpp>
-#include "hardware_interface/hardware_info.hpp"
-#include "hardware_interface/system_interface.hpp"
-#include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include <hardware_interface/hardware_info.hpp>
+#include <hardware_interface/system_interface.hpp>
+#include <hardware_interface/types/hardware_interface_return_values.hpp>
 
 // ROS
 #include <rclcpp/macros.hpp>
@@ -54,12 +54,12 @@ class DynaArmHardwareInterfaceBase : public hardware_interface::SystemInterface
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(DynaArmHardwareInterfaceBase)
 
-  virtual ~DynaArmHardwareInterfaceBase();
   DynaArmHardwareInterfaceBase() : logger_(rclcpp::get_logger("DynaArmHardwareInterfaceBase"))
   {
     // This is only here otherwise the compiler will complain about the logger var.
     // We initialize the logger in on_init properly
   }
+  virtual ~DynaArmHardwareInterfaceBase();
 
   hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& system_info);
   virtual hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) = 0;

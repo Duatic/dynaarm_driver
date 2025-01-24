@@ -51,10 +51,12 @@ DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& sy
 
   // Initialize the state vectors with 0 values
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    joint_state_vector_.push_back(dynaarm_hardware_interface_common::JointState{ .name = info_.joints[i].name });
-    joint_command_vector_.push_back(dynaarm_hardware_interface_common::JointCommand{ .name = info_.joints[i].name });
-    motor_state_vector_.push_back(dynaarm_hardware_interface_common::MotorState{ .name = info_.joints[i].name });
-    motor_command_vector_.push_back(dynaarm_hardware_interface_common::MotorCommand{ .name = info_.joints[i].name });
+    const auto joint_name = info_.joints.at(i).name;
+
+    joint_state_vector_.push_back(dynaarm_hardware_interface_common::JointState{ .name = joint_name });
+    joint_command_vector_.push_back(dynaarm_hardware_interface_common::JointCommand{ .name = joint_name });
+    motor_state_vector_.push_back(dynaarm_hardware_interface_common::MotorState{ .name = joint_name });
+    motor_command_vector_.push_back(dynaarm_hardware_interface_common::MotorCommand{ .name = joint_name });
   }
 
   RCLCPP_INFO_STREAM(logger_, "Successfully initialized dynaarm hardware interface for DynaArmHardwareInterfaceBase");
@@ -211,7 +213,6 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
     motor_position(i) = motor_state_vector_[i].position;
     motor_velocity(i) = motor_state_vector_[i].velocity;
     motor_effort(i) = motor_state_vector_[i].effort;
-
     motor_position_commanded(i) = motor_state_vector_[i].position_commanded;
     motor_velocity_commanded(i) = motor_state_vector_[i].velocity_commanded;
     motor_effort_commanded(i) = motor_state_vector_[i].effort_commanded;
@@ -252,7 +253,9 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
   Eigen::VectorXd joint_velocity(info_.joints.size());
   Eigen::VectorXd joint_effort(info_.joints.size());
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    joint_position[i] = joint_command_vector_[i].position;
+    // Simply clamp the outputs according to the limits specified in the urdf
+    const auto limits = info_.limits.at(info_.joints[i].name);
+    joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, limits.max_position);
     joint_velocity[i] = joint_command_vector_[i].velocity;
     joint_effort[i] = joint_command_vector_[i].effort;
   }
