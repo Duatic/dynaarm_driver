@@ -190,7 +190,7 @@ StatusBroadcaster::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State&
 }
 
 controller_interface::return_type StatusBroadcaster::update(const rclcpp::Time& time,
-                                                           [[maybe_unused]] const rclcpp::Duration& period)
+                                                            [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     return controller_interface::return_type::OK;
