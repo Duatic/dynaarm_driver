@@ -6,7 +6,7 @@ The published [ArmState](https://github.com/Duatic/dynaarm_driver/blob/main/dyna
 ## Parameters
 
 ### Definition:
-```{literalinclude} ../../dynaarm_controllers/src/dynaarm_status_controller_parameters.yaml
+```{literalinclude} ../../dynaarm_controllers/src/dynaarm_status_broadcaster_parameters.yaml
 ```
 
 __joints__ | [Required]:\
@@ -21,7 +21,7 @@ Name of the arm as specified in the ros2control part of the urdf. Currently this
 A full example can be found in the [dynaarm_demo](https://github.com/Duatic/dynaarm_demo/blob/main/dynaarm_examples/config/controllers.yaml) repository.
 
 ```yaml
-dynaarm_status_controller:
+dynaarm_status_broadcaster:
   ros__parameters:
     joints:
       - shoulder_rotation
@@ -47,4 +47,4 @@ The `DriveState` message contains not only the currently read position/velocity/
 
 ## References
 
-* [Source](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_controllers/include/dynaarm_controllers/dynaarm_status_controller.hpp)
+* [Source](https://github.com/Duatic/dynaarm_driver/blob/main/dynaarm_controllers/include/dynaarm_controllers/dynaarm_status_broadcaster.hpp)
