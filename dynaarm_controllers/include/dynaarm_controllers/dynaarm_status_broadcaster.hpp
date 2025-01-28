@@ -31,15 +31,15 @@
 #include <map>
 
 /*ROS2*/
-#include "realtime_tools/realtime_buffer.h"
-#include "realtime_tools/realtime_publisher.h"
+#include "realtime_tools/realtime_buffer.hpp"
+#include "realtime_tools/realtime_publisher.hpp"
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/subscription.hpp>
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <rclcpp/logging.hpp>
 /*Project*/
-#include "dynaarm_status_controller_parameters.hpp"
+#include "dynaarm_status_broadcaster_parameters.hpp"
 #include "dynaarm_controllers/interface_utils.hpp"
 
 /*msgs*/
@@ -47,7 +47,7 @@
 
 namespace dynaarm_controllers
 {
-class StatusController : public controller_interface::ControllerInterface
+class StatusBroadcaster : public controller_interface::ControllerInterface
 {
 public:
   // Some convenient typedef for easier handling of messages
@@ -55,8 +55,8 @@ public:
   using ArmStatePublisher = realtime_tools::RealtimePublisher<ArmState>;
   using DriveState = dynaarm_msgs::msg::DriveState;
 
-  StatusController();
-  ~StatusController() = default;
+  StatusBroadcaster();
+  ~StatusBroadcaster() = default;
 
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
 
@@ -74,8 +74,8 @@ public:
 
 private:
   // Access to controller parameters via generate_parameter_library
-  std::unique_ptr<dynaarm_status_controller::ParamListener> param_listener_;
-  dynaarm_status_controller::Params params_;
+  std::unique_ptr<dynaarm_status_broadcaster::ParamListener> param_listener_;
+  dynaarm_status_broadcaster::Params params_;
 
   // The actual state publisher and it's realtime wrapper
   rclcpp::Publisher<ArmState>::SharedPtr arm_state_pub_;

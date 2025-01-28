@@ -22,7 +22,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_controllers/dynaarm_status_controller.hpp"
+#include "dynaarm_controllers/dynaarm_status_broadcaster.hpp"
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
@@ -31,11 +31,11 @@
 namespace dynaarm_controllers
 {
 
-StatusController::StatusController()
+StatusBroadcaster::StatusBroadcaster()
 {
 }
 
-controller_interface::InterfaceConfiguration StatusController::command_interface_configuration() const
+controller_interface::InterfaceConfiguration StatusBroadcaster::command_interface_configuration() const
 {
   // Claim the necessary command interfaces
   // In our case that are none as this is just a status controller
@@ -44,7 +44,7 @@ controller_interface::InterfaceConfiguration StatusController::command_interface
   return config;
 }
 
-controller_interface::InterfaceConfiguration StatusController::state_interface_configuration() const
+controller_interface::InterfaceConfiguration StatusBroadcaster::state_interface_configuration() const
 {
   // Claim the necessary state interfaces
   controller_interface::InterfaceConfiguration config;
@@ -68,11 +68,11 @@ controller_interface::InterfaceConfiguration StatusController::state_interface_c
   return config;
 }
 
-controller_interface::CallbackReturn StatusController::on_init()
+controller_interface::CallbackReturn StatusBroadcaster::on_init()
 {
   try {
     // Obtains necessary parameters
-    param_listener_ = std::make_unique<dynaarm_status_controller::ParamListener>(get_node());
+    param_listener_ = std::make_unique<dynaarm_status_broadcaster::ParamListener>(get_node());
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
   } catch (const std::exception& e) {
@@ -84,7 +84,7 @@ controller_interface::CallbackReturn StatusController::on_init()
 }
 
 controller_interface::CallbackReturn
-StatusController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+StatusBroadcaster::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // update the dynamic map parameters
   param_listener_->refresh_dynamic_parameters();
@@ -106,7 +106,7 @@ StatusController::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& p
 }
 
 controller_interface::CallbackReturn
-StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+StatusBroadcaster::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // first step is always clearing the interface lists
   // otherwise one gets interesting errors during reactivation
@@ -184,13 +184,13 @@ StatusController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
 }
 
 controller_interface::CallbackReturn
-StatusController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+StatusBroadcaster::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type StatusController::update(const rclcpp::Time& time,
-                                                           [[maybe_unused]] const rclcpp::Duration& period)
+controller_interface::return_type StatusBroadcaster::update(const rclcpp::Time& time,
+                                                            [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     return controller_interface::return_type::OK;
@@ -234,4 +234,4 @@ controller_interface::return_type StatusController::update(const rclcpp::Time& t
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::StatusController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::StatusBroadcaster, controller_interface::ControllerInterface)

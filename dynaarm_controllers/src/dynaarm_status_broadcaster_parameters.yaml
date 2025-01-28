@@ -1,4 +1,4 @@
-dynaarm_status_controller:
+dynaarm_status_broadcaster:
   joints:
     type: string_array
     default_value: []
