@@ -49,7 +49,9 @@
 #include <dynaarm_hardware_interface_base/dynaarm_hardware_interface_base.hpp>
 
 // sdk
-#include "ethercat_sdk_master/EthercatMaster.hpp"
+// As ros2control does not support sharing resources between hardware interfaces we need to resort to using a singleton
+// for managing the EthercatMasters
+#include "ethercat_sdk_master/EthercatMasterSingleton.hpp"
 #include <rsl_drive_sdk/Drive.hpp>
 
 namespace dynaarm_driver
@@ -68,9 +70,10 @@ public:
 
   void read_motor_states() override;
   void write_motor_commands() override;
+  hardware_interface::CallbackReturn on_configure() override;
 
 private:
-  ecat_master::EthercatMaster::SharedPtr ecat_master_;
+  ecat_master::EthercatMasterSingleton::Handle ecat_master_handle_;
   std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
   std::atomic<bool> startupAbortFlag_{ false };
