@@ -256,12 +256,20 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
     // Clamp the outputs to the joint limits defined in the urdf
     const auto limits = info_.limits.at(info_.joints[i].name);
     // But only if the current position in within the limits. Otherwise this might result into sudden motions
-    if (joint_state_vector_[i].position >= limits.min_position &&
-        joint_state_vector_[i].position <= limits.max_position) {
-      joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, limits.max_position);
-    } else {
+    const auto diff_min_limit = joint_state_vector_[i].position - limits.min_position;
+    const auto diff_max_limit = joint_state_vector_[i].position - limits.max_position;
+
+    // We are outside the lower limit but the command is larger than the current position -> Going towards the limit
+    if (diff_min_limit < 0 && joint_command_vector_[i].position > joint_state_vector_[i].position) {
+      // Accept it
       joint_position[i] = joint_command_vector_[i].position;
+    } else if (diff_max_limit > 0 && joint_command_vector_[i].position < joint_state_vector_[i].position) {
+      // Accept it
+      joint_position[i] = joint_command_vector_[i].position;
+    } else {
+      joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, limits.max_position);
     }
+
     joint_velocity[i] = joint_command_vector_[i].velocity;
     joint_effort[i] = joint_command_vector_[i].effort;
   }
