@@ -78,6 +78,11 @@ public:
   hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period);
   virtual void write_motor_commands() = 0;
 
+  virtual CallbackReturn on_configure()
+  {
+    return CallbackReturn::SUCCESS;
+  }
+
   hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& start_interfaces,
                                                               const std::vector<std::string>& stop_interfaces);
 
