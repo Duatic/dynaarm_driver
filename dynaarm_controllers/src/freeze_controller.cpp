@@ -60,7 +60,7 @@ controller_interface::CallbackReturn FreezeController::on_init()
     return CallbackReturn::ERROR;
   }
 
-  return controller_interface::CallbackReturn::SUCCESS;  
+  return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn

@@ -22,7 +22,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
- 
 /* std */
 #include <std_msgs/msg/bool.hpp>
 
@@ -33,37 +32,34 @@
 
 namespace dynaarm_controllers
 {
-SafetyController::SafetyController() 
-{  
+SafetyController::SafetyController()
+{
 }
 
 controller_interface::InterfaceConfiguration SafetyController::command_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  config.names.push_back(params_.arm_name + "/emergency_stop");  
+  config.names.push_back(params_.arm_name + "/emergency_stop");
   return config;
 }
 
 controller_interface::InterfaceConfiguration SafetyController::state_interface_configuration() const
 {
-    // Claim the necessary state interfaces
-    controller_interface::InterfaceConfiguration config;
-    config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-    return config;
+  // Claim the necessary state interfaces
+  controller_interface::InterfaceConfiguration config;
+  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  return config;
 }
 
 controller_interface::CallbackReturn SafetyController::on_init()
 {
-  try 
-  {
+  try {
     // Obtains necessary parameters
     param_listener_ = std::make_unique<dynaarm_safety_controller::ParamListener>(get_node());
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
-  } 
-  catch (const std::exception& e) 
-  {
+  } catch (const std::exception& e) {
     RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Exception during controller init: " << e.what());
     return CallbackReturn::ERROR;
   }
@@ -80,7 +76,7 @@ controller_interface::CallbackReturn SafetyController::on_configure(const rclcpp
   params_ = param_listener_->get_params();
 
   joy_subscriptions_.push_back(get_node()->create_subscription<sensor_msgs::msg::Joy>(
-    "/joy", 10, std::bind(&SafetyController::joy_callback, this, std::placeholders::_1)));
+      "/joy", 10, std::bind(&SafetyController::joy_callback, this, std::placeholders::_1)));
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -89,15 +85,16 @@ controller_interface::CallbackReturn SafetyController::on_activate(const rclcpp_
 {
   emergency_stop_interface_.clear();
 
-  if (!controller_interface::get_ordered_interfaces(command_interfaces_, std::vector<std::string>{ params_.arm_name }, "emergency_stop", emergency_stop_interface_)) 
-  {
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, std::vector<std::string>{ params_.arm_name },
+                                                    "emergency_stop", emergency_stop_interface_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interface - emergency_stop");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
   // Read the initial value from the hardware interface
   emergency_stop_active_ = static_cast<bool>(emergency_stop_interface_.at(0).get().get_value());
-  RCLCPP_WARN(get_node()->get_logger(), "Emergency Stop initial state: %s", emergency_stop_active_ ? "ACTIVE" : "INACTIVE");
+  RCLCPP_WARN(get_node()->get_logger(), "Emergency Stop initial state: %s",
+              emergency_stop_active_ ? "ACTIVE" : "INACTIVE");
 
   check_gamepad_connection();
 
@@ -121,60 +118,48 @@ controller_interface::return_type SafetyController::update(const rclcpp::Time&, 
   }
 
   // Set the emergency stop value in the hardware interface
-  (void)emergency_stop_interface_.at(0).get().set_value(static_cast<double>(emergency_stop_active_));  
+  (void)emergency_stop_interface_.at(0).get().set_value(static_cast<double>(emergency_stop_active_));
 
   return controller_interface::return_type::OK;
 }
 
 void SafetyController::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
-  if (!gamepad_connected_)
-  {
-    gamepad_connected_ = true;        
+  if (!gamepad_connected_) {
+    gamepad_connected_ = true;
   }
 
-  if (emergency_stop_button_ < 0 || emergency_stop_button_ >= static_cast<int>(msg->buttons.size()))
-  {
+  if (emergency_stop_button_ < 0 || emergency_stop_button_ >= static_cast<int>(msg->buttons.size())) {
     return;  // Ignore invalid button index
   }
 
   bool pressed = msg->buttons[emergency_stop_button_];
 
-  if (emergency_stop_active_)  
-  {
+  if (emergency_stop_active_) {
     // If emergency stop is active, the button must be held for 3 seconds to disable it
-    if (pressed)
-    {
-      if (emergency_stop_pressed_time_.nanoseconds() == 0)  
-      {
+    if (pressed) {
+      if (emergency_stop_pressed_time_.nanoseconds() == 0) {
         emergency_stop_pressed_time_ = get_node()->now();
       }
 
-      if ((get_node()->now() - emergency_stop_pressed_time_).seconds() >= 3)
-      {
+      if ((get_node()->now() - emergency_stop_pressed_time_).seconds() >= 3) {
         RCLCPP_INFO(get_node()->get_logger(), "Emergency stop released. Resuming control.");
         emergency_stop_active_ = false;
-        button_released_ = false;  // Require button release before reactivating
-        emergency_stop_pressed_time_ = rclcpp::Time(0); // Reset timer
+        button_released_ = false;                        // Require button release before reactivating
+        emergency_stop_pressed_time_ = rclcpp::Time(0);  // Reset timer
       }
-    }
-    else
-    {
+    } else {
       // Button released, reset the timer
       emergency_stop_pressed_time_ = rclcpp::Time(0);
     }
-  }
-  else  
-  {
+  } else {
     // Wait for button release before allowing activation again
-    if (!pressed)
-    {
+    if (!pressed) {
       button_released_ = true;
     }
 
     // Reactivate emergency stop only if button was released first
-    if (pressed && button_released_)
-    {
+    if (pressed && button_released_) {
       RCLCPP_ERROR(get_node()->get_logger(), "EMERGENCY STOP ACTIVATED!");
       emergency_stop_active_ = true;
     }
@@ -183,22 +168,20 @@ void SafetyController::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
 
 void SafetyController::check_gamepad_connection()
 {
-    rclcpp::Rate rate(1.0);
-    int attempts = 0;
-    while (rclcpp::ok() && !gamepad_connected_)
-    {
-        RCLCPP_WARN(get_node()->get_logger(), "Waiting for gamepad connection... (Attempt %d)", attempts);
-        attempts++;
+  rclcpp::Rate rate(1.0);
+  int attempts = 0;
+  while (rclcpp::ok() && !gamepad_connected_) {
+    RCLCPP_WARN(get_node()->get_logger(), "Waiting for gamepad connection... (Attempt %d)", attempts);
+    attempts++;
 
-        if (attempts > 20) 
-        {            
-            return;
-        }
-
-        rate.sleep();
+    if (attempts > 20) {
+      return;
     }
-    RCLCPP_INFO(get_node()->get_logger(), "Gamepad detected! Proceeding...");
+
+    rate.sleep();
+  }
+  RCLCPP_INFO(get_node()->get_logger(), "Gamepad detected! Proceeding...");
 }
-} // namespace dynaarm_controllers
+}  // namespace dynaarm_controllers
 
 PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::SafetyController, controller_interface::ControllerInterface)

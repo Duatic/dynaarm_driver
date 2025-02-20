@@ -36,10 +36,9 @@
 
 namespace dynaarm_controllers
 {
-class SafetyController  : public controller_interface::ControllerInterface
+class SafetyController : public controller_interface::ControllerInterface
 {
-public:  
-
+public:
   using JoySubscription = rclcpp::Subscription<sensor_msgs::msg::Joy>;
 
   SafetyController();
@@ -54,11 +53,10 @@ public:
   controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
 private:
-
-  bool gamepad_connected_ = false;  
+  bool gamepad_connected_ = false;
   bool emergency_stop_active_ = true;
   bool button_released_ = true;
-  
+
   int emergency_stop_button_ = 8;
   rclcpp::Time emergency_stop_pressed_time_;
 
@@ -66,11 +64,11 @@ private:
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
 
   std::vector<JoySubscription::SharedPtr> joy_subscriptions_;
-  CommandInterfaceReferences emergency_stop_interface_;  
-  
+  CommandInterfaceReferences emergency_stop_interface_;
+
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<dynaarm_safety_controller::ParamListener> param_listener_;
-  dynaarm_safety_controller::Params params_;  
+  dynaarm_safety_controller::Params params_;
 };
 
 }  // namespace dynaarm_controllers

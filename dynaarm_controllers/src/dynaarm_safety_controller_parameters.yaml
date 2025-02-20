@@ -3,4 +3,3 @@ dynaarm_safety_controller:
     type: string
     default_value: "DynaarmSystem"
     description: "name of the arm hardware interface"
-
