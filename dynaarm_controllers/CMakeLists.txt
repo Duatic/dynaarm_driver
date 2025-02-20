@@ -41,6 +41,10 @@ generate_parameter_library(
   src/dynaarm_pid_tuner_parameters.yaml
 )
 
+generate_parameter_library(
+  dynaarm_safety_controller_parameters
+  src/dynaarm_safety_controller_parameters.yaml
+)
 
 generate_parameter_library(
   freeze_controller_parameters
@@ -52,6 +56,7 @@ add_library(${PROJECT_NAME} SHARED
   src/dynaarm_status_broadcaster.cpp
   src/freedrive_controller.cpp
   src/dynaarm_pid_tuner.cpp
+  src/dynaarm_safety_controller.cpp
   src/freeze_controller.cpp
 )
 
@@ -66,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}
   gravity_compensation_controller_parameters
   freedrive_controller_parameters
   dynaarm_pid_tuner_parameters
+  dynaarm_safety_controller_parameters
   freeze_controller_parameters
   pinocchio::pinocchio
 )

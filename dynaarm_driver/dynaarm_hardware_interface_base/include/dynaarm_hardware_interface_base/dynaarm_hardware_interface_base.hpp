@@ -93,6 +93,7 @@ protected:
   std::vector<dynaarm_hardware_interface_common::JointCommand> joint_command_vector_;
   std::vector<dynaarm_hardware_interface_common::MotorCommand> motor_command_vector_;
 
+  double command_emergency_stop_{ 1.0 };
   double command_freeze_mode_{ 0.0 };  // do not start in freeze mode per default -> We allow overriding this via a
                                        // ros2control parameters
 

@@ -16,7 +16,7 @@
     </description>
   </class>
 
-   <class name="dynaarm_controllers/FreeDriveController"
+  <class name="dynaarm_controllers/FreeDriveController"
          type="dynaarm_controllers::FreeDriveController"
          base_class_type="controller_interface::ControllerInterface">
     <description>
@@ -32,11 +32,19 @@
     </description>
   </class>
 
-   <class name="dynaarm_controllers/FreezeController"
+  <class name="dynaarm_controllers/FreezeController"
          type="dynaarm_controllers::FreezeController"
          base_class_type="controller_interface::ControllerInterface">
     <description>
       Freeze the DynaArm in its current configuration.
+    </description>
+  </class>
+
+  <class name="dynaarm_controllers/SafetyController"
+         type="dynaarm_controllers::SafetyController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm safety controller - use an input like the gamepad to have some basic safety.
     </description>
   </class>
 </library>
