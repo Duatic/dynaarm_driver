@@ -40,11 +40,4 @@
     </description>
   </class>
 
-  <class name="dynaarm_controllers/SafetyController"
-         type="dynaarm_controllers::SafetyController"
-         base_class_type="controller_interface::ControllerInterface">
-    <description>
-      Dynaarm safety controller - use an input like the gamepad to have some basic safety.
-    </description>
-  </class>
 </library>
