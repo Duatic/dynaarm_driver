@@ -219,7 +219,7 @@ void DynaArmHardwareInterface::write_motor_commands()
       cmd.setJointTorque(motor_command_vector_[i].effort);
       cmd.setPidGains(gains);
 
-      if (command_freeze_mode_ == 1.0 || command_emergency_stop_ == 1.0) {
+      if (command_freeze_mode_ == 1.0) {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
       } else {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);

@@ -153,9 +153,6 @@ std::vector<hardware_interface::CommandInterface> DynaArmHardwareInterfaceBase::
   command_interfaces.emplace_back(
       hardware_interface::CommandInterface(get_hardware_info().name, "freeze_mode", &command_freeze_mode_));
 
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(get_hardware_info().name, "emergency_stop", &command_emergency_stop_));
-
   return command_interfaces;
 }
 
