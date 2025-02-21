@@ -21,28 +21,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from setuptools import find_packages, setup
+import pytest
 
-package_name = "dynaarm_extensions"
-
-setup(
-    name=package_name,
-    packages=find_packages(exclude=["test"]),
-    version="0.0.0",
-    data_files=[
-        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
-        ("share/" + package_name, ["package.xml"]),
-    ],
-    install_requires=["setuptools"],
-    zip_safe=True,
-    maintainer="Timo Schwarzer",
-    maintainer_email="tschwarzer@duatic.com",
-    description="DynaArm Extensions - E-Stop and other utilities",
-    license="BSD 3-Clause",
-    tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "e_stop_node = dynaarm_extensions.e_stop.e_stop_node:main",
-        ],
-    },
-)
+def test_dummy():    
+    assert True
