@@ -27,6 +27,8 @@ package_name = "dynaarm_extensions"
 
 setup(
     name=package_name,
+    packages=[package_name],
+    package_dir={"": "."},
     version="0.0.0",
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
