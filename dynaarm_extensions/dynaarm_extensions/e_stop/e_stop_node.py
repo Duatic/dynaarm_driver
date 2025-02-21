@@ -10,7 +10,7 @@ class EmergencyStopNode(Node):
         super().__init__("dynaarm_emergency_stop_node")
 
         # Declare and fetch the emergency stop button parameter
-        self.declare_parameter("emergency_stop_button", 8)
+        self.declare_parameter("emergency_stop_button", 9)
         self.emergency_stop_button = int(self.get_parameter("emergency_stop_button").value)
 
         # Track gamepad state and emergency stop status
@@ -68,7 +68,7 @@ class EmergencyStopNode(Node):
                 if self.emergency_stop_pressed_time is None:
                     self.emergency_stop_pressed_time = now
 
-                if (now - self.emergency_stop_pressed_time).nanoseconds / 1**9 >= 3:
+                if (now - self.emergency_stop_pressed_time).nanoseconds / 10**9 >= 3:
                     self.get_logger().info("Emergency stop released. Resuming control.")
                     self.set_emergency_stop_state(False)
                     self.e_stop_button_release = False
