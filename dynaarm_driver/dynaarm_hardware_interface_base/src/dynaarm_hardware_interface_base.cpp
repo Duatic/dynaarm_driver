@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Duatic AG
+ * Copyright 2025 Duatic AG
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
  * following conditions are met:
@@ -280,6 +280,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
 
   return hardware_interface::return_type::OK;
 }
+
 hardware_interface::return_type DynaArmHardwareInterfaceBase::prepare_command_mode_switch(
     [[maybe_unused]] const std::vector<std::string>& start_interfaces,
     [[maybe_unused]] const std::vector<std::string>& stop_interfaces)
