@@ -4,8 +4,6 @@ from rclpy.duration import Duration
 from controller_manager_msgs.srv import SwitchController
 from sensor_msgs.msg import Joy
 
-NANOSECONDS_TO_SECONDS = 1_000_000_000
-
 class EmergencyStopNode(Node):
     def __init__(self):
         super().__init__('dynaarm_emergency_stop_node')
@@ -51,15 +49,13 @@ class EmergencyStopNode(Node):
         now = self.get_clock().now()
 
         # No gamepad connected
-        if not self.gamepad_connected and self.show_gamepad_connected_warning:
-            self.get_logger().warning("Waiting for gamepad to connect.")
-            self.show_gamepad_connected_warning = False
+        if not self.gamepad_connected:
+            self.get_logger().warning("Waiting for gamepad to connect.",  throttle_duration_sec=15)            
 
         # Gamepad disconnects, but allow a grace period before assuming disconnection
         if self.gamepad_connected and (now - self.last_joy_received_time) > Duration(seconds=1.0):
-            if (now - self.last_toggle_time).nanoseconds / NANOSECONDS_TO_SECONDS >= 2:
-                self.get_logger().warn("Gamepad disconnected! Activating freeze_controller.")
-                self.show_gamepad_connected_warning = True
+            if (now - self.last_toggle_time).nanoseconds / 10**9 >= 2:
+                self.get_logger().warn("Gamepad disconnected! Activating freeze_controller.")                
                 self.set_emergency_stop_state(True)  
                 self.gamepad_connected = False
 
