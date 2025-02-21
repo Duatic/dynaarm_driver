@@ -16,8 +16,7 @@ setup(
     maintainer='root',
     maintainer_email='timo.schwarzer@gmail.com',
     description='DynaArm Extensions - E-Stop and other utilities',
-    license='TODO: License declaration',
-    tests_require=['pytest'],
+    license='TODO: License declaration',    
     entry_points={
         'console_scripts': [
             'e_stop_node = dynaarm_extensions.e_stop.e_stop_node:main',
