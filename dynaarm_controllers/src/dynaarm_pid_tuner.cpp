@@ -22,7 +22,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_controllers/dynaarm_pid_tuner.hpp"
+#include <dynaarm_controllers/dynaarm_pid_tuner.hpp>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
