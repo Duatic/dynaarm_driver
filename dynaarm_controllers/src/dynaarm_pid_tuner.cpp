@@ -179,9 +179,14 @@ controller_interface::return_type PIDTuner::update([[maybe_unused]] const rclcpp
     const std::string d_gain_param = param_name_base + "d_gain";
 
     // Obtain the target gains and limit them
-    const double p_gain = limit_gain(node->get_parameter(p_gain_param).as_double());
-    const double i_gain = limit_gain(node->get_parameter(i_gain_param).as_double());
-    const double d_gain = limit_gain(node->get_parameter(d_gain_param).as_double());
+    // const double p_gain = limit_gain(node->get_parameter(p_gain_param).as_double());
+    // const double i_gain = limit_gain(node->get_parameter(i_gain_param).as_double());
+    // const double d_gain = limit_gain(node->get_parameter(d_gain_param).as_double());
+
+    // Without clamping
+    const double p_gain = node->get_parameter(p_gain_param).as_double();
+    const double i_gain = node->get_parameter(i_gain_param).as_double();
+    const double d_gain = node->get_parameter(d_gain_param).as_double();
 
     // Set the target gains
     (void)joint_p_gain_command_interfaces_[i].get().set_value(p_gain);
