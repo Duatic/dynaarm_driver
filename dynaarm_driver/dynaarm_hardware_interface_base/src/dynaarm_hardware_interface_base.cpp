@@ -262,7 +262,8 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
 
     // The if statements below make sure that the arm is not moving towards collision with itself
     // First checking if it is within limits, if yes it works under normal circumstances
-    if(joint_state_vector_[i].position > limits.min_position && joint_state_vector_[i].position < limits.max_position)
+    if(joint_state_vector_[i].position >= limits.min_position && 
+      joint_state_vector_[i].position <= limits.max_position)
     {      
       joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, limits.max_position);
       joint_state_vector_[i].position_last = joint_state_vector_[i].position;                
