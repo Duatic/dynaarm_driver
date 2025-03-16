@@ -110,8 +110,8 @@ modes:
 
   - name: JointPositionVelocityTorquePidGains
     gains:
-      p: 600.0
-      i: 2.0
+      p: 3000.0
+      i: 5.0
       d: 20.0
 
 goal_states:
