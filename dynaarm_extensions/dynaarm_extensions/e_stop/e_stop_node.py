@@ -24,7 +24,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
-from controller_manager_msgs.srv import SwitchController
+from controller_manager_msgs.srv import SwitchController, ListControllers
 from sensor_msgs.msg import Joy
 
 
@@ -39,9 +39,9 @@ class EmergencyStopNode(Node):
         # Track gamepad state and emergency stop status
         self.gamepad_connected = False
         self.show_gamepad_connected_warning = True
-        self.emergency_stop_active = True
         self.e_stop_button_release = True
         self.e_stop_pressed_state = False
+        self.was_freeze_controller_active_before = False
         self.emergency_stop_pressed_time = None
         self.last_joy_received_time = self.get_clock().now()
         self.last_toggle_time = self.get_clock().now()
@@ -49,10 +49,9 @@ class EmergencyStopNode(Node):
         # Subscribe to Joy topic
         self.joy_subscriber = self.create_subscription(Joy, "joy", self.joy_callback, 10)
 
-        # Create a service client for switching controllers
-        self.switch_controller_client = self.create_client(
-            SwitchController, "controller_manager/switch_controller"
-        )
+        # Create service clients
+        self.switch_controller_client = self.create_client(SwitchController, "controller_manager/switch_controller")
+        self.list_controllers_client = self.create_client(ListControllers, "controller_manager/list_controllers")
 
         # Timer to monitor gamepad and emergency stop state at 100 Hz (0.01s interval)
         self.control_loop_timer = self.create_timer(0.01, self.control_loop)
@@ -82,72 +81,75 @@ class EmergencyStopNode(Node):
         if self.gamepad_connected and (now - self.last_joy_received_time) > Duration(seconds=1.0):
             if (now - self.last_toggle_time).nanoseconds / 10**9 >= 2:
                 self.get_logger().warn("Gamepad disconnected! Activating freeze_controller.")
-                self.set_emergency_stop_state(True)
+                self.set_freeze_controller(True)
                 self.gamepad_connected = False
 
-        # Handle emergency stop logic
-        if self.emergency_stop_active:
-            if self.e_stop_pressed_state:
-                if self.emergency_stop_pressed_time is None:
-                    self.emergency_stop_pressed_time = now
+        # Handle emergency stop activation
+        if self.e_stop_pressed_state and self.e_stop_button_release:
+            self.get_logger().error("EMERGENCY STOP ACTIVATED!")
+            self.set_freeze_controller(True)
+            self.e_stop_button_release = False
+            self.emergency_stop_pressed_time = now  # Start tracking press duration
 
-                if (now - self.emergency_stop_pressed_time).nanoseconds / 10**9 >= 3:
-                    self.get_logger().info("Emergency stop released. Resuming control.")
-                    self.set_emergency_stop_state(False)
-                    self.e_stop_button_release = False
-                    self.emergency_stop_pressed_time = None
-            else:
-                self.emergency_stop_pressed_time = None
-        else:
-            if not self.e_stop_pressed_state:
-                self.e_stop_button_release = True
+        # Handle emergency stop deactivation (button held for 3 sec)
+        elif self.e_stop_pressed_state and self.emergency_stop_pressed_time:
+            hold_duration = (now - self.emergency_stop_pressed_time).nanoseconds / 1e9
+            if hold_duration >= 3.0:
+                if self.was_freeze_controller_active_before:
+                    self.get_logger().info("Emergency stop button held for 3 sec - Deactivating freeze_controller.")
+                    self.set_freeze_controller(False)
+                self.emergency_stop_pressed_time = None  # Reset timer after release
 
-            if self.e_stop_pressed_state and self.e_stop_button_release:
-                self.get_logger().error("EMERGENCY STOP ACTIVATED!")
-                self.set_emergency_stop_state(True)
+        # Reset release state when button is fully released
+        elif not self.e_stop_pressed_state and not self.e_stop_button_release:
+            self.e_stop_button_release = True
+            self.emergency_stop_pressed_time = None  # Reset timer
+    
+    def get_freeze_controller_state(self):
+        """Queries the controller manager to check if freeze_controller is currently active."""
+        if not self.list_controllers_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().error("Controller Manager service not available.")
+            return False  # Assume inactive if we can't query
 
-    def set_emergency_stop_state(self, activate: bool):
-        """Sets emergency stop state and triggers controller switch only if state changes."""
-        if activate == self.emergency_stop_active:
-            return
+        request = ListControllers.Request()
+        future = self.list_controllers_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
 
-        previous_state = self.emergency_stop_active  # Store previous state in case of failure
-        self.emergency_stop_active = activate
-        self.last_toggle_time = self.get_clock().now()
-        self.toggle_freeze_controller(previous_state)
+        if future.result():
+            for controller in future.result().controller:
+                if controller.name == "freeze_controller" and controller.state == "active":
+                    return True
+        return False
 
-    def toggle_freeze_controller(self, previous_state: bool):
+    def set_freeze_controller(self, active: bool):
         """Activates or deactivates the freeze_controller asynchronously with rollback on failure."""
         if not self.switch_controller_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().error(
                 "Controller Manager service not available. Reverting e-stop state."
             )
-            self.emergency_stop_active = previous_state  # Revert to previous state
             return
 
         request = SwitchController.Request()
-        request.activate_controllers = ["freeze_controller"] if self.emergency_stop_active else []
-        request.deactivate_controllers = [] if self.emergency_stop_active else ["freeze_controller"]
-        request.strictness = SwitchController.Request.BEST_EFFORT
+        request.activate_controllers = ["freeze_controller"] if active else []
+        request.deactivate_controllers = [] if active else ["freeze_controller"]
+        request.strictness = SwitchController.Request.STRICT
 
         future = self.switch_controller_client.call_async(request)
-        future.add_done_callback(lambda future: self.handle_switch_response(future, previous_state))
+        future.add_done_callback(lambda future: self.handle_switch_response(future, active))
 
-    def handle_switch_response(self, future, previous_state):
-        """Handles the response from the controller switch request, reverting state on failure."""
+    def handle_switch_response(self, future, activate):
+        """Handles the response from the switch_controller request."""
         try:
             response = future.result()
             if response.ok:
-                self.get_logger().info(
-                    f"Freeze Controller {'Activated' if self.emergency_stop_active else 'Deactivated'}"
-                )
+                self.get_logger().info(f"Freeze Controller {'Activated' if activate else 'Deactivated'}")
+                self.was_freeze_controller_active_before = not activate
             else:
-                self.get_logger().error("Failed to switch controllers. Reverting e-stop state.")
-                self.emergency_stop_active = previous_state  # Revert to previous state
+                self.get_logger().warn(f"Freeze Controller switch failed. Checking actual state...")
+                self.was_freeze_controller_active_before = self.get_freeze_controller_state()
         except Exception as e:
-            self.get_logger().error(f"Service call failed: {str(e)}. Reverting e-stop state.")
-            self.emergency_stop_active = previous_state  # Revert to previous state
-
+            self.get_logger().error(f"Service call failed: {str(e)}. Checking actual state...")
+            self.was_freeze_controller_active_before = self.get_freeze_controller_state()
 
 def main(args=None):
     rclpy.init(args=args)
