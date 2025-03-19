@@ -148,7 +148,7 @@ DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_life
     joint_command_vector_[i].i_gain = gains.getI();
     joint_command_vector_[i].d_gain = gains.getD();
 
-    RCLCPP_INFO_STREAM(logger_, "Motor gains: " << gains);
+    RCLCPP_INFO_STREAM(logger_, "PID Gains: " << gains);
   }
 
   return hardware_interface::CallbackReturn::SUCCESS;

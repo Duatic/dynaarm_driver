@@ -50,8 +50,12 @@ class EmergencyStopNode(Node):
         self.joy_subscriber = self.create_subscription(Joy, "joy", self.joy_callback, 10)
 
         # Create service clients
-        self.switch_controller_client = self.create_client(SwitchController, "controller_manager/switch_controller")
-        self.list_controllers_client = self.create_client(ListControllers, "controller_manager/list_controllers")
+        self.switch_controller_client = self.create_client(
+            SwitchController, "controller_manager/switch_controller"
+        )
+        self.list_controllers_client = self.create_client(
+            ListControllers, "controller_manager/list_controllers"
+        )
 
         # Timer to monitor gamepad and emergency stop state at 100 Hz (0.01s interval)
         self.control_loop_timer = self.create_timer(0.01, self.control_loop)
@@ -96,7 +100,9 @@ class EmergencyStopNode(Node):
             hold_duration = (now - self.emergency_stop_pressed_time).nanoseconds / 1e9
             if hold_duration >= 3.0:
                 if self.was_freeze_controller_active_before:
-                    self.get_logger().info("Emergency stop button held for 3 sec - Deactivating freeze_controller.")
+                    self.get_logger().info(
+                        "Emergency stop button held for 3 sec - Deactivating freeze_controller."
+                    )
                     self.set_freeze_controller(False)
                 self.emergency_stop_pressed_time = None  # Reset timer after release
 
@@ -104,7 +110,7 @@ class EmergencyStopNode(Node):
         elif not self.e_stop_pressed_state and not self.e_stop_button_release:
             self.e_stop_button_release = True
             self.emergency_stop_pressed_time = None  # Reset timer
-    
+
     def get_freeze_controller_state(self):
         """Queries the controller manager to check if freeze_controller is currently active."""
         if not self.list_controllers_client.wait_for_service(timeout_sec=1.0):
@@ -142,14 +148,17 @@ class EmergencyStopNode(Node):
         try:
             response = future.result()
             if response.ok:
-                self.get_logger().info(f"Freeze Controller {'Activated' if activate else 'Deactivated'}")
+                self.get_logger().info(
+                    f"Freeze Controller {'Activated' if activate else 'Deactivated'}"
+                )
                 self.was_freeze_controller_active_before = not activate
             else:
-                self.get_logger().warn(f"Freeze Controller switch failed. Checking actual state...")
+                self.get_logger().warn("Freeze Controller switch failed. Checking actual state...")
                 self.was_freeze_controller_active_before = self.get_freeze_controller_state()
         except Exception as e:
             self.get_logger().error(f"Service call failed: {str(e)}. Checking actual state...")
             self.was_freeze_controller_active_before = self.get_freeze_controller_state()
+
 
 def main(args=None):
     rclpy.init(args=args)
