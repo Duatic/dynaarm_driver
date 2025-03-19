@@ -256,37 +256,32 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
     // Clamp the outputs to the joint limits defined in the urdf
     const auto limits = info_.limits.at(info_.joints[i].name);
 
-    if (std::isnan(joint_state_vector_[i].position_last)){
+    if (std::isnan(joint_state_vector_[i].position_last)) {
       joint_state_vector_[i].position_last = joint_state_vector_[i].position;
     }
 
-    // The if statements below make sure that the arm is not moving towards collision with itself
-    // First checking if it is within limits, if yes it works under normal circumstances
-    if(joint_state_vector_[i].position >= limits.min_position && 
-      joint_state_vector_[i].position <= limits.max_position)
-    {      
+    if (joint_state_vector_[i].position >= limits.min_position &&
+        joint_state_vector_[i].position <= limits.max_position) {
+      // The if statements below make sure that the arm is not moving towards collision with itself
+      // First checking if it is within limits, if yes it works under normal circumstances
       joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, limits.max_position);
-      joint_state_vector_[i].position_last = joint_state_vector_[i].position;                
-    }
-    // If we are lower than the low_limit but the joint is moving away from collision we accept the move    
-    else if (joint_state_vector_[i].position < limits.min_position && 
-            joint_command_vector_[i].position >= joint_state_vector_[i].position)
-    {      
+      joint_state_vector_[i].position_last = joint_state_vector_[i].position;
+    } else if (joint_state_vector_[i].position < limits.min_position &&
+               joint_command_vector_[i].position >= joint_state_vector_[i].position) {
+      // If we are lower than the low_limit but the joint is moving away from collision we accept the move
       // Then it is safe to move and we Accept the new position to be commanded
       // Note that we clamp the minimum joint position value to the current position, this way we avoid jumps
-      joint_position[i] = std::clamp(joint_command_vector_[i].position, joint_state_vector_[i].position, limits.max_position);
-      joint_state_vector_[i].position_last = joint_state_vector_[i].position;    
-    }
-    // Same for the upper limmit
-    else if(joint_state_vector_[i].position > limits.max_position && 
-            joint_command_vector_[i].position <= joint_state_vector_[i].position)
-    { 
-      joint_position[i] = std::clamp(joint_command_vector_[i].position, limits.min_position, joint_state_vector_[i].position);
+      joint_position[i] =
+          std::clamp(joint_command_vector_[i].position, joint_state_vector_[i].position, limits.max_position);
       joint_state_vector_[i].position_last = joint_state_vector_[i].position;
-    }
-    else
-    {
-      //Hold last valid position, this is why we need the position_last variable.
+    } else if (joint_state_vector_[i].position > limits.max_position &&
+               joint_command_vector_[i].position <= joint_state_vector_[i].position) {
+      // Same for the upper limmit
+      joint_position[i] =
+          std::clamp(joint_command_vector_[i].position, limits.min_position, joint_state_vector_[i].position);
+      joint_state_vector_[i].position_last = joint_state_vector_[i].position;
+    } else {
+      // Hold last valid position, this is why we need the position_last variable.
       joint_position[i] = joint_state_vector_[i].position_last;
     }
 
