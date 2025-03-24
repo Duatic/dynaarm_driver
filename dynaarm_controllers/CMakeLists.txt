@@ -27,6 +27,11 @@ generate_parameter_library(
 )
 
 generate_parameter_library(
+  adaptive_gain_controller_parameters
+  src/adaptive_gain_controller_parameters.yaml
+)
+
+generate_parameter_library(
   gravity_compensation_controller_parameters
   src/gravity_compensation_controller_parameters.yaml
 )
@@ -47,6 +52,7 @@ generate_parameter_library(
 )
 
 add_library(${PROJECT_NAME} SHARED
+  src/adaptive_gain_controller.cpp
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_broadcaster.cpp
   src/freedrive_controller.cpp
@@ -62,6 +68,7 @@ target_include_directories(
 )
 target_link_libraries(${PROJECT_NAME}
   dynaarm_status_broadcaster_parameters
+  adaptive_gain_controller_parameters
   gravity_compensation_controller_parameters
   freedrive_controller_parameters
   dynaarm_pid_tuner_parameters

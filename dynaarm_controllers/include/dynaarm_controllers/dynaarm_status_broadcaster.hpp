@@ -93,6 +93,9 @@ private:
   StateInterfaceReferences joint_temperature_phase_a_interfaces_;
   StateInterfaceReferences joint_temperature_phase_b_interfaces_;
   StateInterfaceReferences joint_temperature_phase_c_interfaces_;
-  StateInterfaceReferences joint_bus_voltage_interfaces_;
+  StateInterfaceReferences joint_bus_voltage_interfaces_;  
+  StateInterfaceReferences joint_p_gain_commanded_interfaces_;
+  StateInterfaceReferences joint_i_gain_commanded_interfaces_;
+  StateInterfaceReferences joint_d_gain_commanded_interfaces_;
 };
 }  // namespace dynaarm_controllers

@@ -1,0 +1,11 @@
+adaptive_gain_controller:
+  joints:
+    type: string_array
+    default_value: []
+    description: Names of joints used by the controller
+    validation:
+      unique<>: null
+  arm_name:
+    type: string
+    default_value: "dynaarm"
+    description: Name of the arm hardware interface

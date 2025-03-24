@@ -63,6 +63,10 @@ public:
 
   void read_motor_states() override;
   void write_motor_commands() override;
+
+private:
+  std::vector<double> frozen_joint_positions_;
+  
 };
 
 }  // namespace dynaarm_driver

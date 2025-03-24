@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Duatic AG
+ * Copyright 2025 Duatic AG
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
  * following conditions are met:
@@ -39,7 +39,7 @@ GravityCompensationController::GravityCompensationController() : controller_inte
 
 controller_interface::InterfaceConfiguration GravityCompensationController::command_interface_configuration() const
 {
-  // Claim the necessary state interfaces
+  // Claim the necessary command interfaces
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 

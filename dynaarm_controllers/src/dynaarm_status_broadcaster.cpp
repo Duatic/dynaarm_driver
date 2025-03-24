@@ -64,6 +64,10 @@ controller_interface::InterfaceConfiguration StatusBroadcaster::state_interface_
     config.names.emplace_back(joint + "/position_commanded");
     config.names.emplace_back(joint + "/velocity_commanded");
     config.names.emplace_back(joint + "/effort_commanded");
+
+    config.names.emplace_back(joint + "/p_gain_commanded");
+    config.names.emplace_back(joint + "/i_gain_commanded");
+    config.names.emplace_back(joint + "/d_gain_commanded");
   }
   return config;
 }
@@ -121,6 +125,9 @@ StatusBroadcaster::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& p
   joint_temperature_phase_b_interfaces_.clear();
   joint_temperature_phase_c_interfaces_.clear();
   joint_bus_voltage_interfaces_.clear();
+  joint_p_gain_commanded_interfaces_.clear();
+  joint_i_gain_commanded_interfaces_.clear();
+  joint_d_gain_commanded_interfaces_.clear();
 
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints,
@@ -180,6 +187,24 @@ StatusBroadcaster::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& p
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - motor_bus_voltage");
     return controller_interface::CallbackReturn::FAILURE;
   }
+
+  /* PID gains */
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "p_gain_commanded",
+                                                    joint_p_gain_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - p_gain_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "i_gain_commanded",
+                                                    joint_i_gain_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - i_gain_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "d_gain_commanded",
+                                                    joint_d_gain_commanded_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered interfaces - d_gain_commanded");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -218,6 +243,10 @@ controller_interface::return_type StatusBroadcaster::update(const rclcpp::Time& 
     drive_state_msg.joint_position_commanded = joint_position_commanded_interfaces_.at(i).get().get_value();
     drive_state_msg.joint_velocity_commanded = joint_velocity_commanded_interfaces_.at(i).get().get_value();
     drive_state_msg.joint_effort_commanded = joint_effort_commanded_interfaces_.at(i).get().get_value();
+
+    drive_state_msg.pid_gains_commanded.p = joint_p_gain_commanded_interfaces_[i].get().get_value();
+    drive_state_msg.pid_gains_commanded.i = joint_i_gain_commanded_interfaces_[i].get().get_value();
+    drive_state_msg.pid_gains_commanded.d = joint_d_gain_commanded_interfaces_[i].get().get_value();
 
     state_msg.states.emplace_back(drive_state_msg);
   }

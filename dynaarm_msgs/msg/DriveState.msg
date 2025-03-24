@@ -35,4 +35,7 @@ float32 temperature_phase_c
 # Current bus voltage [V]
 float32 bus_voltage
 
+# Commanded PID gains
+dynaarm_msgs/PIDGains pid_gains_commanded
+
 #TODO add drive state, warnings
