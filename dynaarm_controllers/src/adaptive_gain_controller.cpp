@@ -213,6 +213,7 @@ controller_interface::return_type AdaptiveGainController::update(const rclcpp::T
     q[i] = joint_position_state_interfaces_[i].get().get_value();
   }
 
+  // composite rigid body algorithm
   pinocchio::crba(pinocchio_model_, pinocchio_data_, q);
   pinocchio_data_.M.triangularView<Eigen::StrictlyLower>() =
       pinocchio_data_.M.transpose().triangularView<Eigen::StrictlyLower>();
@@ -220,19 +221,29 @@ controller_interface::return_type AdaptiveGainController::update(const rclcpp::T
   const Eigen::VectorXd diag_inertia = pinocchio_data_.M.diagonal();
 
   for (std::size_t i = 0; i < params_.joints.size(); ++i) {
-    const double scale = std::clamp(1.0 / diag_inertia[i], 0.2, 2.0);  // You can fine-tune this logic
 
-    const double p_scaled = base_p_gains_[i] * scale;
-    const double i_scaled = base_i_gains_[i] * scale;
-    const double d_scaled = base_d_gains_[i] * scale;
+    if (i == 0)
+    {
+      
+      double scale = std::clamp(diag_inertia[i], 0.8, 1.8);
 
-    joint_p_gain_command_interfaces_[i].get().set_value(p_scaled);
-    joint_i_gain_command_interfaces_[i].get().set_value(i_scaled);
-    joint_d_gain_command_interfaces_[i].get().set_value(d_scaled);
+      double p_scaled = base_p_gains_[i] * scale;
+      double i_scaled = base_i_gains_[i] * scale;
+      double d_scaled = base_d_gains_[i] * scale;
 
-    RCLCPP_DEBUG_STREAM(get_node()->get_logger(), "Adaptive gains [" << params_.joints[i] << "]: P=" << p_scaled
-                                                                     << ", I=" << i_scaled << ", D=" << d_scaled
-                                                                     << " (scale=" << scale << ")");
+      p_scaled = std::min(p_scaled, 5000.0);
+      i_scaled = std::min(i_scaled, 10.0);
+      d_scaled = std::min(d_scaled, 30.0);     
+
+      joint_p_gain_command_interfaces_[i].get().set_value(p_scaled);
+      joint_i_gain_command_interfaces_[i].get().set_value(i_scaled);
+      joint_d_gain_command_interfaces_[i].get().set_value(d_scaled);
+
+      // RCLCPP_DEBUG_STREAM(get_node()->get_logger(), "Adaptive gains [" << params_.joints[i] << "]: P=" << p_scaled
+      //                                                                  << ", I=" << i_scaled << ", D=" << d_scaled
+      //                                                                  << " (scale=" << scale << ")");
+    }
+
   }
 
   return controller_interface::return_type::OK;
