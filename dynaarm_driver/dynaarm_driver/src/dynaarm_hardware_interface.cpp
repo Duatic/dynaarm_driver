@@ -210,9 +210,12 @@ void DynaArmHardwareInterface::write_motor_commands()
       rsl_drive_sdk::Command cmd;
 
       rsl_drive_sdk::mode::PidGainsF gains;
-      gains.setP(motor_command_vector_[i].p_gain);
-      gains.setI(motor_command_vector_[i].i_gain);
-      gains.setD(motor_command_vector_[i].d_gain);
+      const float p_gain = motor_command_vector_[i].p_gain;
+      const float i_gain = motor_command_vector_[i].i_gain;
+      const float d_gain = motor_command_vector_[i].d_gain;
+      gains.setP(p_gain);
+      gains.setI(i_gain);
+      gains.setD(d_gain);
 
       cmd.setJointPosition(motor_command_vector_[i].position);
       cmd.setJointVelocity(motor_command_vector_[i].velocity);
@@ -221,6 +224,8 @@ void DynaArmHardwareInterface::write_motor_commands()
 
       if (command_freeze_mode_ == 1.0) {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::Freeze);
+      } else if (p == 0.0f && i == 0.0f && d == 0.0f) {
+        cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointTorque);
       } else {
         cmd.setModeEnum(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains);
       }
