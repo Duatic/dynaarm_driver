@@ -36,7 +36,7 @@ class EmergencyStopNode(Node):
         self.declare_parameter("emergency_stop_button", 9)
         self.emergency_stop_button = int(self.get_parameter("emergency_stop_button").value)
 
-        # Track gamepad state and emergency stop status        
+        # Track gamepad state and emergency stop status
         self.gamepad_connected = False
         self.show_gamepad_connected_warning = True
         self.e_stop_button_release = True
@@ -164,7 +164,9 @@ class EmergencyStopNode(Node):
         request.strictness = SwitchController.Request.STRICT
 
         future = self.switch_controller_client.call_async(request)
-        future.add_done_callback(lambda future: self.handle_switch_response(future, active, controller_names))
+        future.add_done_callback(
+            lambda future: self.handle_switch_response(future, active, controller_names)
+        )
 
     def handle_switch_response(self, future, activate, controller_names):
         """Handles the response from the switch_controller request."""
@@ -183,14 +185,18 @@ class EmergencyStopNode(Node):
                 self.get_logger().debug(f"Freeze controller '{name}' is in state: {state}")
 
             # Consider freeze active if any freeze_controller is active
-            self.was_freeze_controller_active_before = any(state == "active" for state in status.values())
+            self.was_freeze_controller_active_before = any(
+                state == "active" for state in status.values()
+            )
 
         except Exception as e:
             self.get_logger().error(f"Service call failed: {str(e)}. Checking actual state...")
             status = self.get_freeze_controllers_status()
             for name, state in status.items():
                 self.get_logger().debug(f"Freeze controller '{name}' is in state: {state}")
-            self.was_freeze_controller_active_before = any(state == "active" for state in status.values())
+            self.was_freeze_controller_active_before = any(
+                state == "active" for state in status.values()
+            )
 
 
 def main(args=None):
