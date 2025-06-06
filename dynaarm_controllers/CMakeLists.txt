@@ -41,7 +41,6 @@ generate_parameter_library(
   src/dynaarm_pid_tuner_parameters.yaml
 )
 
-
 generate_parameter_library(
   freeze_controller_parameters
   src/freeze_controller_parameters.yaml

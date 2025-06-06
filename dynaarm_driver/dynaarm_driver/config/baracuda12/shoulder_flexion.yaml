@@ -10,7 +10,7 @@ max_current: 25.0
 
 max_freeze_current: 10.0
 
-max_motor_velocity: 50.0 # 50
+max_motor_velocity: 200.0 # 50
 
 max_joint_torque: 80.0 # 45
 
@@ -27,11 +27,11 @@ joint_position_limits:
     min: 0.0
     max: 0.0
   soft:
-    min: -1.60
-    max: 1.60
+    min: 0.0 #-1.60
+    max: 0.0 #1.60
   hard:
-    min: -1.80
-    max: 1.80
+    min: 0.0 #-1.80
+    max: 0.0 #1.80
 
 joint_position_configurations:
   - name: "zero"
@@ -110,8 +110,8 @@ modes:
 
   - name: JointPositionVelocityTorquePidGains
     gains:
-      p: 600
-      i: 1.2
+      p: 2000.0
+      i: 5.0
       d: 30.0
 
 goal_states:

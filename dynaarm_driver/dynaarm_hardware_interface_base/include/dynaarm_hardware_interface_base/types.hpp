@@ -37,6 +37,7 @@ struct JointState
   double position = 0.0;
   double velocity = 0.0;
   double effort = 0.0;
+  double position_last = NAN;
 
   double position_commanded = 0.0;
   double velocity_commanded = 0.0;

@@ -22,7 +22,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dynaarm_controllers/freeze_controller.hpp"
+#include <dynaarm_controllers/freeze_controller.hpp>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
@@ -60,7 +60,6 @@ controller_interface::CallbackReturn FreezeController::on_init()
     return CallbackReturn::ERROR;
   }
 
-  return controller_interface::CallbackReturn::SUCCESS;
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
