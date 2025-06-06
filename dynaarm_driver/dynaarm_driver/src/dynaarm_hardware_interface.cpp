@@ -46,16 +46,27 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     const auto address = std::stoi(info_.joints[i].parameters.at("address"));
     const auto joint_name = info_.joints[i].name;
 
+    // We do not want the joint prefix in the path for the parameter files
+    auto joint_wo_prefix = joint_name;
+    const auto tf_prefix = system_info.hardware_parameters.at("tf_prefix");
+    // Check if the joint name starts with the tf_prefix
+    if (joint_name.find(tf_prefix) == 0) {
+      // Remove it from the string
+      joint_wo_prefix.erase(0, tf_prefix.size());
+    }
+
     // Obtain the parameter file for the currently processed drive
     const std::string base_directory = info_.hardware_parameters.at("drive_parameter_folder") + "/";
-    std::string device_file_path = base_directory + joint_name + ".yaml";
+    std::string device_file_path = base_directory + joint_wo_prefix + ".yaml";
     // If there is no configuration available for the current joint in the passed parameter folder we load it from the
     // default folder
     if (!std::filesystem::exists(device_file_path)) {
       RCLCPP_WARN_STREAM(logger_, "No configuration found for joint: " << joint_name << " in: " << base_directory
                                                                        << " Loading drive parameters from default "
                                                                           "location");
-      device_file_path = info_.hardware_parameters.at("drive_parameter_folder_default") + "/" + joint_name + ".yaml";
+
+      device_file_path =
+          info_.hardware_parameters.at("drive_parameter_folder_default") + "/" + joint_wo_prefix + ".yaml";
     }
     RCLCPP_INFO_STREAM(logger_, "Drive file path " << device_file_path);
 
