@@ -86,6 +86,8 @@ std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::ex
         hardware_interface::StateInterface(joint_state.name, "position_commanded", &joint_state.position_commanded));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_state.name, "velocity_commanded", &joint_state.velocity_commanded));
+    state_interfaces.emplace_back(hardware_interface::StateInterface(joint_state.name, "acceleration_commanded",
+                                                                     &joint_state.acceleration_commanded));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_state.name, "effort_commanded", &joint_state.effort_commanded));
   }
@@ -140,6 +142,8 @@ std::vector<hardware_interface::CommandInterface> DynaArmHardwareInterfaceBase::
         joint_command.name, hardware_interface::HW_IF_POSITION, &joint_command.position));
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
         joint_command.name, hardware_interface::HW_IF_VELOCITY, &joint_command.velocity));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        joint_command.name, hardware_interface::HW_IF_ACCELERATION, &joint_command.acceleration));
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
         joint_command.name, hardware_interface::HW_IF_EFFORT, &joint_command.effort));
 
@@ -237,6 +241,9 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
     joint_state_vector_[i].effort = joint_effort[i];
     joint_state_vector_[i].position_commanded = joint_position_commanded[i];
     joint_state_vector_[i].velocity_commanded = joint_velocity_commanded[i];
+    // NOTE we only feedback the desired acceleration at the moment as it is solely used in the gravity compensation
+    // controller
+    joint_state_vector_[i].acceleration_commanded = joint_command_vector_[i].acceleration;
     joint_state_vector_[i].effort_commanded = joint_effort_commanded[i];
   }
 
