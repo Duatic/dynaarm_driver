@@ -33,6 +33,10 @@
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <dynaarm_msgs/msg/gravity_compensation_controller_status.hpp>
+
+// ROS2
+#include <realtime_tools/realtime_publisher.hpp>
 
 // Pinocchio
 #include <pinocchio/algorithm/compute-all-terms.hpp>
@@ -75,5 +79,10 @@ private:
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
+
+  using StatusMsg = dynaarm_msgs::msg::GravityCompensationControllerStatus;
+  using StatusMsgPublisher = realtime_tools::RealtimePublisher<StatusMsg>;
+  rclcpp::Publisher<StatusMsg>::SharedPtr status_pub_;
+  std::unique_ptr<StatusMsgPublisher> status_pub_rt_;
 };
 }  // namespace dynaarm_controllers

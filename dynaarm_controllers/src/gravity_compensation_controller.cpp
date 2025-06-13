@@ -129,6 +129,10 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
     }
   }
 
+  // The status publisher
+  status_pub_ = get_node()->create_publisher<StatusMsg>("~/state", 10);  // TODO(firesurfer) what is the right qos ?
+  status_pub_rt_ = std::make_unique<StatusMsgPublisher>(status_pub_);
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -211,6 +215,8 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
   const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
 
+  StatusMsg state_msg;
+  state_msg.timestamp = time;
   // Write only the efforts for this arm's joints
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
@@ -218,10 +224,19 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
     double effort = tau[pinocchio_model_.joints[idx].idx_v()];
     bool success = joint_effort_command_interfaces_.at(i).get().set_value(effort);
 
+    state_msg.joints.push_back(joint_name);
+    state_msg.commanded_torque.push_back(effort);
+
     if (!success) {
       RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new effort value for joint interface at index %zu.", i);
       return controller_interface::return_type::ERROR;
     }
+  }
+  // and we try to have our realtime publisher publish the message
+  // if this doesn't succeed - well it will probably next time
+  if (params_.enable_state_topic && status_pub_rt_->trylock()) {
+    status_pub_rt_->msg_ = state_msg;
+    status_pub_rt_->unlockAndPublish();
   }
 
   return controller_interface::return_type::OK;

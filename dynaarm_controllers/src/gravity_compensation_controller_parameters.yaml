@@ -9,3 +9,7 @@ gravity_compensation_controller:
     type: string
     default_value: "dynaarm"
     description: "name of the arm hardware interface"
+  enable_state_topic:
+    type: bool
+    default_value: true
+    description: "Publish a status message on the ~/state topic"
