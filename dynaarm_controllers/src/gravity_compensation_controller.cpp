@@ -206,8 +206,6 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
     q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
     v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
-
-    std::cout << joint_acceleration_state_interfaces_.at(i).get().get_value() << std::endl;
   }
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);

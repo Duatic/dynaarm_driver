@@ -79,6 +79,8 @@ std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::ex
         joint_state.name, hardware_interface::HW_IF_POSITION, &joint_state.position));
     state_interfaces.emplace_back(hardware_interface::StateInterface(
         joint_state.name, hardware_interface::HW_IF_VELOCITY, &joint_state.velocity));
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+        joint_state.name, hardware_interface::HW_IF_ACCELERATION, &joint_state.acceleration));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(joint_state.name, hardware_interface::HW_IF_EFFORT, &joint_state.effort));
 
@@ -106,6 +108,8 @@ std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::ex
         hardware_interface::StateInterface(motor_state.name, "motor_position", &motor_state.position));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(motor_state.name, "motor_velocity", &motor_state.velocity));
+    state_interfaces.emplace_back(
+        hardware_interface::StateInterface(motor_state.name, "motor_acceleration", &motor_state.acceleration));
     state_interfaces.emplace_back(
         hardware_interface::StateInterface(motor_state.name, "motor_effort", &motor_state.effort));
     state_interfaces.emplace_back(
@@ -177,6 +181,7 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_command_vector_[i].position = joint_state_vector_[i].position;
     joint_command_vector_[i].velocity = 0.0;
+    joint_command_vector_[i].acceleration = 0.0;
     joint_command_vector_[i].effort = 0.0;
     RCLCPP_INFO_STREAM(logger_, "Start position of joint: " << info_.joints[i].name
                                                             << " is: " << joint_state_vector_[i].position);
@@ -208,6 +213,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
 
   Eigen::VectorXd motor_position(info_.joints.size());
   Eigen::VectorXd motor_velocity(info_.joints.size());
+  Eigen::VectorXd motor_acceleration(info_.joints.size());
   Eigen::VectorXd motor_effort(info_.joints.size());
   Eigen::VectorXd motor_position_commanded(info_.joints.size());
   Eigen::VectorXd motor_velocity_commanded(info_.joints.size());
@@ -216,6 +222,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_position(i) = motor_state_vector_[i].position;
     motor_velocity(i) = motor_state_vector_[i].velocity;
+    motor_acceleration(i) = motor_state_vector_[i].acceleration;
     motor_effort(i) = motor_state_vector_[i].effort;
     motor_position_commanded(i) = motor_state_vector_[i].position_commanded;
     motor_velocity_commanded(i) = motor_state_vector_[i].velocity_commanded;
@@ -226,6 +233,8 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_position);
   Eigen::VectorXd joint_velocity =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_velocity);
+  Eigen::VectorXd joint_acceleration =
+      dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_acceleration);
   Eigen::VectorXd joint_effort =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialTorques(motor_effort);
 
@@ -238,6 +247,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_[i].position = joint_position[i];
     joint_state_vector_[i].velocity = joint_velocity[i];
+    joint_state_vector_[i].acceleration = joint_acceleration[i];
     joint_state_vector_[i].effort = joint_effort[i];
     joint_state_vector_[i].position_commanded = joint_position_commanded[i];
     joint_state_vector_[i].velocity_commanded = joint_velocity_commanded[i];
