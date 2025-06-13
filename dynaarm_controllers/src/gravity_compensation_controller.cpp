@@ -61,6 +61,7 @@ controller_interface::InterfaceConfiguration GravityCompensationController::stat
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
+    config.names.emplace_back(joint + "/" + "acceleration_commanded");
   }
 
   return config;
@@ -157,6 +158,11 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - velocity");
     return controller_interface::CallbackReturn::FAILURE;
   }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "acceleration_commanded",
+                                                    joint_acceleration_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - acceleration");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
 
   if (!controller_interface::get_ordered_interfaces(
           command_interfaces_, params_.joints, hardware_interface::HW_IF_EFFORT, joint_effort_command_interfaces_)) {
@@ -191,7 +197,7 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
   // Build full-size vectors for all robot joints (Pinocchio expects this)
   Eigen::VectorXd q = Eigen::VectorXd::Zero(pinocchio_model_.nq);
   Eigen::VectorXd v = Eigen::VectorXd::Zero(pinocchio_model_.nv);
-
+  Eigen::VectorXd a = Eigen::VectorXd::Zero(pinocchio_model_.nv);
   // Map: Pinocchio joint name -> index in q/v
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
@@ -203,10 +209,11 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
     // Pinocchio joint index starts at 1, q/v index is idx-1
     q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
     v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
+    a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
   }
 
-  forwardKinematics(pinocchio_model_, pinocchio_data_, q, v);
-  const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, Eigen::VectorXd::Zero(pinocchio_model_.nv));
+  forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
+  const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
 
   StatusMsg state_msg;
   state_msg.timestamp = time;

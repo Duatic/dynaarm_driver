@@ -36,11 +36,14 @@ struct JointState
   std::string name;
   double position = 0.0;
   double velocity = 0.0;
+  double acceleration = 0.0;
   double effort = 0.0;
+
   double position_last = NAN;
 
   double position_commanded = 0.0;
   double velocity_commanded = 0.0;
+  double acceleration_commanded = 0.0;
   double effort_commanded = 0.0;
 };
 
@@ -49,6 +52,7 @@ struct JointCommand
   std::string name;
   double position = 0.0;
   double velocity = 0.0;
+  double acceleration = 0.0;
   double effort = 0.0;
   double p_gain = 0.0;
   double i_gain = 0.0;
@@ -60,6 +64,7 @@ struct MotorState
   std::string name;
   double position = 0.0;
   double velocity = 0.0;
+  double acceleration = 0.0;
   double effort = 0.0;
 
   double bus_voltage = 0.0;

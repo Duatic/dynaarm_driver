@@ -194,6 +194,7 @@ void DynaArmHardwareInterface::read_motor_states()
 
     motor_state_vector_[i].position = state.getJointPosition();
     motor_state_vector_[i].velocity = state.getJointVelocity();
+    motor_state_vector_[i].acceleration = state.getJointAcceleration();
     motor_state_vector_[i].effort = state.getJointTorque();
 
     motor_state_vector_[i].position_commanded = reading.getCommanded().getJointPosition();
