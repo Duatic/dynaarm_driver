@@ -77,7 +77,7 @@ private:
 
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
-
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
 
   using StatusMsg = dynaarm_msgs::msg::GravityCompensationControllerStatus;
