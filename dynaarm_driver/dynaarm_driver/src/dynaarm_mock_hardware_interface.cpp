@@ -53,6 +53,7 @@ void DynaarmMockHardwareInterface::read_motor_states()
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_state_vector_[i].position = motor_command_vector_[i].position;
     motor_state_vector_[i].velocity = motor_command_vector_[i].velocity;
+    motor_state_vector_[i].acceleration = 0.0;
     motor_state_vector_[i].effort = motor_command_vector_[i].effort;
 
     motor_state_vector_[i].temperature = 0.0;

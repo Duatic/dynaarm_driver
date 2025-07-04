@@ -19,6 +19,7 @@ find_package(Eigen3 REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(dynaarm_msgs REQUIRED)
+find_package(pal_statistics_msgs REQUIRED)
 
 find_package(generate_parameter_library REQUIRED)
 generate_parameter_library(
@@ -82,6 +83,7 @@ ament_target_dependencies(
   dynaarm_msgs
   Eigen3
   eigen3_cmake_module
+  pal_statistics_msgs
 )
 # prevent pluginlib from using boost
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")

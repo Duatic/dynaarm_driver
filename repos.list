@@ -10,7 +10,7 @@ repositories:
   message_logger:
     type: git
     url: https://github.com/leggedrobotics/message_logger.git
-    version: foxy
+    version: ros2
   rsl_drive_sdk:
     type: git
     url: https://github.com/leggedrobotics/rsl_drive_sdk.git

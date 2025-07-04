@@ -61,6 +61,7 @@ controller_interface::InterfaceConfiguration GravityCompensationController::stat
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
+    config.names.emplace_back(joint + "/" + "acceleration_commanded");
   }
 
   return config;
@@ -99,18 +100,21 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
   pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
 
-  // Extract joint names from Pinocchio model
+  // Extract joint names from Pinocchio model that match params_.joints
   std::vector<std::string> pinocchio_joint_names;
   for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
   {
     std::string joint_name = pinocchio_model_.names[i];
-    pinocchio_joint_names.push_back(joint_name);
+    // Only add if this joint is in params_.joints
+    if (std::find(params_.joints.begin(), params_.joints.end(), joint_name) != params_.joints.end()) {
+      pinocchio_joint_names.push_back(joint_name);
+    }
   }
 
   // 1. Validate joint names (amount)
   if (pinocchio_joint_names.size() != params_.joints.size()) {
     RCLCPP_ERROR(get_node()->get_logger(),
-                 "Joint count mismatch: Pinocchio model has %zu joints, but interface has %zu joints.",
+                 "Joint count mismatch: Pinocchio model has %zu relevant joints, but interface has %zu joints.",
                  pinocchio_joint_names.size(), params_.joints.size());
     return controller_interface::CallbackReturn::ERROR;
   }
@@ -124,6 +128,10 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
       return controller_interface::CallbackReturn::ERROR;
     }
   }
+
+  // The status publisher
+  status_pub_ = get_node()->create_publisher<StatusMsg>("~/state", 10);  // TODO(firesurfer) what is the right qos ?
+  status_pub_rt_ = std::make_unique<StatusMsgPublisher>(status_pub_);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -148,6 +156,11 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
   if (!controller_interface::get_ordered_interfaces(
           state_interfaces_, params_.joints, hardware_interface::HW_IF_VELOCITY, joint_velocity_state_interfaces_)) {
     RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - velocity");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, "acceleration_commanded",
+                                                    joint_acceleration_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - acceleration");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
@@ -181,24 +194,49 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
 
   const std::size_t joint_count = joint_position_state_interfaces_.size();
 
-  Eigen::VectorXd joint_position = Eigen::VectorXd::Zero(joint_count);
-  Eigen::VectorXd joint_velocity = Eigen::VectorXd::Zero(joint_count);
-
-  for (std::size_t i = 0; i < joint_position_state_interfaces_.size(); i++) {
-    joint_position[i] = joint_position_state_interfaces_.at(i).get().get_value();
-    joint_velocity[i] = joint_velocity_state_interfaces_.at(i).get().get_value();
-  }
-  forwardKinematics(pinocchio_model_, pinocchio_data_, joint_position, joint_velocity);
-  const auto joint_effort_grav_comp = pinocchio::rnea(pinocchio_model_, pinocchio_data_, joint_position, joint_velocity,
-                                                      Eigen::VectorXd::Zero(pinocchio_model_.nv));
-
+  // Build full-size vectors for all robot joints (Pinocchio expects this)
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(pinocchio_model_.nq);
+  Eigen::VectorXd v = Eigen::VectorXd::Zero(pinocchio_model_.nv);
+  Eigen::VectorXd a = Eigen::VectorXd::Zero(pinocchio_model_.nv);
+  // Map: Pinocchio joint name -> index in q/v
   for (std::size_t i = 0; i < joint_count; i++) {
-    bool success = joint_effort_command_interfaces_.at(i).get().set_value(joint_effort_grav_comp[i]);
+    const std::string& joint_name = params_.joints[i];
+    auto idx = pinocchio_model_.getJointId(joint_name);
+    if (idx == 0) {
+      RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
+      return controller_interface::return_type::ERROR;
+    }
+    // Pinocchio joint index starts at 1, q/v index is idx-1
+    q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
+    v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
+    a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
+  }
+
+  forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
+  const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
+
+  StatusMsg state_msg;
+  state_msg.timestamp = time;
+  // Write only the efforts for this arm's joints
+  for (std::size_t i = 0; i < joint_count; i++) {
+    const std::string& joint_name = params_.joints[i];
+    auto idx = pinocchio_model_.getJointId(joint_name);
+    double effort = tau[pinocchio_model_.joints[idx].idx_v()];
+    bool success = joint_effort_command_interfaces_.at(i).get().set_value(effort);
+
+    state_msg.joints.push_back(joint_name);
+    state_msg.commanded_torque.push_back(effort);
 
     if (!success) {
       RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new effort value for joint interface at index %zu.", i);
       return controller_interface::return_type::ERROR;
     }
+  }
+  // and we try to have our realtime publisher publish the message
+  // if this doesn't succeed - well it will probably next time
+  if (params_.enable_state_topic && status_pub_rt_->trylock()) {
+    status_pub_rt_->msg_ = state_msg;
+    status_pub_rt_->unlockAndPublish();
   }
 
   return controller_interface::return_type::OK;
