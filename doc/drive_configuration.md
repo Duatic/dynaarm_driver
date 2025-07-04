@@ -4,7 +4,7 @@ The DynaArm Driver provides a rather lowlevel access to the actuators of the arm
 This allows the operator to fine tune the arm to the desired usecase.
 
 The default configuration files for each actuator are located within the driver package:
-[dynaarm_driver/dynaarm_driver/config](https://github.com/Duatic/dynaarm_driver/tree/main/dynaarm_driver/dynaarm_driver/config). They are separated for each version of the arm. 
+[dynaarm_driver/dynaarm_driver/config](https://github.com/Duatic/dynaarm_driver/tree/main/dynaarm_driver/dynaarm_driver/config). They are separated for each version of the arm.
 
 
 ## Providing custom configuration for an actuator
@@ -17,7 +17,7 @@ The wrong parameterization might destroy an actuator or lead to uncontrolled beh
 In order to provide custom configuration files you can set the `drive_parameter_folder` in the instantiation of the `dynaarm` xacro macro in your description file.
 
 
-### Example 
+### Example
 
 Adapted from the `dynaarm_standalone.urdf.xacro`:
 
@@ -36,7 +36,7 @@ Adapted from the `dynaarm_standalone.urdf.xacro`:
 ```
 
 ```{tip}
-You only need to provide configuration files for the actuators that you want to use a custom configuration for. 
+You only need to provide configuration files for the actuators that you want to use a custom configuration for.
 For all other actuator the default configuration file is used!
 ```
 

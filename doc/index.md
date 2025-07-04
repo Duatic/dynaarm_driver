@@ -20,5 +20,3 @@ This package contains the actual ros2control driver for the DynaArm as well as [
 ./controllers.md
 ./drive_configuration.md
 ```
-
-
