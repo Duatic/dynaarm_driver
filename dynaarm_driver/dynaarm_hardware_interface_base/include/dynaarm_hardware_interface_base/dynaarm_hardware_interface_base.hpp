@@ -78,8 +78,9 @@ public:
   hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period);
   virtual void write_motor_commands() = 0;
 
-  virtual CallbackReturn on_configure()
+  CallbackReturn on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state) override
   {
+    RCLCPP_INFO_STREAM(logger_, "Base on_configure");
     return CallbackReturn::SUCCESS;
   }
 

@@ -70,7 +70,8 @@ public:
 
   void read_motor_states() override;
   void write_motor_commands() override;
-  hardware_interface::CallbackReturn on_configure() override;
+  hardware_interface::CallbackReturn
+  on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state) override;
 
 private:
   ecat_master::EthercatMasterSingleton::Handle ecat_master_handle_;

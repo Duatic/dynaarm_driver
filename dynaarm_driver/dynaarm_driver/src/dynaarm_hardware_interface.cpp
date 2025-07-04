@@ -88,7 +88,8 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-hardware_interface::CallbackReturn DynaArmHardwareInterface::on_configure()
+hardware_interface::CallbackReturn
+DynaArmHardwareInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // This is a bit of a work around but doesn't work otherwise
   // We separate the activation of the ethercat bus into separate stages
