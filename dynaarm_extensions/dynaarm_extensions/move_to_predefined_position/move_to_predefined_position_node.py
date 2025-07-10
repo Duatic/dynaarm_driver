@@ -43,7 +43,7 @@ class MoveToPredefinedPositionNode(Node):
 
         if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip":
             num_arms = 1
-        elif self.robot_configuration == "alpha":
+        elif self.robot_configuration == "alpha" or self.robot_configuration == "dynaarm_dual":
             num_arms = 2
 
         self.sleep_position_dynaarm = [
@@ -118,6 +118,9 @@ class MoveToPredefinedPositionNode(Node):
         # Find all joint trajectory topics matching the prefix
         while len(found_topics) != num_arms:
             found_topics = self.get_topic_names_and_types_test(f"{topic_prefix}*/joint_trajectory")
+            self.get_logger().info(
+                f"Found {len(found_topics)} joint trajectory topics: {found_topics}"
+            )
             time.sleep(0.1)  # Wait for topics to be discovered
 
         # Discover all topics and joint names, extract prefix
@@ -151,14 +154,14 @@ class MoveToPredefinedPositionNode(Node):
     # Control loop that checks the home and sleep flags and moves the robot accordingly
     def control_loop(self):
         if self.home:
-            if self.robot_configuration == "dynaarm":
+            if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
                 self.move_home_dynaarm()
             elif self.robot_configuration == "alpha":
                 self.move_home_alpha()
             elif self.robot_configuration == "dynaarm_flip":
                 self.move_home_dynaarm()
         if self.sleep:
-            if self.robot_configuration == "dynaarm":
+            if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
                 self.move_sleep_dynaarm()
             if self.robot_configuration == "alpha":
                 self.move_sleep_alpha()
@@ -188,6 +191,7 @@ class MoveToPredefinedPositionNode(Node):
                 commanded_positions = self.move_to_position(
                     joint_names, self.sleep_position_dynaarm.copy()
                 )
+            else:
                 commanded_positions = self.move_to_position(
                     joint_names, self.home_position_dynaarm.copy()
                 )
@@ -347,6 +351,9 @@ class MoveToPredefinedPositionNode(Node):
         point.time_from_start.nanosec = nanosec
         trajectory_msg.points.append(point)
         publisher.publish(trajectory_msg)
+        self.get_logger().info(
+            f"Published trajectory to {publisher.topic_name} with positions: {target_positions}"
+        )
     
     # Get joint states for the specified number of arms
     def get_joint_states(self, arms_count):
