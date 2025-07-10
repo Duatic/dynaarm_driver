@@ -127,12 +127,6 @@ class MoveToPredefinedPositionNode(Node):
             )
             # Extract prefix from topic name
             # e.g. /joint_trajectory_controller_arm_1/joint_trajectory -> arm_1
-            topic_parts = topic[len(topic_prefix) :].split("/")
-            prefix = (
-                topic_parts[0][1:]
-                if topic_parts[0].startswith("_")
-                else topic_parts[0] if topic_parts[0] else ""
-            )
             joint_names = self.get_param_values(topic.split("/")[1], "joints")
             if joint_names:
                 self.topic_to_joint_names[topic] = joint_names
