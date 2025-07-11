@@ -1,0 +1,15 @@
+collision_avoidance_controller:
+  joints:
+    type: string_array
+    default_value: []
+    description: Names of joints used by the controller
+    validation:
+      unique<>: null
+  arm_name:
+    type: string
+    default_value: "dynaarm"
+    description: "name of the arm hardware interface"
+  enable_state_topic:
+    type: bool
+    default_value: true
+    description: "Publish a status message on the ~/state topic"

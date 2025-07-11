@@ -8,6 +8,15 @@
     </description>
   </class>
 
+  <class name="dynaarm_controllers/CollisionAvoidanceController"
+         type="dynaarm_controllers::CollisionAvoidanceController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm collision avoidance controller.
+    </description>
+  </class>
+
+
   <class name="dynaarm_controllers/StatusBroadcaster"
          type="dynaarm_controllers::StatusBroadcaster"
          base_class_type="controller_interface::ControllerInterface">
