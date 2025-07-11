@@ -43,6 +43,8 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/parsers/srdf.hpp>
+ 
 
 // Project
 #include <dynaarm_controllers/collision_avoidance_controller_parameters.hpp>
@@ -72,6 +74,8 @@ private:
 
   pinocchio::Model pinocchio_model_;
   pinocchio::Data pinocchio_data_;
+  pinocchio::GeometryModel pinocchio_geom_;
+  std::unique_ptr<pinocchio::GeometryData> pinocchio_geom_data_;
 
   std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
 

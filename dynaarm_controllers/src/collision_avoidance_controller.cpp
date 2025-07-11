@@ -97,9 +97,20 @@ CollisionAvoidanceController::on_configure([[maybe_unused]] const rclcpp_lifecyc
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  // 1. build the pinocchio model from the urdf
   pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
 
+  // 2. Build the collision model from urdf and srdf
+  std::stringstream urdf_stream;
+  urdf_stream << get_robot_description();
+  pinocchio::urdf::buildGeom(
+    pinocchio_model_, urdf_stream,pinocchio::COLLISION, pinocchio_geom_);
+
+  pinocchio_geom_.addAllCollisionPairs();
+  pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
+  
+pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);
   // Extract joint names from Pinocchio model that match params_.joints
   std::vector<std::string> pinocchio_joint_names;
   for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
@@ -210,21 +221,15 @@ controller_interface::return_type CollisionAvoidanceController::update([[maybe_u
   }
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
-  const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
 
 
   // Write only the efforts for this arm's joints
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
     auto idx = pinocchio_model_.getJointId(joint_name);
-    double effort = tau[pinocchio_model_.joints[idx].idx_v()];
-    bool success = joint_effort_command_interfaces_.at(i).get().set_value(effort);
 
    
-    if (!success) {
-      RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new effort value for joint interface at index %zu.", i);
-      return controller_interface::return_type::ERROR;
-    }
+   
   }
  
 
