@@ -63,15 +63,13 @@ class DynAarmControllerManager:
 
         self.active_controllers = set()
         self._controller_check_thread = threading.Thread(
-            target=self._monitor_active_controllers_loop,
-            daemon=True
+            target=self._monitor_active_controllers_loop, daemon=True
         )
         self._controller_check_thread.start()
 
         self.is_freeze_active = False
         self._freeze_monitor_thread = threading.Thread(
-            target=self._monitor_freeze_controller_loop,
-            daemon=True
+            target=self._monitor_freeze_controller_loop, daemon=True
         )
         self._freeze_monitor_thread.start()
 
@@ -151,7 +149,7 @@ class DynAarmControllerManager:
         while rclpy.ok():
             self.is_freeze_active = self.check_freeze_active()
             time.sleep(1.0)  # Adjust polling rate as needed
-    
+
     # Method to check if any freeze controller is active
     def check_freeze_active(self):
         """Returns True if any freeze controller (with prefix 'freeze_controller') is active."""

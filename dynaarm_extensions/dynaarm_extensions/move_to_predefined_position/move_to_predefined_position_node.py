@@ -41,7 +41,7 @@ class MoveToPredefinedPositionNode(Node):
     MIRRORED_BASES = {"shoulder_rotation", "forearm_rotation", "wrist_rotation"}
 
     def __init__(self):
-        super().__init__('motion_to_predefined_position_node')
+        super().__init__("motion_to_predefined_position_node")
 
         config_path = os.path.join(
             get_package_share_directory("dynaarm_extensions"),
@@ -57,7 +57,7 @@ class MoveToPredefinedPositionNode(Node):
         self.declare_parameter("robot_configuration", "dynaarm_dual")  # Default configuration
         self.robot_configuration = self.get_parameter("robot_configuration").value
 
-        if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip": 
+        if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip":
             num_arms = 1
         elif self.robot_configuration == "alpha" or self.robot_configuration == "dynaarm_dual":
             num_arms = 2
@@ -92,7 +92,7 @@ class MoveToPredefinedPositionNode(Node):
             0.0,
             0.0,
             0.0,
-        ] # Home position for Alpha
+        ]  # Home position for Alpha
         self.sleep_position_alpha = [
             1.5708,
             0.680678,
@@ -100,49 +100,44 @@ class MoveToPredefinedPositionNode(Node):
             0.0,
             0.0,
             0.0,
-        ] # Sleep position for Alpha
+        ]  # Sleep position for Alpha
 
         self.home = False  # Initialize home position flag
         self.sleep = False  # Initialize sleep position flag
-        self.step_size_flexion_joints = 0.01 # Step size for flexion joints
-        self.step_size_rotation_joints = 0.01 # Step size for rotation joints
-        self.flexion_joints_indices = [1, 2, 4] # Indices of flexion joints
-        self.rotation_joints_indices = [0, 3, 5] # Indices of rotation joints
-        self.tolerance = 0.01 # Tolerance for joint angle comparison
-        self.dt = 0.05 # Control loop period in seconds
+        self.step_size_flexion_joints = 0.01  # Step size for flexion joints
+        self.step_size_rotation_joints = 0.01  # Step size for rotation joints
+        self.flexion_joints_indices = [1, 2, 4]  # Indices of flexion joints
+        self.rotation_joints_indices = [0, 3, 5]  # Indices of rotation joints
+        self.tolerance = 0.01  # Tolerance for joint angle comparison
+        self.dt = 0.05  # Control loop period in seconds
         self.controller_active = False  # Flag to check if the controller is active
 
         # Subscriptions
         self.home_subscriber = self.create_subscription(
-            Bool,
-            'move_home',
-            self.move_home_callback,
-            10
+            Bool, "move_home", self.move_home_callback, 10
         )
         self.sleep_subscriber = self.create_subscription(
-            Bool,
-            'move_sleep',
-            self.move_sleep_callback,
-            10
+            Bool, "move_sleep", self.move_sleep_callback, 10
         )
-        self.create_subscription(
-            JointState, 
-            '/joint_states', 
-            self.joint_state_callback, 
-            10
-        )
+        self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
 
-        self.joint_trajectory_publishers = {} # Dictionary to hold publishers for joint trajectory topics
-        self.topic_to_joint_names = {} # Dictionary to map topics to joint names
-        self.topic_to_commanded_positions = {} # Dictionary to hold commanded positions for each topic
-        self.prefix_to_joints = {} # Dictionary to map prefixes to joint names
-        found_topics = {} # Dictionary to hold found topics
+        self.joint_trajectory_publishers = (
+            {}
+        )  # Dictionary to hold publishers for joint trajectory topics
+        self.topic_to_joint_names = {}  # Dictionary to map topics to joint names
+        self.topic_to_commanded_positions = (
+            {}
+        )  # Dictionary to hold commanded positions for each topic
+        self.prefix_to_joints = {}  # Dictionary to map prefixes to joint names
+        found_topics = {}  # Dictionary to hold found topics
         self.previous_controller = {}
         topic_prefix = "/joint_trajectory_controller"
 
         # Find all joint trajectory topics matching the prefix
         while len(found_topics) != num_arms:
-            found_topics = self.get_topic_names_and_types_test(f"{topic_prefix}*/joint_trajectory")
+            found_topics = self.get_topic_names_and_types_function(
+                f"{topic_prefix}*/joint_trajectory"
+            )
             time.sleep(0.1)  # Wait for topics to be discovered
 
         # Discover all topics and joint names, extract prefix
@@ -181,7 +176,10 @@ class MoveToPredefinedPositionNode(Node):
                 if not self.controller_active:
                     self.switch_to_joint_trajectory_controllers()
                     self.controller_active = True
-                if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
+                if (
+                    self.robot_configuration == "dynaarm"
+                    or self.robot_configuration == "dynaarm_dual"
+                ):
                     self.move_home_dynaarm()
                 elif self.robot_configuration == "alpha":
                     self.move_home_alpha()
@@ -191,7 +189,10 @@ class MoveToPredefinedPositionNode(Node):
                 if not self.controller_active:
                     self.switch_to_joint_trajectory_controllers()
                     self.controller_active = True
-                if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
+                if (
+                    self.robot_configuration == "dynaarm"
+                    or self.robot_configuration == "dynaarm_dual"
+                ):
                     self.move_sleep_dynaarm()
                 if self.robot_configuration == "alpha":
                     self.move_sleep_alpha()
@@ -201,14 +202,16 @@ class MoveToPredefinedPositionNode(Node):
                 if self.controller_active:
                     self.switch_to_previous_controllers()
                     self.controller_active = False
-                self.previous_controller = next(iter(self.controller_manager.active_controllers), None)
+                self.previous_controller = next(
+                    iter(self.controller_manager.active_controllers), None
+                )
 
     # Move to home for DynAarm Configuration
     def move_home_dynaarm(self):
         for topic, joint_names in self.topic_to_joint_names.items():
             commanded_positions = self.move_to_position(
-                    joint_names, self.home_position_dynaarm.copy()
-                ) 
+                joint_names, self.home_position_dynaarm.copy()
+            )
             self.topic_to_commanded_positions[topic] = commanded_positions
 
         for topic, publisher in self.joint_trajectory_publishers.items():
@@ -221,8 +224,14 @@ class MoveToPredefinedPositionNode(Node):
     # Move to sleep for DynAarm Configuration
     def move_sleep_dynaarm(self):
         for topic, joint_names in self.topic_to_joint_names.items():
-            current_joint_values = self.extract_joint_values(self.get_joint_states(self.arms_count), joint_names)
-            if self.joints_at_pose(current_joint_values.copy(), self.rotation_joints_indices, self.home_position_dynaarm.copy()): # Check if rotation joints are at home position
+            current_joint_values = self.extract_joint_values(
+                self.get_joint_states(self.arms_count), joint_names
+            )
+            if self.joints_at_pose(
+                current_joint_values.copy(),
+                self.rotation_joints_indices,
+                self.home_position_dynaarm.copy(),
+            ):  # Check if rotation joints are at home position
                 commanded_positions = self.move_to_position(
                     joint_names, self.sleep_position_dynaarm.copy()
                 )
@@ -243,15 +252,13 @@ class MoveToPredefinedPositionNode(Node):
     def move_home_alpha(self):
         mirror_arm = False
         for topic, joint_names in self.topic_to_joint_names.items():
-            if mirror_arm: # Mirror the position for the second arm
+            if mirror_arm:  # Mirror the position for the second arm
                 target_home_position = self.mirror_position(
-                        joint_names, self.home_position_alpha.copy()
-                    )
+                    joint_names, self.home_position_alpha.copy()
+                )
             else:
                 target_home_position = self.home_position_alpha.copy()
-            commanded_positions = self.move_to_position(
-                joint_names, target_home_position
-            ) 
+            commanded_positions = self.move_to_position(joint_names, target_home_position)
             self.topic_to_commanded_positions[topic] = commanded_positions
             mirror_arm = True
 
@@ -266,21 +273,22 @@ class MoveToPredefinedPositionNode(Node):
     def move_sleep_alpha(self):
         mirror_arm = False
         for topic, joint_names in self.topic_to_joint_names.items():
-            if not self.joint_angles_equal(self.extract_joint_values(self.get_joint_states(self.arms_count), joint_names), 
-                                           self.mirror_position(joint_names, self.home_position_alpha.copy()) 
-                                           if mirror_arm else self.home_position_alpha.copy()): # Check if current position is not equal to home position
+            if not self.joint_angles_equal(
+                self.extract_joint_values(self.get_joint_states(self.arms_count), joint_names),
+                (
+                    self.mirror_position(joint_names, self.home_position_alpha.copy())
+                    if mirror_arm
+                    else self.home_position_alpha.copy()
+                ),
+            ):  # Check if current position is not equal to home position
                 target_position = self.home_position_alpha.copy()
-            else: 
+            else:
                 target_position = self.sleep_position_alpha.copy()
 
-            if mirror_arm: # Mirror the position for the second arm
-                target_position = self.mirror_position(
-                        joint_names, target_position
-                    )
-                
-            commanded_positions = self.move_to_position(
-                joint_names, target_position
-            ) 
+            if mirror_arm:  # Mirror the position for the second arm
+                target_position = self.mirror_position(joint_names, target_position)
+
+            commanded_positions = self.move_to_position(joint_names, target_position)
             self.topic_to_commanded_positions[topic] = commanded_positions
             mirror_arm = not mirror_arm  # Toggle mirroring for next arm
 
@@ -293,14 +301,18 @@ class MoveToPredefinedPositionNode(Node):
 
     # Move to a specific position for the given joint names
     def move_to_position(self, joint_names, target_position):
-        current_joint_values = self.extract_joint_values(self.get_joint_states(self.arms_count), joint_names)
-        if self.joints_at_pose(current_joint_values.copy(), self.flexion_joints_indices, target_position): # Check if flexion joints are at target position
+        current_joint_values = self.extract_joint_values(
+            self.get_joint_states(self.arms_count), joint_names
+        )
+        if self.joints_at_pose(
+            current_joint_values.copy(), self.flexion_joints_indices, target_position
+        ):  # Check if flexion joints are at target position
             next_step = self.interpolate_partial(
                 current_joint_values.copy(),
                 target_position,
                 self.rotation_joints_indices,
                 self.step_size_rotation_joints,
-                other_joints_values=target_position
+                other_joints_values=target_position,
             )
             return next_step
         else:
@@ -309,10 +321,10 @@ class MoveToPredefinedPositionNode(Node):
                 target_position,
                 self.flexion_joints_indices,
                 self.step_size_flexion_joints,
-                other_joints_values=current_joint_values.copy()
+                other_joints_values=current_joint_values.copy(),
             )
             return next_step
-        
+
     # Mirror the joint positions for mirrored joints based on the configuration
     def mirror_position(self, joint_names, target_position):
         mirrored_indices = [
@@ -323,7 +335,7 @@ class MoveToPredefinedPositionNode(Node):
         for i in mirrored_indices:
             target_position[i] = -target_position[i]
         return target_position
-        
+
     # Check if two lists of joint angles are equal within a tolerance, skipping index 1
     def joint_angles_equal(self, list1, list2):
         if len(list1) != len(list2):
@@ -341,12 +353,12 @@ class MoveToPredefinedPositionNode(Node):
             if all(name in joint_dict for name in joint_names):
                 return [joint_dict[name] for name in joint_names]
         return []  # Not found
-    
+
     # Check if the current joint angles are at the target position for the specified indices
     def joints_at_pose(self, current, indices, target_position):
         result = all(abs(current[i] - target_position[i]) < self.tolerance for i in indices)
         return result
-    
+
     # Interpolate partial joint positions towards the target position for specified indices
     def interpolate_partial(self, current, target, indices, step_size, other_joints_values):
         next_step = other_joints_values[:]  # Set all values to 0.0 initially
@@ -357,10 +369,9 @@ class MoveToPredefinedPositionNode(Node):
             else:
                 next_step[i] = target[i]
         return next_step
-    
+
     # Publish a joint trajectory message for the given positions using the provided publisher
-    def publish_joint_trajectory(
-        self, target_positions, publisher, joint_names=None):
+    def publish_joint_trajectory(self, target_positions, publisher, joint_names=None):
         """Publishes a joint trajectory message for the given positions using the provided publisher."""
         if joint_names is None:
             joint_names = list(self.joint_states.keys())
@@ -386,7 +397,7 @@ class MoveToPredefinedPositionNode(Node):
         point.time_from_start.nanosec = nanosec
         trajectory_msg.points.append(point)
         publisher.publish(trajectory_msg)
-    
+
     # Get joint states for the specified number of arms
     def get_joint_states(self, arms_count):
         """Always return a list of joint state dicts, one per arm."""
@@ -407,7 +418,7 @@ class MoveToPredefinedPositionNode(Node):
             arm_joint_dict = dict(zip(arm_joint_names, arm_joint_values))
             joint_states_per_arm.append(arm_joint_dict)
         return joint_states_per_arm
-    
+
     # Retrieve parameter values from the node
     def get_param_values(self, controller_ns, param_name):
         """Retrieve parameter values from the node."""
@@ -418,21 +429,15 @@ class MoveToPredefinedPositionNode(Node):
             param_value = future.result().values[0]
             joint_names = list(param_value.string_array_value)
             return joint_names
-        
+
     # Get topic names and types, filtering by a given name pattern.
-    def get_topic_names_and_types_test(self, by_name):
-        """This base class retrieves topic names by a given name.
-        Args:
-            by_name (str): The name of the topic to retrieve.
-        Returns:
-            list: A list of topic names and types matching the given name.
-        """
+    def get_topic_names_and_types_function(self, by_name):
         pattern = re.compile(by_name.replace("*", ".*"))
         topics_and_types = self.get_topic_names_and_types()
         matches = [(topic, types) for topic, types in topics_and_types if pattern.fullmatch(topic)]
         self.arms_count = len(matches)
         return matches
-    
+
     # Acrtivate all joint trajectory controllers
     def switch_to_joint_trajectory_controllers(self):
         """Switch to all controllers that start with the given prefix."""
@@ -441,10 +446,18 @@ class MoveToPredefinedPositionNode(Node):
                 "SwitchController service not available.", throttle_duration_sec=10.0
             )
             return
-        
+
         req = SwitchController.Request()
-        req.deactivate_controllers = [name for controller in self.all_controllers.get(self.previous_controller, []) for name, active in controller.items()]
-        req.activate_controllers = [name for controller in self.all_controllers.get('joint_trajectory_controller', []) for name, active in controller.items()]
+        req.deactivate_controllers = [
+            name
+            for controller in self.all_controllers.get(self.previous_controller, [])
+            for name, active in controller.items()
+        ]
+        req.activate_controllers = [
+            name
+            for controller in self.all_controllers.get("joint_trajectory_controller", [])
+            for name, active in controller.items()
+        ]
         req.strictness = 1  # STRICT
         self.switch_controller_client.call_async(req)
 
@@ -458,12 +471,21 @@ class MoveToPredefinedPositionNode(Node):
             return
 
         req = SwitchController.Request()
-        deaktivate_controllers = [name for controller in self.all_controllers.get("joint_trajectory_controller", []) for name, active in controller.items()]
+        deaktivate_controllers = [
+            name
+            for controller in self.all_controllers.get("joint_trajectory_controller", [])
+            for name, active in controller.items()
+        ]
         req.deactivate_controllers = deaktivate_controllers
         req.strictness = 1
         if self.previous_controller is not None:
-            req.activate_controllers =  [name for controller in self.all_controllers.get(self.previous_controller, []) for name, active in controller.items()]
+            req.activate_controllers = [
+                name
+                for controller in self.all_controllers.get(self.previous_controller, [])
+                for name, active in controller.items()
+            ]
         self.switch_controller_client.call_async(req)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -472,5 +494,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
