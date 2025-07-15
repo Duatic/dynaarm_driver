@@ -12,6 +12,7 @@
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <exec_depend>dynaarm_controller_manager_msgs</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
 

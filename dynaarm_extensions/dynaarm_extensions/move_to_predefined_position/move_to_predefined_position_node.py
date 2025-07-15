@@ -29,6 +29,11 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import re
 from rclpy.parameter_client import AsyncParameterClient
 import time
+from controller_manager_msgs.srv import ListControllers, SwitchController
+from dynaarm_extensions.dynaarm_controller_manager import DynAarmControllerManager
+from ament_index_python.packages import get_package_share_directory
+import os
+import yaml
 
 
 class MoveToPredefinedPositionNode(Node):
@@ -38,13 +43,31 @@ class MoveToPredefinedPositionNode(Node):
     def __init__(self):
         super().__init__('motion_to_predefined_position_node')
 
-        self.declare_parameter("robot_configuration", "dynaarm")  # Default configuration
+        config_path = os.path.join(
+            get_package_share_directory("dynaarm_extensions"),
+            "config",
+            "controllers.yaml",
+        )
+
+        with open(config_path) as file:
+            config = yaml.safe_load(file)
+
+        self.controller_manager = DynAarmControllerManager(self, config["controllers"])
+
+        self.declare_parameter("robot_configuration", "dynaarm_dual")  # Default configuration
         self.robot_configuration = self.get_parameter("robot_configuration").value
 
-        if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip":
+        if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip": 
             num_arms = 1
         elif self.robot_configuration == "alpha" or self.robot_configuration == "dynaarm_dual":
             num_arms = 2
+
+        self.list_controllers_client = self.create_client(
+            ListControllers, "/controller_manager/list_controllers"
+        )
+        self.switch_controller_client = self.create_client(
+            SwitchController, "/controller_manager/switch_controller"
+        )
 
         self.sleep_position_dynaarm = [
             0.0,
@@ -87,6 +110,7 @@ class MoveToPredefinedPositionNode(Node):
         self.rotation_joints_indices = [0, 3, 5] # Indices of rotation joints
         self.tolerance = 0.01 # Tolerance for joint angle comparison
         self.dt = 0.05 # Control loop period in seconds
+        self.controller_active = False  # Flag to check if the controller is active
 
         # Subscriptions
         self.home_subscriber = self.create_subscription(
@@ -113,14 +137,12 @@ class MoveToPredefinedPositionNode(Node):
         self.topic_to_commanded_positions = {} # Dictionary to hold commanded positions for each topic
         self.prefix_to_joints = {} # Dictionary to map prefixes to joint names
         found_topics = {} # Dictionary to hold found topics
+        self.previous_controller = {}
         topic_prefix = "/joint_trajectory_controller"
 
         # Find all joint trajectory topics matching the prefix
         while len(found_topics) != num_arms:
             found_topics = self.get_topic_names_and_types_test(f"{topic_prefix}*/joint_trajectory")
-            self.get_logger().info(
-                f"Found {len(found_topics)} joint trajectory topics: {found_topics}"
-            )
             time.sleep(0.1)  # Wait for topics to be discovered
 
         # Discover all topics and joint names, extract prefix
@@ -137,6 +159,7 @@ class MoveToPredefinedPositionNode(Node):
             else:
                 print("Parameter not found or empty for topic", topic)
 
+        self.all_controllers = self.controller_manager.get_all_controllers()
         self.create_timer(self.dt, self.control_loop)
 
     def move_home_callback(self, msg):
@@ -153,20 +176,32 @@ class MoveToPredefinedPositionNode(Node):
 
     # Control loop that checks the home and sleep flags and moves the robot accordingly
     def control_loop(self):
-        if self.home:
-            if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
-                self.move_home_dynaarm()
-            elif self.robot_configuration == "alpha":
-                self.move_home_alpha()
-            elif self.robot_configuration == "dynaarm_flip":
-                self.move_home_dynaarm()
-        if self.sleep:
-            if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
-                self.move_sleep_dynaarm()
-            if self.robot_configuration == "alpha":
-                self.move_sleep_alpha()
-            if self.robot_configuration == "dynaarm_flip":
-                self.move_home_dynaarm()
+        if not self.controller_manager.is_freeze_active:
+            if self.home:
+                if not self.controller_active:
+                    self.switch_to_joint_trajectory_controllers()
+                    self.controller_active = True
+                if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
+                    self.move_home_dynaarm()
+                elif self.robot_configuration == "alpha":
+                    self.move_home_alpha()
+                elif self.robot_configuration == "dynaarm_flip":
+                    self.move_home_dynaarm()
+            if self.sleep:
+                if not self.controller_active:
+                    self.switch_to_joint_trajectory_controllers()
+                    self.controller_active = True
+                if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_dual":
+                    self.move_sleep_dynaarm()
+                if self.robot_configuration == "alpha":
+                    self.move_sleep_alpha()
+                if self.robot_configuration == "dynaarm_flip":
+                    self.move_home_dynaarm()
+            if not self.home and not self.sleep:
+                if self.controller_active:
+                    self.switch_to_previous_controllers()
+                    self.controller_active = False
+                self.previous_controller = next(iter(self.controller_manager.active_controllers), None)
 
     # Move to home for DynAarm Configuration
     def move_home_dynaarm(self):
@@ -351,9 +386,6 @@ class MoveToPredefinedPositionNode(Node):
         point.time_from_start.nanosec = nanosec
         trajectory_msg.points.append(point)
         publisher.publish(trajectory_msg)
-        self.get_logger().info(
-            f"Published trajectory to {publisher.topic_name} with positions: {target_positions}"
-        )
     
     # Get joint states for the specified number of arms
     def get_joint_states(self, arms_count):
@@ -400,7 +432,38 @@ class MoveToPredefinedPositionNode(Node):
         matches = [(topic, types) for topic, types in topics_and_types if pattern.fullmatch(topic)]
         self.arms_count = len(matches)
         return matches
+    
+    # Acrtivate all joint trajectory controllers
+    def switch_to_joint_trajectory_controllers(self):
+        """Switch to all controllers that start with the given prefix."""
+        if not self.switch_controller_client.wait_for_service(timeout_sec=2.0):
+            self.node.get_logger().warn(
+                "SwitchController service not available.", throttle_duration_sec=10.0
+            )
+            return
+        
+        req = SwitchController.Request()
+        req.deactivate_controllers = [name for controller in self.all_controllers.get(self.previous_controller, []) for name, active in controller.items()]
+        req.activate_controllers = [name for controller in self.all_controllers.get('joint_trajectory_controller', []) for name, active in controller.items()]
+        req.strictness = 1  # STRICT
+        self.switch_controller_client.call_async(req)
 
+    # Activate the previous active controllers
+    def switch_to_previous_controllers(self):
+        """Deactivate all joint trajectory controllers."""
+        if not self.switch_controller_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().warn(
+                "SwitchController service not available.", throttle_duration_sec=10.0
+            )
+            return
+
+        req = SwitchController.Request()
+        deaktivate_controllers = [name for controller in self.all_controllers.get("joint_trajectory_controller", []) for name, active in controller.items()]
+        req.deactivate_controllers = deaktivate_controllers
+        req.strictness = 1
+        if self.previous_controller is not None:
+            req.activate_controllers =  [name for controller in self.all_controllers.get(self.previous_controller, []) for name, active in controller.items()]
+        self.switch_controller_client.call_async(req)
 
 def main(args=None):
     rclpy.init(args=args)

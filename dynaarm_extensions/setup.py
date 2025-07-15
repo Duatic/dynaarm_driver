@@ -21,6 +21,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import os
 from setuptools import find_packages, setup
 
 package_name = "dynaarm_extensions"
@@ -31,6 +32,7 @@ setup(
     version="0.0.0",
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        (os.path.join("share", package_name, "config"), ["dynaarm_extensions/dynaarm_controller_manager/config/controllers.yaml"]),
         ("share/" + package_name, ["package.xml"]),
     ],
     install_requires=["setuptools"],
