@@ -95,7 +95,7 @@ class MoveToPredefinedPositionNode(Node):
         ]  # Home position for Alpha
         self.sleep_position_alpha = [
             1.5708,
-            0.680678,
+            0.77,
             0.0,
             0.0,
             0.0,
@@ -104,12 +104,12 @@ class MoveToPredefinedPositionNode(Node):
 
         self.home = False  # Initialize home position flag
         self.sleep = False  # Initialize sleep position flag
-        self.step_size_flexion_joints = 0.01  # Step size for flexion joints
+        self.step_size_flexion_joints = 0.001  # Step size for flexion joints
         self.step_size_rotation_joints = 0.01  # Step size for rotation joints
         self.flexion_joints_indices = [1, 2, 4]  # Indices of flexion joints
         self.rotation_joints_indices = [0, 3, 5]  # Indices of rotation joints
         self.tolerance = 0.01  # Tolerance for joint angle comparison
-        self.dt = 0.05  # Control loop period in seconds
+        self.dt = 0.001  # Control loop period in seconds
         self.controller_active = False  # Flag to check if the controller is active
 
         # Subscriptions
