@@ -121,13 +121,9 @@ class MoveToPredefinedPositionNode(Node):
         )
         self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
 
-        self.joint_trajectory_publishers = (
-            {}
-        )  # Dictionary to hold publishers for joint trajectory topics
+        self.joint_trajectory_publishers = ({})  # Dictionary to hold publishers for joint trajectory topics
         self.topic_to_joint_names = {}  # Dictionary to map topics to joint names
-        self.topic_to_commanded_positions = (
-            {}
-        )  # Dictionary to hold commanded positions for each topic
+        self.topic_to_commanded_positions = ({})  # Dictionary to hold commanded positions for each topic
         self.prefix_to_joints = {}  # Dictionary to map prefixes to joint names
         found_topics = {}  # Dictionary to hold found topics
         self.previous_controller = {}
@@ -157,13 +153,26 @@ class MoveToPredefinedPositionNode(Node):
         self.all_controllers = self.controller_manager.get_all_controllers()
         self.create_timer(self.dt, self.control_loop)
 
+        self.movement_handlers = {
+            ("dynaarm", "home"): self.move_home_dynaarm,
+            ("dynaarm", "sleep"): self.move_sleep_dynaarm,
+            ("dynaarm_dual", "home"): self.move_home_dynaarm,
+            ("dynaarm_dual", "sleep"): self.move_sleep_dynaarm,
+            ("alpha", "home"): self.move_home_alpha,
+            ("alpha", "sleep"): self.move_sleep_alpha,
+            ("dynaarm_flip", "home"): self.move_home_dynaarm,
+            ("dynaarm_flip", "sleep"): self.move_home_dynaarm,  # Note: flip uses home for sleep
+        }
+
     def move_home_callback(self, msg):
         self.home = msg.data
         self.sleep = False  # Reset sleep flag when moving to home
+        self.get_logger().info(f"Moving to home: {self.home}", throttle_duration_sec=1.0)
 
     def move_sleep_callback(self, msg):
         self.sleep = msg.data
         self.home = False  # Reset home flag when moving to sleep
+        self.get_logger().info(f"Moving to sleep: {self.sleep}", throttle_duration_sec=1.0)
 
     def joint_state_callback(self, msg: JointState):
         """Update stored joint states and set initial positions."""
@@ -171,40 +180,37 @@ class MoveToPredefinedPositionNode(Node):
 
     # Control loop that checks the home and sleep flags and moves the robot accordingly
     def control_loop(self):
-        if not self.controller_manager.is_freeze_active:
-            if self.home:
-                if not self.controller_active and self.previous_controller != "joint_trajectory_controller":
-                    self.switch_to_joint_trajectory_controllers()
-                if (
-                    self.robot_configuration == "dynaarm"
-                    or self.robot_configuration == "dynaarm_dual"
-                ):
-                    self.move_home_dynaarm()
-                elif self.robot_configuration == "alpha":
-                    self.move_home_alpha()
-                elif self.robot_configuration == "dynaarm_flip":
-                    self.move_home_dynaarm()
-                self.controller_active = True
-            if self.sleep:
-                if not self.controller_active and self.previous_controller != "joint_trajectory_controller":
-                    self.switch_to_joint_trajectory_controllers()
-                if (
-                    self.robot_configuration == "dynaarm"
-                    or self.robot_configuration == "dynaarm_dual"
-                ):
-                    self.move_sleep_dynaarm()
-                if self.robot_configuration == "alpha":
-                    self.move_sleep_alpha()
-                if self.robot_configuration == "dynaarm_flip":
-                    self.move_home_dynaarm()
-                self.controller_active = True
-            if not self.home and not self.sleep:
-                if self.controller_active and self.previous_controller != "joint_trajectory_controller":
-                    self.switch_to_previous_controllers()
-                self.previous_controller = next(
-                    iter(self.controller_manager.active_controllers), None
-                )
-                self.controller_active = False
+
+        self.get_logger().info(f"0", throttle_duration_sec=1.0)
+
+        if self.controller_manager.is_freeze_active:
+            # If the controller manager is in freeze mode, do not execute any movements            
+            return
+        
+        self.get_logger().info(f"1", throttle_duration_sec=1.0)
+        
+        if self.home or self.sleep:
+
+            if not self.controller_active and self.previous_controller != "joint_trajectory_controller":            
+                self.switch_to_joint_trajectory_controllers()
+            
+            self.get_logger().info(f"2", throttle_duration_sec=1.0)
+            self.controller_active = True
+
+            # O(1) dictionary lookup instead of multiple string comparisons
+            action_key = (self.robot_configuration, "home" if self.home else "sleep")            
+            handler = self.movement_handlers.get(action_key)
+            self.get_logger().info(f"Handler for {action_key}: {handler}", throttle_duration_sec=5.0)
+            if handler:
+                self.get_logger().info(f"3", throttle_duration_sec=1.0)
+                handler()
+        else:
+            
+            if self.controller_active and self.previous_controller != "joint_trajectory_controller":
+                self.switch_to_previous_controllers()
+
+            self.previous_controller = next(iter(self.controller_manager.active_controllers), None)
+            self.controller_active = False
 
     # Move to home for DynAarm Configuration
     def move_home_dynaarm(self):
@@ -471,12 +477,12 @@ class MoveToPredefinedPositionNode(Node):
             return
 
         req = SwitchController.Request()
-        deaktivate_controllers = [
+        deactivate_controllers = [
             name
             for controller in self.all_controllers.get("joint_trajectory_controller", [])
             for name, active in controller.items()
         ]
-        req.deactivate_controllers = deaktivate_controllers
+        req.deactivate_controllers = deactivate_controllers
         req.strictness = 1
         if self.previous_controller is not None:
             req.activate_controllers = [
