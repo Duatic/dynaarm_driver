@@ -173,9 +173,8 @@ class MoveToPredefinedPositionNode(Node):
     def control_loop(self):
         if not self.controller_manager.is_freeze_active:
             if self.home:
-                if not self.controller_active:
+                if not self.controller_active and self.previous_controller != "joint_trajectory_controller":
                     self.switch_to_joint_trajectory_controllers()
-                    self.controller_active = True
                 if (
                     self.robot_configuration == "dynaarm"
                     or self.robot_configuration == "dynaarm_dual"
@@ -185,10 +184,10 @@ class MoveToPredefinedPositionNode(Node):
                     self.move_home_alpha()
                 elif self.robot_configuration == "dynaarm_flip":
                     self.move_home_dynaarm()
+                self.controller_active = True
             if self.sleep:
-                if not self.controller_active:
+                if not self.controller_active and self.previous_controller != "joint_trajectory_controller":
                     self.switch_to_joint_trajectory_controllers()
-                    self.controller_active = True
                 if (
                     self.robot_configuration == "dynaarm"
                     or self.robot_configuration == "dynaarm_dual"
@@ -198,13 +197,14 @@ class MoveToPredefinedPositionNode(Node):
                     self.move_sleep_alpha()
                 if self.robot_configuration == "dynaarm_flip":
                     self.move_home_dynaarm()
+                self.controller_active = True
             if not self.home and not self.sleep:
-                if self.controller_active:
+                if self.controller_active and self.previous_controller != "joint_trajectory_controller":
                     self.switch_to_previous_controllers()
-                    self.controller_active = False
                 self.previous_controller = next(
                     iter(self.controller_manager.active_controllers), None
                 )
+                self.controller_active = False
 
     # Move to home for DynAarm Configuration
     def move_home_dynaarm(self):
