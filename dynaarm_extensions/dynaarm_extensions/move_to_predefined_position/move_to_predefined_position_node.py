@@ -160,7 +160,7 @@ class MoveToPredefinedPositionNode(Node):
             if not self.controller_active and self.previous_controller != "joint_trajectory_controller":            
                 self.switch_to_joint_trajectory_controllers()
             
-            self.controller_active = True
+            self.controller_active = True            
 
             # O(1) dictionary lookup instead of multiple string comparisons
             action_key = (self.robot_configuration, "home" if self.home else "sleep")            
@@ -388,14 +388,6 @@ class MoveToPredefinedPositionNode(Node):
             joint_states_per_arm.append(arm_joint_dict)
         return joint_states_per_arm
 
-    # Get topic names and types, filtering by a given name pattern.
-    def get_topic_names_and_types_function(self, by_name):
-        pattern = re.compile(by_name.replace("*", ".*"))
-        topics_and_types = self.get_topic_names_and_types()
-        matches = [(topic, types) for topic, types in topics_and_types if pattern.fullmatch(topic)]
-        self.arms_count = len(matches)
-        return matches
-
     # Acrtivate all joint trajectory controllers
     def switch_to_joint_trajectory_controllers(self):
         """Switch to all controllers that start with the given prefix."""
@@ -444,17 +436,18 @@ class MoveToPredefinedPositionNode(Node):
 
 
 def main(args=None):
+    
     rclpy.init(args=args)
+    
     node = MoveToPredefinedPositionNode()
     node.get_logger().info("Move to Predefined Position Node is running...")   
     
     try:
-        while rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.1)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    
-    node.destroy_node()    
+
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == "__main__":
