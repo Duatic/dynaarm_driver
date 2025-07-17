@@ -21,19 +21,23 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+
+import os
+import yaml
+import re
+
 import rclpy
 from rclpy.node import Node
+from ament_index_python.packages import get_package_share_directory
+
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-import re
-from rclpy.parameter_client import AsyncParameterClient
-import time
 from controller_manager_msgs.srv import ListControllers, SwitchController
-from dynaarm_extensions.dynaarm_controller_manager import DynAarmControllerManager
-from ament_index_python.packages import get_package_share_directory
-import os
-import yaml
+
+from dynaarm_extensions.duatic_helpers.duatic_controller_helper import DuaticControllerHelper
+from dynaarm_extensions.duatic_helpers.duatic_robots_helper import DuaticRobotsHelper
+from dynaarm_extensions.duatic_helpers.duatic_jtc_helper import DuaticJTCHelper
 
 
 class MoveToPredefinedPositionNode(Node):
@@ -43,65 +47,24 @@ class MoveToPredefinedPositionNode(Node):
     def __init__(self):
         super().__init__("motion_to_predefined_position_node")
 
-        config_path = os.path.join(
-            get_package_share_directory("dynaarm_extensions"),
-            "config",
-            "controllers.yaml",
-        )
-
-        with open(config_path) as file:
-            config = yaml.safe_load(file)
-
-        self.controller_manager = DynAarmControllerManager(self, config["controllers"])
-
         self.declare_parameter("robot_configuration", "dynaarm_dual")  # Default configuration
-        self.robot_configuration = self.get_parameter("robot_configuration").value
+        self.robot_configuration = self.get_parameter("robot_configuration").value        
 
-        if self.robot_configuration == "dynaarm" or self.robot_configuration == "dynaarm_flip":
-            num_arms = 1
-        elif self.robot_configuration == "alpha" or self.robot_configuration == "dynaarm_dual":
-            num_arms = 2
+        # Service clients
+        self.list_controllers_client = self.create_client(ListControllers, "/controller_manager/list_controllers")
+        self.switch_controller_client = self.create_client(SwitchController, "/controller_manager/switch_controller")
+        
+        # Subscriptions
+        self.create_subscription(Bool, "move_home", self.move_home_callback, 10)
+        self.create_subscription(Bool, "move_sleep", self.move_sleep_callback, 10)
+        self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
 
-        self.list_controllers_client = self.create_client(
-            ListControllers, "/controller_manager/list_controllers"
-        )
-        self.switch_controller_client = self.create_client(
-            SwitchController, "/controller_manager/switch_controller"
-        )
+        self.sleep_position_dynaarm = [0.0, -1.720, 3.14159, 0.0, 1.0, 0.0]
+        self.home_position_dynaarm = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]        
+        self.home_position_alpha = [1.5708, 0.0, 0.0, 0.0, 0.0, 0.0]        
+        self.sleep_position_alpha = [1.5708, 0.77, 0.0, 0.0, 0.0, 0.0]
 
-        self.sleep_position_dynaarm = [
-            0.0,
-            -1.720,
-            3.14159,
-            0.0,
-            1.0,
-            0.0,
-        ]  # Sleep position for DynAarm
-        self.home_position_dynaarm = [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]  # Home position for DynAarm
-        self.home_position_alpha = [
-            1.5708,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]  # Home position for Alpha
-        self.sleep_position_alpha = [
-            1.5708,
-            0.77,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]  # Sleep position for Alpha
-
+        self.initialized = False
         self.home = False  # Initialize home position flag
         self.sleep = False  # Initialize sleep position flag
         self.step_size_flexion_joints = 0.001  # Step size for flexion joints
@@ -111,47 +74,11 @@ class MoveToPredefinedPositionNode(Node):
         self.tolerance = 0.01  # Tolerance for joint angle comparison
         self.dt = 0.001  # Control loop period in seconds
         self.controller_active = False  # Flag to check if the controller is active
-
-        # Subscriptions
-        self.home_subscriber = self.create_subscription(
-            Bool, "move_home", self.move_home_callback, 10
-        )
-        self.sleep_subscriber = self.create_subscription(
-            Bool, "move_sleep", self.move_sleep_callback, 10
-        )
-        self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
-
         self.joint_trajectory_publishers = ({})  # Dictionary to hold publishers for joint trajectory topics
         self.topic_to_joint_names = {}  # Dictionary to map topics to joint names
         self.topic_to_commanded_positions = ({})  # Dictionary to hold commanded positions for each topic
-        self.prefix_to_joints = {}  # Dictionary to map prefixes to joint names
-        found_topics = {}  # Dictionary to hold found topics
-        self.previous_controller = {}
-        topic_prefix = "/joint_trajectory_controller"
-
-        # Find all joint trajectory topics matching the prefix
-        while len(found_topics) != num_arms:
-            found_topics = self.get_topic_names_and_types_function(
-                f"{topic_prefix}*/joint_trajectory"
-            )
-            time.sleep(0.1)  # Wait for topics to be discovered
-
-        # Discover all topics and joint names, extract prefix
-        for topic, types in found_topics:  #
-            self.joint_trajectory_publishers[topic] = self.create_publisher(
-                JointTrajectory, topic, 10
-            )
-            # Extract prefix from topic name
-            # e.g. /joint_trajectory_controller_arm_1/joint_trajectory -> arm_1
-            joint_names = self.get_param_values(topic.split("/")[1], "joints")
-            if joint_names:
-                self.topic_to_joint_names[topic] = joint_names
-                self.topic_to_commanded_positions[topic] = [0.0] * len(joint_names)
-            else:
-                print("Parameter not found or empty for topic", topic)
-
-        self.all_controllers = self.controller_manager.get_all_controllers()
-        self.create_timer(self.dt, self.control_loop)
+        self.prefix_to_joints = {}  # Dictionary to map prefixes to joint names        
+        self.previous_controller = {}        
 
         self.movement_handlers = {
             ("dynaarm", "home"): self.move_home_dynaarm,
@@ -162,17 +89,55 @@ class MoveToPredefinedPositionNode(Node):
             ("alpha", "sleep"): self.move_sleep_alpha,
             ("dynaarm_flip", "home"): self.move_home_dynaarm,
             ("dynaarm_flip", "sleep"): self.move_home_dynaarm,  # Note: flip uses home for sleep
-        }
+        }        
+
+        config_path = os.path.join(
+            get_package_share_directory("dynaarm_extensions"),
+            "config",
+            "controllers.yaml",
+        )
+
+        with open(config_path) as file:
+            config = yaml.safe_load(file)
+
+        # Helper classes
+        self.controller_manager = DuaticControllerHelper(self, config["controllers"])       
+        # Wait for controller data to be available
+        self.get_logger().info("Waiting for controller data...")
+        if self.controller_manager.wait_for_controller_data(timeout_sec=10.0):
+            self.get_logger().info("Controller data ready!")
+        else:
+            self.get_logger().warn("Controller data not ready, proceeding anyway...")
+        
+        self.robot_helper = DuaticRobotsHelper(self)        
+        self.arms_count = self.robot_helper.get_robot_count()
+        while self.arms_count <= 0:
+            rclpy.spin_once(self, timeout_sec=1.0)
+            self.arms_count = self.robot_helper.get_robot_count()
+
+        duatic_jtc_helper = DuaticJTCHelper(self, self.arms_count)
+
+        found_topics = duatic_jtc_helper.get_joint_trajectory_topics()
+        response = duatic_jtc_helper.process_topics_and_extract_joint_names(found_topics)
+        self.topic_to_joint_names = response[0]
+        self.topic_to_commanded_positions = response[1]
+
+        # Create publishers for each joint trajectory topic
+        for topic in self.topic_to_joint_names.keys():
+            self.joint_trajectory_publishers[topic] = self.create_publisher(
+                JointTrajectory, topic, 10
+            )
+            self.get_logger().info(f"Created publisher for topic: {topic}")
+
+        self.create_timer(self.dt, self.control_loop)       
 
     def move_home_callback(self, msg):
         self.home = msg.data
         self.sleep = False  # Reset sleep flag when moving to home
-        self.get_logger().info(f"Moving to home: {self.home}", throttle_duration_sec=1.0)
 
     def move_sleep_callback(self, msg):
         self.sleep = msg.data
         self.home = False  # Reset home flag when moving to sleep
-        self.get_logger().info(f"Moving to sleep: {self.sleep}", throttle_duration_sec=1.0)
 
     def joint_state_callback(self, msg: JointState):
         """Update stored joint states and set initial positions."""
@@ -181,35 +146,33 @@ class MoveToPredefinedPositionNode(Node):
     # Control loop that checks the home and sleep flags and moves the robot accordingly
     def control_loop(self):
 
-        self.get_logger().info(f"0", throttle_duration_sec=1.0)
+        # Check if controller data is ready
+        if not self.controller_manager.is_controller_data_ready():
+            self.get_logger().info("Waiting for controller data...", throttle_duration_sec=2.0)
+            return
 
-        if self.controller_manager.is_freeze_active:
+        if self.controller_manager.is_freeze_active():
             # If the controller manager is in freeze mode, do not execute any movements            
             return
-        
-        self.get_logger().info(f"1", throttle_duration_sec=1.0)
-        
+
         if self.home or self.sleep:
 
             if not self.controller_active and self.previous_controller != "joint_trajectory_controller":            
                 self.switch_to_joint_trajectory_controllers()
             
-            self.get_logger().info(f"2", throttle_duration_sec=1.0)
             self.controller_active = True
 
             # O(1) dictionary lookup instead of multiple string comparisons
             action_key = (self.robot_configuration, "home" if self.home else "sleep")            
-            handler = self.movement_handlers.get(action_key)
-            self.get_logger().info(f"Handler for {action_key}: {handler}", throttle_duration_sec=5.0)
+            handler = self.movement_handlers.get(action_key)            
             if handler:
-                self.get_logger().info(f"3", throttle_duration_sec=1.0)
                 handler()
         else:
             
             if self.controller_active and self.previous_controller != "joint_trajectory_controller":
                 self.switch_to_previous_controllers()
 
-            self.previous_controller = next(iter(self.controller_manager.active_controllers), None)
+            self.previous_controller = next(iter(self.controller_manager._active_controllers), None)
             self.controller_active = False
 
     # Move to home for DynAarm Configuration
@@ -425,17 +388,6 @@ class MoveToPredefinedPositionNode(Node):
             joint_states_per_arm.append(arm_joint_dict)
         return joint_states_per_arm
 
-    # Retrieve parameter values from the node
-    def get_param_values(self, controller_ns, param_name):
-        """Retrieve parameter values from the node."""
-        param_client = AsyncParameterClient(self, controller_ns)
-        future = param_client.get_parameters([param_name])
-        rclpy.spin_until_future_complete(self, future)
-        if future.result() is not None and future.result().values:
-            param_value = future.result().values[0]
-            joint_names = list(param_value.string_array_value)
-            return joint_names
-
     # Get topic names and types, filtering by a given name pattern.
     def get_topic_names_and_types_function(self, by_name):
         pattern = re.compile(by_name.replace("*", ".*"))
@@ -448,20 +400,18 @@ class MoveToPredefinedPositionNode(Node):
     def switch_to_joint_trajectory_controllers(self):
         """Switch to all controllers that start with the given prefix."""
         if not self.switch_controller_client.wait_for_service(timeout_sec=2.0):
-            self.node.get_logger().warn(
-                "SwitchController service not available.", throttle_duration_sec=10.0
-            )
+            self.get_logger().warn("SwitchController service not available.", throttle_duration_sec=10.0)
             return
 
         req = SwitchController.Request()
         req.deactivate_controllers = [
             name
-            for controller in self.all_controllers.get(self.previous_controller, [])
+            for controller in self.controller_manager.get_all_controllers().get(self.previous_controller, [])
             for name, active in controller.items()
         ]
         req.activate_controllers = [
             name
-            for controller in self.all_controllers.get("joint_trajectory_controller", [])
+            for controller in self.controller_manager.get_all_controllers().get("joint_trajectory_controller", [])
             for name, active in controller.items()
         ]
         req.strictness = 1  # STRICT
@@ -479,7 +429,7 @@ class MoveToPredefinedPositionNode(Node):
         req = SwitchController.Request()
         deactivate_controllers = [
             name
-            for controller in self.all_controllers.get("joint_trajectory_controller", [])
+            for controller in self.controller_manager.get_all_controllers().get("joint_trajectory_controller", [])
             for name, active in controller.items()
         ]
         req.deactivate_controllers = deactivate_controllers
@@ -487,7 +437,7 @@ class MoveToPredefinedPositionNode(Node):
         if self.previous_controller is not None:
             req.activate_controllers = [
                 name
-                for controller in self.all_controllers.get(self.previous_controller, [])
+                for controller in self.controller_manager.get_all_controllers().get(self.previous_controller, [])
                 for name, active in controller.items()
             ]
         self.switch_controller_client.call_async(req)
@@ -496,10 +446,16 @@ class MoveToPredefinedPositionNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = MoveToPredefinedPositionNode()
-    rclpy.spin(node)
-    node.destroy_node()
+    node.get_logger().info("Move to Predefined Position Node is running...")   
+    
+    try:
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except KeyboardInterrupt:
+        pass
+    
+    node.destroy_node()    
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
