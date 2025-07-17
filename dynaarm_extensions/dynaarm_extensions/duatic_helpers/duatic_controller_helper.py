@@ -27,7 +27,6 @@ from controller_manager_msgs.srv import ListControllers, SwitchController
 
 class DuaticControllerHelper:
 
-
     def __init__(self, node, controllers_config):
         self.node = node
         self.controllers = {}
@@ -46,8 +45,8 @@ class DuaticControllerHelper:
             name for name, props in controllers_config.items() if props["whitelisted"]
         ]
 
-        self._active_controllers = set()      
-        self._is_freeze_active = False        
+        self._active_controllers = set()
+        self._is_freeze_active = False
         self._found_controllers_by_base = {base: [] for base in self.controller_whitelist}
         self._run_once = False
         self.node.create_timer(0.1, self._get_all_controllers)
@@ -55,11 +54,11 @@ class DuaticControllerHelper:
     def get_all_controllers(self):
         """Returns the found controllers by base. May be empty if timer hasn't run yet."""
         return self._found_controllers_by_base
-    
+
     def get_active_controllers(self):
         """Returns a list of currently active controllers. May be empty if timer hasn't run yet."""
         return self._active_controllers
-    
+
     def is_freeze_active(self):
         """Checks if the freeze controller is currently active. Defaults to False if not yet determined."""
         return self._is_freeze_active
@@ -71,6 +70,7 @@ class DuaticControllerHelper:
     def wait_for_controller_data(self, timeout_sec=20.0):
         """Wait for controller data to be available, returns True if successful."""
         import time
+
         start_time = time.time()
         while not self._run_once and (time.time() - start_time) < timeout_sec:
             rclpy.spin_once(self.node, timeout_sec=0.05)
@@ -90,7 +90,7 @@ class DuaticControllerHelper:
         def callback(future):
             if future.done():
                 try:
-                    response = future.result()                    
+                    response = future.result()
 
                     # Reset found controllers and active controllers
                     for base in self._found_controllers_by_base:
@@ -107,15 +107,15 @@ class DuaticControllerHelper:
 
                                 if controller.state == "active":
                                     self._active_controllers.add(base)
-                        
+
                         if controller.name.startswith("freeze_controller"):
                             if controller.state == "active":
                                 self._is_freeze_active = True
                             else:
-                                self._is_freeze_active = False                        
-                            
-                    self._run_once = True   
-                    
+                                self._is_freeze_active = False
+
+                    self._run_once = True
+
                 except Exception as e:
                     self.node.get_logger().error(f"Error fetching controllers: {e}")
 

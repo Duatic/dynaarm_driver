@@ -28,7 +28,8 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import JointState
 
-class DuaticRobotsHelper():
+
+class DuaticRobotsHelper:
 
     def __init__(self, node: Node):
         self.node = node
@@ -36,40 +37,30 @@ class DuaticRobotsHelper():
         self._robot_count = 0
         self._joint_states = {}
 
-        self._joint_states_subscription = self.node.create_subscription(JointState, "/joint_states", self._joint_sate_callback, 10)
+        self._joint_states_subscription = self.node.create_subscription(
+            JointState, "/joint_states", self._joint_sate_callback, 10
+        )
 
     def _joint_sate_callback(self, msg):
-        """
-        Callback to update joint states and detect robots.
-        """
-
+        """Callback to update joint states and detect robots."""
         self._joint_states = dict(zip(msg.name, msg.position))
 
         if self._robot_count <= 0:
             self._check_robot_amount()
 
     def get_joint_states(self):
-        """
-        Get the current joint states.
-        Returns a dictionary of joint names and their positions.
-        """
+        """Returns a dictionary of joint names and their positions."""
         return self._joint_states
 
     def get_robot_count(self):
-        """
-        Get the number of robots by checking joint names in /joint_states.
-        This method assumes that joint names are prefixed with the robot name.
-        """
-
-        while self._robot_count <= 0:            
+        """Get the number of robots by checking joint names in /joint_states."""
+        while self._robot_count <= 0:
             rclpy.spin_once(self.node, timeout_sec=0.01)
-        
+
         return self._robot_count
 
     def _check_robot_amount(self):
-        """
-        Robustly detect the number of robots by analyzing joint name prefixes from /joint_states.
-        """
+        """Robustly detect the number of robots by analyzing joint name prefixes from /joint_states."""
         self.node.get_logger().info("Waiting for /joint_states to detect robots...")
 
         if not self._joint_states:
@@ -101,4 +92,4 @@ class DuaticRobotsHelper():
             rclpy.shutdown()
             sys.exit(1)
 
-        self._robot_count = count        
+        self._robot_count = count

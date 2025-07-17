@@ -28,12 +28,11 @@ from rclpy.parameter_client import AsyncParameterClient
 class DuaticParamHelper:
     """Helper class for Joint Trajectory Controller topic discovery and management."""
 
-    def __init__(self, node):        
-        self.node = node  
-    
+    def __init__(self, node):
+        self.node = node
+
     def get_param_values(self, controller_ns, param_name):
         """Retrieve parameter values from the node."""
-
         param_client = AsyncParameterClient(self.node, controller_ns)
         param_client.wait_for_services(timeout_sec=5.0)
 
@@ -41,11 +40,13 @@ class DuaticParamHelper:
 
         self.node.get_logger().error(f"Requesting parameter {param_name} from {controller_ns}")
         while not future.done():
-            rclpy.spin_once(self.node, timeout_sec=0.05)        
+            rclpy.spin_once(self.node, timeout_sec=0.05)
 
-        self.node.get_logger().error(f"Parameter {param_name} retrieval completed for {controller_ns}")
-        
-        if future.result() is not None and future.result().values: # type: ignore
-            return future.result().values # type: ignore
+        self.node.get_logger().error(
+            f"Parameter {param_name} retrieval completed for {controller_ns}"
+        )
 
-        return None  
+        if future.result() is not None and future.result().values:  # type: ignore
+            return future.result().values  # type: ignore
+
+        return None
