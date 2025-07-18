@@ -38,11 +38,11 @@ class DuaticParamHelper:
 
         future = param_client.get_parameters([param_name])
 
-        self.node.get_logger().error(f"Requesting parameter {param_name} from {controller_ns}")
+        self.node.get_logger().debug(f"Requesting parameter {param_name} from {controller_ns}")
         while not future.done():
             rclpy.spin_once(self.node, timeout_sec=0.05)
 
-        self.node.get_logger().error(
+        self.node.get_logger().debug(
             f"Parameter {param_name} retrieval completed for {controller_ns}"
         )
 
