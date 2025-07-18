@@ -104,15 +104,14 @@ CollisionAvoidanceController::on_configure([[maybe_unused]] const rclcpp_lifecyc
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
 
   // 2. Build the collision model from urdf and srdf
-  /* std::stringstream urdf_stream;
-   urdf_stream << get_robot_description();
-   pinocchio::urdf::buildGeom(
-     pinocchio_model_, urdf_stream,pinocchio::COLLISION, pinocchio_geom_);
+  std::stringstream urdf_stream;
+  urdf_stream << get_robot_description();
+  pinocchio::urdf::buildGeom(pinocchio_model_, urdf_stream, pinocchio::COLLISION, pinocchio_geom_);
 
-   pinocchio_geom_.addAllCollisionPairs();
-   pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
+  pinocchio_geom_.addAllCollisionPairs();
+  pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
 
- pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);*/
+  pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);
   // Extract joint names from Pinocchio model that match params_.joints
   std::vector<std::string> pinocchio_joint_names;
   for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
@@ -188,6 +187,13 @@ CollisionAvoidanceController::on_activate([[maybe_unused]] const rclcpp_lifecycl
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  for(auto & ref_pos: position_reference_){
+    ref_pos.get() = 0.0;
+  }
+  for(auto & ref_vel: velocity_reference_){
+    ref_vel.get() = 0.0;
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -234,6 +240,13 @@ controller_interface::return_type CollisionAvoidanceController::update_and_write
     auto idx = pinocchio_model_.getJointId(joint_name);
   }
 
+  for(std::size_t i = 0; i < joint_count; i++){
+    joint_position_command_interfaces_.at(i).get().set_value<double>(position_reference_[i]);
+   
+    joint_velocity_command_interfaces_.at(i).get().set_value<double>(velocity_reference_[i]);
+  }
+
+
   return controller_interface::return_type::OK;
 }
 std::vector<hardware_interface::CommandInterface> CollisionAvoidanceController::on_export_reference_interfaces()
@@ -251,6 +264,7 @@ std::vector<hardware_interface::CommandInterface> CollisionAvoidanceController::
   // assign reference interfaces
   auto index = 0ul;
   for (const auto& interface : params_.command_interfaces) {
+
     for (const auto& joint : params_.joints) {
       if (hardware_interface::HW_IF_POSITION == interface)
         position_reference_.emplace_back(reference_interfaces_[index]);
