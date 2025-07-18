@@ -34,6 +34,7 @@
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <dynaarm_msgs/msg/gravity_compensation_controller_status.hpp>
+#include "controller_interface/chainable_controller_interface.hpp"
 
 // ROS2
 #include <realtime_tools/realtime_publisher.hpp>
@@ -44,7 +45,6 @@
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/parsers/srdf.hpp>
- 
 
 // Project
 #include <dynaarm_controllers/collision_avoidance_controller_parameters.hpp>
@@ -52,13 +52,14 @@
 
 namespace dynaarm_controllers
 {
-class CollisionAvoidanceController : public controller_interface::ControllerInterface
+class CollisionAvoidanceController : public controller_interface::ChainableControllerInterface
 {
 public:
   CollisionAvoidanceController();
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
-  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  controller_interface::return_type update_and_write_commands(const rclcpp::Time& time,
+                                                              const rclcpp::Duration& period) override;
   controller_interface::CallbackReturn on_init() override;
   controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
   controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
@@ -66,6 +67,12 @@ public:
   controller_interface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State& previous_state) override;
   controller_interface::CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state) override;
   controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
+
+protected:
+  controller_interface::return_type update_reference_from_subscribers(const rclcpp::Time& time,
+                                                                      const rclcpp::Duration& period) override;
+
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces();
 
 private:
   // Access to controller parameters via generate_parameter_library
@@ -77,13 +84,16 @@ private:
   pinocchio::GeometryModel pinocchio_geom_;
   std::unique_ptr<pinocchio::GeometryData> pinocchio_geom_data_;
 
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interfaces_;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_velocity_command_interfaces_;
 
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
 
-
+  std::vector<std::reference_wrapper<double>> position_reference_;
+  std::vector<std::reference_wrapper<double>> velocity_reference_;
+  std::vector<std::reference_wrapper<double>> acceleration_reference_;
 };
 }  // namespace dynaarm_controllers

@@ -27,13 +27,14 @@
 #include <dynaarm_controllers/collision_avoidance_controller.hpp>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
+
 #include <controller_interface/helpers.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
 
 namespace dynaarm_controllers
 {
 
-CollisionAvoidanceController::CollisionAvoidanceController() : controller_interface::ControllerInterface()
+CollisionAvoidanceController::CollisionAvoidanceController() : controller_interface::ChainableControllerInterface()
 {
 }
 
@@ -45,7 +46,8 @@ controller_interface::InterfaceConfiguration CollisionAvoidanceController::comma
 
   const auto joints = params_.joints;
   for (auto& joint : joints) {
-    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_EFFORT);
+    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
+    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
   }
 
   return config;
@@ -102,15 +104,15 @@ CollisionAvoidanceController::on_configure([[maybe_unused]] const rclcpp_lifecyc
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
 
   // 2. Build the collision model from urdf and srdf
-  std::stringstream urdf_stream;
-  urdf_stream << get_robot_description();
-  pinocchio::urdf::buildGeom(
-    pinocchio_model_, urdf_stream,pinocchio::COLLISION, pinocchio_geom_);
+  /* std::stringstream urdf_stream;
+   urdf_stream << get_robot_description();
+   pinocchio::urdf::buildGeom(
+     pinocchio_model_, urdf_stream,pinocchio::COLLISION, pinocchio_geom_);
 
-  pinocchio_geom_.addAllCollisionPairs();
-  pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
-  
-pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);
+   pinocchio_geom_.addAllCollisionPairs();
+   pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
+
+ pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);*/
   // Extract joint names from Pinocchio model that match params_.joints
   std::vector<std::string> pinocchio_joint_names;
   for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
@@ -140,7 +142,6 @@ pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_
     }
   }
 
-
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -150,10 +151,12 @@ CollisionAvoidanceController::on_activate([[maybe_unused]] const rclcpp_lifecycl
   active_ = true;
 
   // clear out vectors in case of restart
-  joint_effort_command_interfaces_.clear();
+  joint_position_command_interfaces_.clear();
+  joint_velocity_command_interfaces_.clear();
 
   joint_position_state_interfaces_.clear();
   joint_velocity_state_interfaces_.clear();
+  joint_acceleration_state_interfaces_.clear();
 
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(
@@ -172,9 +175,16 @@ CollisionAvoidanceController::on_activate([[maybe_unused]] const rclcpp_lifecycl
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  if (!controller_interface::get_ordered_interfaces(
-          command_interfaces_, params_.joints, hardware_interface::HW_IF_EFFORT, joint_effort_command_interfaces_)) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - effort");
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints,
+                                                    hardware_interface::HW_IF_POSITION,
+                                                    joint_position_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - position");
+    return controller_interface::CallbackReturn::FAILURE;
+  }
+  if (!controller_interface::get_ordered_interfaces(command_interfaces_, params_.joints,
+                                                    hardware_interface::HW_IF_VELOCITY,
+                                                    joint_velocity_command_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - position");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
@@ -185,16 +195,12 @@ controller_interface::CallbackReturn
 CollisionAvoidanceController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   active_ = false;
-  const std::size_t joint_count = joint_position_state_interfaces_.size();
-  // Reset the commanded joint efforts to 0
-  for (std::size_t i = 0; i < joint_count; i++) {
-    (void)joint_effort_command_interfaces_.at(i).get().set_value(0.0);
-  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type CollisionAvoidanceController::update([[maybe_unused]] const rclcpp::Time& time,
-                                                                        [[maybe_unused]] const rclcpp::Duration& period)
+controller_interface::return_type CollisionAvoidanceController::update_and_write_commands(
+    [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
     return controller_interface::return_type::OK;
@@ -222,17 +228,51 @@ controller_interface::return_type CollisionAvoidanceController::update([[maybe_u
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
 
-
   // Write only the efforts for this arm's joints
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
     auto idx = pinocchio_model_.getJointId(joint_name);
-
-   
-   
   }
- 
 
+  return controller_interface::return_type::OK;
+}
+std::vector<hardware_interface::CommandInterface> CollisionAvoidanceController::on_export_reference_interfaces()
+{
+  std::vector<hardware_interface::CommandInterface> chainable_command_interfaces;
+  const auto num_chainable_interfaces = params_.command_interfaces.size() * params_.joints.size();
+
+  // allocate dynamic memory
+  chainable_command_interfaces.reserve(num_chainable_interfaces);
+  reference_interfaces_.resize(num_chainable_interfaces, std::numeric_limits<double>::quiet_NaN());
+  position_reference_ = {};
+  velocity_reference_ = {};
+  acceleration_reference_ = {};
+
+  // assign reference interfaces
+  auto index = 0ul;
+  for (const auto& interface : params_.command_interfaces) {
+    for (const auto& joint : params_.joints) {
+      if (hardware_interface::HW_IF_POSITION == interface)
+        position_reference_.emplace_back(reference_interfaces_[index]);
+      else if (hardware_interface::HW_IF_VELOCITY == interface) {
+        velocity_reference_.emplace_back(reference_interfaces_[index]);
+      } else if (hardware_interface::HW_IF_ACCELERATION == interface) {
+        acceleration_reference_.emplace_back(reference_interfaces_[index]);
+      }
+      const auto exported_prefix = std::string(get_node()->get_name()) + "/" + joint;
+      chainable_command_interfaces.emplace_back(
+          hardware_interface::CommandInterface(exported_prefix, interface, reference_interfaces_.data() + index));
+
+      index++;
+    }
+  }
+
+  return chainable_command_interfaces;
+}
+
+controller_interface::return_type CollisionAvoidanceController::update_reference_from_subscribers(
+    const rclcpp::Time& time, const rclcpp::Duration& period)
+{
   return controller_interface::return_type::OK;
 }
 
@@ -257,4 +297,5 @@ CollisionAvoidanceController::on_shutdown([[maybe_unused]] const rclcpp_lifecycl
 
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
-PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::CollisionAvoidanceController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::CollisionAvoidanceController,
+                       controller_interface::ChainableControllerInterface)
