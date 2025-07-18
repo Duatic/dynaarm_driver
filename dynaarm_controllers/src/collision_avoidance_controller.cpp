@@ -113,7 +113,6 @@ CollisionAvoidanceController::on_configure([[maybe_unused]] const rclcpp_lifecyc
   pinocchio_geom_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
 
-  pinocchio_geom_data_ = std::make_unique<pinocchio::GeometryData>(pinocchio_geom_);
   // Extract joint names from Pinocchio model that match params_.joints
   std::vector<std::string> pinocchio_joint_names;
   for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
@@ -236,20 +235,41 @@ controller_interface::return_type CollisionAvoidanceController::update_and_write
   }
 
   // forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
-  if (pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, *pinocchio_geom_data_, q)) {
-    RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Found collision");
+  pinocchio::GeometryData geom_data(pinocchio_geom_);
+  const auto distances_count =
+      pinocchio::computeDistances(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q);
+
+  if (geom_data_prev_.distanceResults.size() < geom_data.distanceResults.size()) {
+    geom_data_prev_ = geom_data;
   }
 
-  // Write only the efforts for this arm's joints
-  for (std::size_t i = 0; i < joint_count; i++) {
-    const std::string& joint_name = params_.joints[i];
-    auto idx = pinocchio_model_.getJointId(joint_name);
+  bool collides = false;
+  for (std::size_t i = 0; i < pinocchio_geom_.collisionPairs.size(); ++i) {
+    const auto& result = geom_data.distanceResults[i];
+    const auto& pair = pinocchio_geom_.collisionPairs[i];
+    const auto& prev_result = geom_data_prev_.distanceResults[i];
+
+    if (result.min_distance < 0.001 && result.min_distance <= prev_result.min_distance) {
+      const auto& geom_object_1_frame = pinocchio_geom_.geometryObjects[pair.first].parentFrame;
+      const auto& geom_object_2_frame = pinocchio_geom_.geometryObjects[pair.second].parentFrame;
+
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(),
+                          "Collision detected between: " << pinocchio_model_.frames[geom_object_1_frame].name << " and "
+                                                         << pinocchio_model_.frames[geom_object_2_frame].name);
+
+      collides = true;
+      break;
+    }
   }
 
-  for (std::size_t i = 0; i < joint_count; i++) {
-    joint_position_command_interfaces_.at(i).get().set_value<double>(position_reference_[i]);
+  geom_data_prev_ = geom_data;
 
-    joint_velocity_command_interfaces_.at(i).get().set_value<double>(velocity_reference_[i]);
+  if (!collides) {
+    for (std::size_t i = 0; i < joint_count; i++) {
+      joint_position_command_interfaces_.at(i).get().set_value<double>(position_reference_[i]);
+
+      joint_velocity_command_interfaces_.at(i).get().set_value<double>(velocity_reference_[i]);
+    }
   }
 
   return controller_interface::return_type::OK;

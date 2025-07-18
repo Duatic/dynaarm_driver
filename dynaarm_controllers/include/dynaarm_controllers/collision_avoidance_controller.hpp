@@ -84,7 +84,6 @@ private:
   pinocchio::Model pinocchio_model_;
   pinocchio::Data pinocchio_data_;
   pinocchio::GeometryModel pinocchio_geom_;
-  std::unique_ptr<pinocchio::GeometryData> pinocchio_geom_data_;
 
   std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_position_command_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_velocity_command_interfaces_;
@@ -97,5 +96,7 @@ private:
   std::vector<std::reference_wrapper<double>> position_reference_;
   std::vector<std::reference_wrapper<double>> velocity_reference_;
   std::vector<std::reference_wrapper<double>> acceleration_reference_;
+
+  pinocchio::GeometryData geom_data_prev_;
 };
 }  // namespace dynaarm_controllers
