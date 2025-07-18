@@ -13,9 +13,13 @@ repositories:
     version: ros2
   rsl_drive_sdk:
     type: git
-    url: https://github.com/leggedrobotics/rsl_drive_sdk.git
+    url: https://github.com/Duatic/rsl_drive_sdk.git
     version: main
   soem_interface:
     type: git
     url: https://github.com/Duatic/soem_interface.git
+    version: master
+  soem_vendor:
+    type: git
+    url: https://github.com/Duatic/soem_vendor.git
     version: master
