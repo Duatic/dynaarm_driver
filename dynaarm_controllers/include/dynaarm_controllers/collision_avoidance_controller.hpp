@@ -45,6 +45,8 @@
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/parsers/srdf.hpp>
+#include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/algorithm/geometry.hpp"
 
 // Project
 #include <dynaarm_controllers/collision_avoidance_controller_parameters.hpp>

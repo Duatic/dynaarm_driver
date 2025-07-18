@@ -31,6 +31,8 @@
 #include <controller_interface/helpers.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
 
+#include <pinocchio/collision/collision.hpp>
+
 namespace dynaarm_controllers
 {
 
@@ -187,10 +189,10 @@ CollisionAvoidanceController::on_activate([[maybe_unused]] const rclcpp_lifecycl
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  for(auto & ref_pos: position_reference_){
+  for (auto& ref_pos : position_reference_) {
     ref_pos.get() = 0.0;
   }
-  for(auto & ref_vel: velocity_reference_){
+  for (auto& ref_vel : velocity_reference_) {
     ref_vel.get() = 0.0;
   }
 
@@ -208,6 +210,7 @@ CollisionAvoidanceController::on_deactivate([[maybe_unused]] const rclcpp_lifecy
 controller_interface::return_type CollisionAvoidanceController::update_and_write_commands(
     [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
+  using namespace pinocchio;
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
     return controller_interface::return_type::OK;
   }
@@ -232,7 +235,10 @@ controller_interface::return_type CollisionAvoidanceController::update_and_write
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
   }
 
-  forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
+  // forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
+  if (pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, *pinocchio_geom_data_, q)) {
+    RCLCPP_ERROR_STREAM(get_node()->get_logger(), "Found collision");
+  }
 
   // Write only the efforts for this arm's joints
   for (std::size_t i = 0; i < joint_count; i++) {
@@ -240,12 +246,11 @@ controller_interface::return_type CollisionAvoidanceController::update_and_write
     auto idx = pinocchio_model_.getJointId(joint_name);
   }
 
-  for(std::size_t i = 0; i < joint_count; i++){
+  for (std::size_t i = 0; i < joint_count; i++) {
     joint_position_command_interfaces_.at(i).get().set_value<double>(position_reference_[i]);
-   
+
     joint_velocity_command_interfaces_.at(i).get().set_value<double>(velocity_reference_[i]);
   }
-
 
   return controller_interface::return_type::OK;
 }
@@ -264,7 +269,6 @@ std::vector<hardware_interface::CommandInterface> CollisionAvoidanceController::
   // assign reference interfaces
   auto index = 0ul;
   for (const auto& interface : params_.command_interfaces) {
-
     for (const auto& joint : params_.joints) {
       if (hardware_interface::HW_IF_POSITION == interface)
         position_reference_.emplace_back(reference_interfaces_[index]);
