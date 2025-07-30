@@ -21,16 +21,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import pinocchio as pin
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import Joy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from tf_transformations import quaternion_from_euler, euler_from_quaternion
-from visualization_msgs.msg import Marker
 
 from dynaarm_extensions.duatic_helpers.duatic_pinocchio_helper import DuaticPinocchioHelper
 from dynaarm_extensions.duatic_helpers.duatic_robots_helper import DuaticRobotsHelper
