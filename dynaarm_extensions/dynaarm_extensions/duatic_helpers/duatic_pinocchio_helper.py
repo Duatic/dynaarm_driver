@@ -36,7 +36,7 @@ from ament_index_python import get_package_share_directory
 class DuaticPinocchioHelper:
     """A simple class to retrieve the robot URDF from the parameter server."""
 
-    def __init__(self, node, ee_frame_name="flange", joint_margins=0.1):        
+    def __init__(self, node, ee_frame_name="flange", joint_margins=0.2):        
         self.node = node
         self.param_helper = DuaticParamHelper(self.node)
 
