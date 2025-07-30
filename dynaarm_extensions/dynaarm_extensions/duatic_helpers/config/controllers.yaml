@@ -1,5 +1,0 @@
-controllers:
-  joint_trajectory_controller:
-    whitelisted: true
-  freedrive_controller:
-    whitelisted: true

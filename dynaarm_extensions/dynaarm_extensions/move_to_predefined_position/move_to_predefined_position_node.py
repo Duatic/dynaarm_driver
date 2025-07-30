@@ -98,17 +98,8 @@ class MoveToPredefinedPositionNode(Node):
             ("dynaarm_flip", "sleep"): self.move_home_dynaarm,  # Note: flip uses home for sleep
         }
 
-        config_path = os.path.join(
-            get_package_share_directory("dynaarm_extensions"),
-            "config",
-            "controllers.yaml",
-        )
-
-        with open(config_path) as file:
-            config = yaml.safe_load(file)
-
         # Helper classes
-        self.controller_manager = DuaticControllerHelper(self, config["controllers"])
+        self.controller_manager = DuaticControllerHelper(self)
         # Wait for controller data to be available
         self.get_logger().info("Waiting for controller data...")
         if self.controller_manager.wait_for_controller_data(timeout_sec=10.0):
