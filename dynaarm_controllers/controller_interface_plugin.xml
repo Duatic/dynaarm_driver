@@ -40,4 +40,12 @@
     </description>
   </class>
 
+  <class name="dynaarm_controllers/DynaArmPoseController"
+         type="dynaarm_controllers::DynaArmPoseController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      DynaArm pose controller - control the pose of the DynaArm.
+    </description>
+  </class>
+
 </library>

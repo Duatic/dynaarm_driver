@@ -15,6 +15,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 
+find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(pinocchio REQUIRED)
@@ -25,6 +26,11 @@ find_package(generate_parameter_library REQUIRED)
 generate_parameter_library(
     dynaarm_status_broadcaster_parameters
     src/dynaarm_status_broadcaster_parameters.yaml
+)
+
+generate_parameter_library(
+    dynaarm_pose_controller_parameters
+    src/dynaarm_pose_controller_parameters.yaml
 )
 
 generate_parameter_library(
@@ -53,6 +59,7 @@ add_library(${PROJECT_NAME} SHARED
   src/freedrive_controller.cpp
   src/dynaarm_pid_tuner.cpp
   src/freeze_controller.cpp
+  src/dynaarm_pose_controller.cpp
 )
 
 target_include_directories(
@@ -67,6 +74,7 @@ target_link_libraries(${PROJECT_NAME}
   freedrive_controller_parameters
   dynaarm_pid_tuner_parameters
   freeze_controller_parameters
+  dynaarm_pose_controller_parameters
   pinocchio::pinocchio
 )
 
@@ -84,6 +92,7 @@ ament_target_dependencies(
   Eigen3
   eigen3_cmake_module
   pal_statistics_msgs
+  std_srvs
 )
 # prevent pluginlib from using boost
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")

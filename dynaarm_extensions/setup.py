@@ -44,6 +44,7 @@ setup(
     entry_points={
         "console_scripts": [
             "e_stop_node = dynaarm_extensions.e_stop.e_stop_node:main",
+            "pose_controller_node = dynaarm_extensions.pose_controller.pose_controller_node:main",
             "move_to_predefined_position_node = dynaarm_extensions.move_to_predefined_position.move_to_predefined_position_node:main",
         ],
     },

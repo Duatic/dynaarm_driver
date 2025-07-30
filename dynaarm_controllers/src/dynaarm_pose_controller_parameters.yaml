@@ -1,0 +1,5 @@
+dynaarm_pose_controller:  
+  arm_name:
+    type: string
+    default_value: "DynaarmSystem"
+    description: "name of the arm hardware interface"
