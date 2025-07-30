@@ -21,7 +21,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+
 import numpy as np
+from std_srvs.srv import SetBool
 
 import rclpy
 from rclpy.node import Node
@@ -39,7 +41,8 @@ class PoseControllerNode(Node):
         self.latest_pose = None
         self.pin_helper = DuaticPinocchioHelper(self)
         self.robot_helper = DuaticRobotsHelper(self)
-        
+        self.active = True  # Controller is active by default
+
         # Subscriptions
         self.pose_sub = self.create_subscription(
             PoseStamped, "/duatic_pose_controller/target_frame", self.pose_callback, 10
@@ -56,14 +59,27 @@ class PoseControllerNode(Node):
         self.max_joint_speed = 5.0  # rad/s
         self.control_timer = self.create_timer(self.dt, self.control_loop)
 
+        # Service to activate/deactivate the controller
+        self.srv = self.create_service(SetBool, "activate_pose_controller", self.handle_activate_service)
+
+    def handle_activate_service(self, request, response):
+        self.active = request.data
+        response.success = True
+        response.message = f"Pose controller {'activated' if self.active else 'deactivated'}"
+        self.get_logger().info(response.message)
+        return response
+
     def pose_callback(self, msg: PoseStamped):            
         self.latest_pose = msg
 
     def control_loop(self):
 
+        if not self.active:
+            return
+
         if self.latest_pose is None:
             return
-        
+
         current_joint_values = self.robot_helper.get_joint_states()
         if len(current_joint_values) <= 0:
             self.get_logger().warn("No joint states received yet.", throttle_duration_sec=1.0)
@@ -71,23 +87,23 @@ class PoseControllerNode(Node):
 
         positions = list(current_joint_values.values())
         q = np.array(positions, dtype=np.float64).reshape((self.pin_helper.model.nq,))
-                        
+
         # 1. Convert target pose to SE3
-        target_SE3 = self.pin_helper.convert_pose_stamped_to_se3(self.latest_pose)        
-        
+        target_SE3 = self.pin_helper.convert_pose_stamped_to_se3(self.latest_pose)
+
         # 2. Get distance between current pose and target pose
-        error = self.pin_helper.get_pose_error(q, target_SE3)        
+        error = self.pin_helper.get_pose_error(q, target_SE3)
 
         # 3. Safety check
         if not self.is_move_safe(error):
             self.send_joint_trajectory(self.pin_helper.joint_names, q.tolist())
             return
 
-        # 4. Run a simple IK loop 
+        # 4. Run a simple IK loop
         q, error = self.pin_helper.solve_ik(q, target_SE3)
-        
+
         if np.linalg.norm(error) >= 0.01:
-            self.get_logger().warn(f"Can't find any valid IK solution", throttle_duration_sec=2.0)            
+            self.get_logger().warn(f"Can't find any valid IK solution", throttle_duration_sec=2.0)
             return
 
         joint_positions = q.tolist()
@@ -124,7 +140,6 @@ class PoseControllerNode(Node):
 
         traj_msg.points.append(point)
         self.jtc_pub.publish(traj_msg)
-
 
 def main(args=None):
 
