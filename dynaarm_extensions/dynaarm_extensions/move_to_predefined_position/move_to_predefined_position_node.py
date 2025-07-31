@@ -22,12 +22,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-import os
-import yaml
-
 import rclpy
 from rclpy.node import Node
-from ament_index_python.packages import get_package_share_directory
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool

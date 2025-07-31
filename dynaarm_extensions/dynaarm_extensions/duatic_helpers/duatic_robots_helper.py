@@ -96,7 +96,6 @@ class DuaticRobotsHelper:
 
     def check_simulation_mode(self):
         """Detect if we're running in simulation or real hardware mode."""
-
         try:
             node_names = self.node.get_node_names()
             if "gz_ros_control" in node_names:

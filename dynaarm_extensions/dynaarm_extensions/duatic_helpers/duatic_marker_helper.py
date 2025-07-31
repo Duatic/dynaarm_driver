@@ -21,10 +21,8 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from dataclasses import dataclass
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import PoseStamped, Point
-from typing import List, Optional
+from geometry_msgs.msg import Point
 import numpy as np
 from tf_transformations import quaternion_matrix
 
@@ -37,10 +35,7 @@ class DuaticMarkerHelper:
         self.namespace_prefix = namespace_prefix
 
     def create_pose_markers(self, pose_stamped, frame, ns_prefix=""):
-        """
-        Creates a sphere marker at the pose and three arrow markers for the axes.
-        Returns a list of Marker objects.
-        """
+        """Create a sphere marker at the pose and three arrow markers for the axes."""
         marker_array = MarkerArray()
 
         # Sphere marker

@@ -84,7 +84,7 @@ class DuaticControllerHelper:
                     self._get_all_controllers()
                 else:
                     self.node.get_logger().error(
-                        f"Failed to switch to new controller", throttle_duration_sec=10.0
+                        "Failed to switch to new controller", throttle_duration_sec=10.0
                     )
             except Exception as e:
                 self.node.get_logger().error(
@@ -95,7 +95,6 @@ class DuaticControllerHelper:
 
     def wait_for_controller_loaded(self, controller_name, timeout=60.0):
         """Checks if a specific controller is loaded."""
-
         if not self.wait_for_controller_data(timeout_sec=timeout):
             return False
 

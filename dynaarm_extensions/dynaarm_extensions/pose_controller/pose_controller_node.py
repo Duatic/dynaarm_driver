@@ -108,7 +108,7 @@ class PoseControllerNode(Node):
         q, error = self.pin_helper.solve_ik(q, target_SE3)
 
         if np.linalg.norm(error) >= 0.01:
-            self.get_logger().warn(f"Can't find any valid IK solution", throttle_duration_sec=2.0)
+            self.get_logger().warn("Can't find any valid IK solution", throttle_duration_sec=2.0)
             return
 
         joint_positions = q.tolist()
