@@ -25,12 +25,13 @@
 import rclpy
 from rclpy.node import Node
 
-from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from controller_manager_msgs.srv import ListControllers, SwitchController
 
-from dynaarm_extensions.duatic_helpers.duatic_controller_helper import DuaticControllerHelper
+from dynaarm_extensions.duatic_helpers.duatic_controller_helper import (
+    DuaticControllerHelper,
+)
 from dynaarm_extensions.duatic_helpers.duatic_robots_helper import DuaticRobotsHelper
 from dynaarm_extensions.duatic_helpers.duatic_jtc_helper import DuaticJTCHelper
 
@@ -42,7 +43,9 @@ class MoveToPredefinedPositionNode(Node):
     def __init__(self):
         super().__init__("motion_to_predefined_position_node")
 
-        self.declare_parameter("robot_configuration", "dynaarm_dual")  # Default configuration
+        self.declare_parameter(
+            "robot_configuration", "dynaarm"
+        )  # Default configuration
         self.robot_configuration = self.get_parameter("robot_configuration").value
 
         # Service clients
@@ -56,14 +59,12 @@ class MoveToPredefinedPositionNode(Node):
         # Subscriptions
         self.create_subscription(Bool, "move_home", self.move_home_callback, 10)
         self.create_subscription(Bool, "move_sleep", self.move_sleep_callback, 10)
-        self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
 
         self.sleep_position_dynaarm = [0.0, -1.720, 3.14159, 0.0, 1.0, 0.0]
         self.home_position_dynaarm = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.home_position_alpha = [1.5708, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.sleep_position_alpha = [1.5708, 0.77, 0.0, 0.0, 0.0, 0.0]
 
-        self.initialized = False
         self.home = False  # Initialize home position flag
         self.sleep = False  # Initialize sleep position flag
         self.step_size_flexion_joints = 0.001  # Step size for flexion joints
@@ -81,7 +82,7 @@ class MoveToPredefinedPositionNode(Node):
             {}
         )  # Dictionary to hold commanded positions for each topic
         self.prefix_to_joints = {}  # Dictionary to map prefixes to joint names
-        self.previous_controller = {}
+        self.previous_active_controllers = []
 
         self.movement_handlers = {
             ("dynaarm", "home"): self.move_home_dynaarm,
@@ -91,28 +92,25 @@ class MoveToPredefinedPositionNode(Node):
             ("alpha", "home"): self.move_home_alpha,
             ("alpha", "sleep"): self.move_sleep_alpha,
             ("dynaarm_flip", "home"): self.move_home_dynaarm,
-            ("dynaarm_flip", "sleep"): self.move_home_dynaarm,  # Note: flip uses home for sleep
+            (
+                "dynaarm_flip",
+                "sleep",
+            ): self.move_home_dynaarm,  # Note: flip uses home for sleep
         }
 
         # Helper classes
-        self.controller_manager = DuaticControllerHelper(self)
-        # Wait for controller data to be available
-        self.get_logger().info("Waiting for controller data...")
-        if self.controller_manager.wait_for_controller_data(timeout_sec=10.0):
-            self.get_logger().info("Controller data ready!")
-        else:
-            self.get_logger().warn("Controller data not ready, proceeding anyway...")
+        self.duatic_controller_helper = DuaticControllerHelper(self)
+        self.duatic_controller_helper.wait_for_controller_data()
 
-        self.robot_helper = DuaticRobotsHelper(self)
-        self.arms_count = self.robot_helper.get_robot_count()
-        while self.arms_count <= 0:
-            rclpy.spin_once(self, timeout_sec=1.0)
-            self.arms_count = self.robot_helper.get_robot_count()
+        self.duatic_robots_helper = DuaticRobotsHelper(self)
+        self.arms_count = self.duatic_robots_helper.get_robot_count()
 
         duatic_jtc_helper = DuaticJTCHelper(self, self.arms_count)
 
         found_topics = duatic_jtc_helper.get_joint_trajectory_topics()
-        response = duatic_jtc_helper.process_topics_and_extract_joint_names(found_topics)
+        response = duatic_jtc_helper.process_topics_and_extract_joint_names(
+            found_topics
+        )
         self.topic_to_joint_names = response[0]
         self.topic_to_commanded_positions = response[1]
 
@@ -133,31 +131,18 @@ class MoveToPredefinedPositionNode(Node):
         self.sleep = msg.data
         self.home = False  # Reset home flag when moving to sleep
 
-    def joint_state_callback(self, msg: JointState):
-        """Update stored joint states and set initial positions."""
-        self.joint_states = dict(zip(msg.name, msg.position))
-
     # Control loop that checks the home and sleep flags and moves the robot accordingly
     def control_loop(self):
 
-        # Check if controller data is ready
-        if not self.controller_manager.is_controller_data_ready():
-            self.get_logger().info("Waiting for controller data...", throttle_duration_sec=2.0)
-            return
-
-        if self.controller_manager.is_freeze_active():
-            # If the controller manager is in freeze mode, do not execute any movements
+        # If freeze is active, do not execute any movement
+        if self.duatic_controller_helper.is_freeze_active():
             return
 
         if self.home or self.sleep:
 
-            if (
-                not self.controller_active
-                and self.previous_controller != "joint_trajectory_controller"
-            ):
-                self.switch_to_joint_trajectory_controllers()
-
-            self.controller_active = True
+            if not self.controller_active:
+                self.controller_active = True
+                self.switch_to_joint_trajectory_controllers()            
 
             # O(1) dictionary lookup instead of multiple string comparisons
             action_key = (self.robot_configuration, "home" if self.home else "sleep")
@@ -166,11 +151,11 @@ class MoveToPredefinedPositionNode(Node):
                 handler()
         else:
 
-            if self.controller_active and self.previous_controller != "joint_trajectory_controller":
+            if self.controller_active and self.previous_active_controllers != "joint_trajectory_controller":
+                self.controller_active = False
                 self.switch_to_previous_controllers()
-
-            self.previous_controller = self.controller_manager.get_active_controllers()
-            self.controller_active = False
+            else:                
+                self.previous_active_controllers = list(self.duatic_controller_helper.get_active_controllers())                
 
     # Move to home for DynAarm Configuration
     def move_home_dynaarm(self):
@@ -224,7 +209,9 @@ class MoveToPredefinedPositionNode(Node):
                 )
             else:
                 target_home_position = self.home_position_alpha.copy()
-            commanded_positions = self.move_to_position(joint_names, target_home_position)
+            commanded_positions = self.move_to_position(
+                joint_names, target_home_position
+            )
             self.topic_to_commanded_positions[topic] = commanded_positions
             mirror_arm = True
 
@@ -240,7 +227,9 @@ class MoveToPredefinedPositionNode(Node):
         mirror_arm = False
         for topic, joint_names in self.topic_to_joint_names.items():
             if not self.joint_angles_equal(
-                self.extract_joint_values(self.get_joint_states(self.arms_count), joint_names),
+                self.extract_joint_values(
+                    self.get_joint_states(self.arms_count), joint_names
+                ),
                 (
                     self.mirror_position(joint_names, self.home_position_alpha.copy())
                     if mirror_arm
@@ -322,11 +311,15 @@ class MoveToPredefinedPositionNode(Node):
 
     # Check if the current joint angles are at the target position for the specified indices
     def joints_at_pose(self, current, indices, target_position):
-        result = all(abs(current[i] - target_position[i]) < self.tolerance for i in indices)
+        result = all(
+            abs(current[i] - target_position[i]) < self.tolerance for i in indices
+        )
         return result
 
     # Interpolate partial joint positions towards the target position for specified indices
-    def interpolate_partial(self, current, target, indices, step_size, other_joints_values):
+    def interpolate_partial(
+        self, current, target, indices, step_size, other_joints_values
+    ):
         next_step = other_joints_values[:]  # Set all values to 0.0 initially
         for i in indices:
             delta = target[i] - current[i]
@@ -340,10 +333,12 @@ class MoveToPredefinedPositionNode(Node):
     def publish_joint_trajectory(self, target_positions, publisher, joint_names=None):
         """Publishes a joint trajectory message for the given positions using the provided publisher."""
         if joint_names is None:
-            joint_names = list(self.joint_states.keys())
+            joint_names = list(self.duatic_robots_helper.get_joint_states().keys())
 
         if not joint_names:
-            self.get_logger().error("No joint names available. Cannot publish trajectory.")
+            self.get_logger().error(
+                "No joint names available. Cannot publish trajectory."
+            )
             return
 
         if not target_positions:
@@ -367,7 +362,7 @@ class MoveToPredefinedPositionNode(Node):
     # Get joint states for the specified number of arms
     def get_joint_states(self, arms_count):
         """Always return a list of joint state dicts, one per arm."""
-        joint_states = self.joint_states
+        joint_states = self.duatic_robots_helper.get_joint_states()
         if arms_count <= 1:
             return [joint_states]  # Always a list, even for single arm
 
@@ -384,63 +379,56 @@ class MoveToPredefinedPositionNode(Node):
             arm_joint_dict = dict(zip(arm_joint_names, arm_joint_values))
             joint_states_per_arm.append(arm_joint_dict)
         return joint_states_per_arm
-
-    # Acrtivate all joint trajectory controllers
+    
     def switch_to_joint_trajectory_controllers(self):
-        """Switch to all controllers that start with the given prefix."""
-        if not self.switch_controller_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().warn(
-                "SwitchController service not available.", throttle_duration_sec=10.0
-            )
-            return
+        """Switch to all joint trajectory controllers if not already active."""
+ 
+        all_controllers = self.duatic_controller_helper.get_all_controllers()
+        controllers_to_activate = []
+        controllers_to_deactivate = []
 
-        req = SwitchController.Request()
-        req.deactivate_controllers = [
-            name
-            for controller in self.controller_manager.get_all_controllers().get(
-                self.previous_controller, []
-            )
-            for name, active in controller.items()
-        ]
-        req.activate_controllers = [
-            name
-            for controller in self.controller_manager.get_all_controllers().get(
-                "joint_trajectory_controller", []
-            )
-            for name, active in controller.items()
-        ]
-        req.strictness = 1  # STRICT
-        self.switch_controller_client.call_async(req)
+        # Single pass: collect all JTCs and check if any is active, collect others to deactivate
+        for controller_type, controllers in all_controllers.items():
+            for controller in controllers:
+                for name, active_state in controller.items():
+                    if controller_type == "joint_trajectory_controller" and active_state == "inactive":
+                        controllers_to_activate.append(name)
+                    elif controller_type == "joint_trajectory_controller" and active_state == "active":
+                        pass
+                    elif active_state == "inactive":
+                        pass
+                    else:
+                        controllers_to_deactivate.append(name)
+
+        self.duatic_controller_helper.switch_controller(controllers_to_activate, controllers_to_deactivate)
 
     # Activate the previous active controllers
     def switch_to_previous_controllers(self):
         """Deactivate all joint trajectory controllers."""
-        if not self.switch_controller_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().warn(
-                "SwitchController service not available.", throttle_duration_sec=10.0
-            )
+        
+        if not self.previous_active_controllers or len(self.previous_active_controllers) <= 0:
+            self.get_logger().warn("No previous controller state found. Cannot switch back.")
             return
+                
+        all_controllers = self.duatic_controller_helper.get_all_controllers()
+        controllers_to_activate = []
+        controllers_to_deactivate = []
 
-        req = SwitchController.Request()
-        deactivate_controllers = [
-            name
-            for controller in self.controller_manager.get_all_controllers().get(
-                "joint_trajectory_controller", []
-            )
-            for name, active in controller.items()
-        ]
-        req.deactivate_controllers = deactivate_controllers
-        req.strictness = 1
-        if self.previous_controller is not None:
-            req.activate_controllers = [
-                name
-                for controller in self.controller_manager.get_all_controllers().get(
-                    self.previous_controller, []
-                )
-                for name, active in controller.items()
-            ]
-        self.switch_controller_client.call_async(req)
+        # Wenn jtc an war, dann ist er auch im all_controllers an und im previous 
 
+        # Single pass: collect all JTCs and check if any is active, collect others to deactivate
+        for controller_type, controllers in all_controllers.items():
+            for controller in controllers:
+                for name, active_state in controller.items():                    
+                    if name == "joint_trajectory_controller" and active_state == "active":
+                        if name not in self.previous_active_controllers:
+                            controllers_to_deactivate.append(name)
+                    elif name in self.previous_active_controllers: 
+                        controllers_to_activate.append(name)
+                    else:
+                        pass
+
+        self.duatic_controller_helper.switch_controller(controllers_to_activate, controllers_to_deactivate)
 
 def main(args=None):
 

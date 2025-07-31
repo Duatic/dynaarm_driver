@@ -69,11 +69,15 @@ class DuaticControllerHelper:
 
     def switch_controller(self, activate_controllers, deactivate_controllers):
 
+        if not activate_controllers and not deactivate_controllers:
+            self.node.get_logger().debug("No controllers to activate or deactivate. Skipping switch operation.")
+            return
+
         req = SwitchController.Request()
         req.activate_controllers = activate_controllers
         req.deactivate_controllers = deactivate_controllers
 
-        req.strictness = 1
+        req.strictness = 1        
 
         future = self.switch_controller_client.call_async(req)
 
