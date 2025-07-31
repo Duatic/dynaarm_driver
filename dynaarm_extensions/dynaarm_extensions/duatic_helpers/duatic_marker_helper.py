@@ -64,7 +64,13 @@ class DuaticMarkerHelper:
         # Axes as arrows
         q = pose_stamped.pose.orientation
         T = quaternion_matrix([q.x, q.y, q.z, q.w])
-        origin = np.array([pose_stamped.pose.position.x, pose_stamped.pose.position.y, pose_stamped.pose.position.z])
+        origin = np.array(
+            [
+                pose_stamped.pose.position.x,
+                pose_stamped.pose.position.y,
+                pose_stamped.pose.position.z,
+            ]
+        )
 
         axes = [
             (np.array([1, 0, 0]), [1.0, 0.0, 0.0, 1.0], 1002),  # X axis, red
@@ -83,36 +89,25 @@ class DuaticMarkerHelper:
             arrow_marker.id = marker_id
             arrow_marker.type = Marker.ARROW
             arrow_marker.action = Marker.ADD
-            arrow_marker.scale.x = 0.01     # shaft length
-            arrow_marker.scale.y = 0.02     # shaft diameter
-            arrow_marker.scale.z = 0.025     # head diameter
+            arrow_marker.scale.x = 0.01  # shaft length
+            arrow_marker.scale.y = 0.02  # shaft diameter
+            arrow_marker.scale.z = 0.025  # head diameter
             arrow_marker.color.r = color[0]
             arrow_marker.color.g = color[1]
             arrow_marker.color.b = color[2]
             arrow_marker.color.a = color[3]
             arrow_marker.points = [
                 Point(x=origin[0], y=origin[1], z=origin[2]),
-                Point(x=end[0], y=end[1], z=end[2])
+                Point(x=end[0], y=end[1], z=end[2]),
             ]
             marker_array.markers.append(arrow_marker)
-        
-        self.marker_publisher.publish(marker_array)        
-
-    def clear_markers(self, ids: Optional[List[int]] = None):
-        """Clears all or specific markers."""
-        marker_array = MarkerArray()
-        if ids is None:
-            # Clear all markers
-            marker = Marker()
-            marker.action = Marker.DELETEALL
-            marker_array.markers.append(marker)
-        else:
-            # Clear specific markers
-            for id_to_clear in ids:
-                marker = Marker()
-                marker.id = id_to_clear
-                marker.action = Marker.DELETE
-                marker_array.markers.append(marker)
 
         self.marker_publisher.publish(marker_array)
 
+    def clear_markers(self):
+        """Clears all or specific markers."""
+        marker_array = MarkerArray()
+        marker = Marker()
+        marker.action = Marker.DELETEALL
+        marker_array.markers.append(marker)
+        self.marker_publisher.publish(marker_array)

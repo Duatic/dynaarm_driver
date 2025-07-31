@@ -94,7 +94,6 @@ class DuaticRobotsHelper:
 
         self._robot_count = count
 
-
     def check_simulation_mode(self):
         """Detect if we're running in simulation or real hardware mode."""
 

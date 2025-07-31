@@ -113,14 +113,14 @@ void DynaArmPoseController::call_activate_pose_controller_service(bool activate)
     RCLCPP_ERROR(get_node()->get_logger(), "Service activate_pose_controller not available");
     return;
   }
-  auto result = activate_pose_client_->async_send_request(request,
-  [this](rclcpp::Client<std_srvs::srv::SetBool>::SharedFuture future) {
-    if (future.valid() && future.get()->success) {
-      RCLCPP_INFO(get_node()->get_logger(), "Service call succeeded: %s", future.get()->message.c_str());
-    } else {
-      RCLCPP_ERROR(get_node()->get_logger(), "Service call failed or returned false");
-    }
-  });
+  auto result = activate_pose_client_->async_send_request(
+      request, [this](rclcpp::Client<std_srvs::srv::SetBool>::SharedFuture future) {
+        if (future.valid() && future.get()->success) {
+          RCLCPP_INFO(get_node()->get_logger(), "Service call succeeded: %s", future.get()->message.c_str());
+        } else {
+          RCLCPP_ERROR(get_node()->get_logger(), "Service call failed or returned false");
+        }
+      });
 }
 
 }  // namespace dynaarm_controllers

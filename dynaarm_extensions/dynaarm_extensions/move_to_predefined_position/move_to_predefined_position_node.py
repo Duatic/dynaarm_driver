@@ -173,7 +173,7 @@ class MoveToPredefinedPositionNode(Node):
             if self.controller_active and self.previous_controller != "joint_trajectory_controller":
                 self.switch_to_previous_controllers()
 
-            self.previous_controller = self.controller_manager.get_active_controller()
+            self.previous_controller = self.controller_manager.get_active_controllers()
             self.controller_active = False
 
     # Move to home for DynAarm Configuration

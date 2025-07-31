@@ -36,7 +36,7 @@ from ament_index_python import get_package_share_directory
 class DuaticPinocchioHelper:
     """A simple class to retrieve the robot URDF from the parameter server."""
 
-    def __init__(self, node, ee_frame_name="flange", joint_margins=0.2):        
+    def __init__(self, node, ee_frame_name="flange", joint_margins=0.2):
         self.node = node
         self.param_helper = DuaticParamHelper(self.node)
 
@@ -44,35 +44,37 @@ class DuaticPinocchioHelper:
         self.data = self.model.createData()
         self.frame_id = self.model.getFrameId(ee_frame_name)
         self.ee_frame_name = ee_frame_name
-        self.joint_names = [name for name in self.model.names[1:]]       
-        
+        self.joint_names = [name for name in self.model.names[1:]]
+
         self.lower = self.model.lowerPositionLimit + joint_margins
         self.upper = self.model.upperPositionLimit - joint_margins
 
     def get_fk(self, current_joint_values):
         # Ensure joint order matches the model
-        
+
         # If dict, use joint names; if list/array, assume correct order
         if isinstance(current_joint_values, dict):
-            q = np.array([current_joint_values[name] for name in self.joint_names], dtype=np.float64)
+            q = np.array(
+                [current_joint_values[name] for name in self.joint_names], dtype=np.float64
+            )
         else:
             q = np.array(current_joint_values, dtype=np.float64)
 
         # Compute FK
         pin.forwardKinematics(self.model, self.data, q)
         pin.updateFramePlacements(self.model, self.data)
-        
-        return self.data.oMf[self.frame_id]        
-    
+
+        return self.data.oMf[self.frame_id]
+
     def get_fk_as_pose_stamped(self, current_joint_values):
 
         current_pose = self.get_fk(current_joint_values)
 
-        pose_stamped = PoseStamped()     
-        pose_stamped.pose.position.x = current_pose.translation[0] 
+        pose_stamped = PoseStamped()
+        pose_stamped.pose.position.x = current_pose.translation[0]
         pose_stamped.pose.position.y = current_pose.translation[1]
         pose_stamped.pose.position.z = current_pose.translation[2] - 0.085
-        
+
         quat = pin.Quaternion(current_pose.rotation)
         pose_stamped.pose.orientation.x = quat.x
         pose_stamped.pose.orientation.y = quat.y
@@ -125,18 +127,16 @@ class DuaticPinocchioHelper:
 
         # Load model with Pinocchio
         self.model = pin.buildModelFromUrdf(urdf_file_path)
-        print("model name: " + self.model.name)
+        self.node.get_logger().info(
+            f"Pinocchio model loaded with {len(self.model.joints)} joints and {len(self.model.frames)} frames."
+        )
         return self.model
 
     def get_dynaarm_urdf(self):
 
         # Load the robot description
-        pkg_share_description = get_package_share_directory(
-            "dynaarm_single_example_description"
-        )
-        xacro_path = os.path.join(
-            pkg_share_description, "urdf/dynaarm_single_example.urdf.xacro"
-        )
+        pkg_share_description = get_package_share_directory("dynaarm_single_example_description")
+        xacro_path = os.path.join(pkg_share_description, "urdf/dynaarm_single_example.urdf.xacro")
         urdf_xml = xacro.process_file(xacro_path).toxml()
 
         # Write URDF to a temporary file

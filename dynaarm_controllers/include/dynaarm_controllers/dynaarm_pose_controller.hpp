@@ -64,14 +64,13 @@ public:
   controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
 private:
-
   void call_activate_pose_controller_service(bool activate);
-  
+
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<dynaarm_pose_controller::ParamListener> param_listener_;
   dynaarm_pose_controller::Params params_;
   rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr activate_pose_client_;
-  
+
   std::atomic_bool active_{ false };
 };
 }  // namespace dynaarm_controllers

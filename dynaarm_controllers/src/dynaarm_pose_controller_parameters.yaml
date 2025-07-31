@@ -1,4 +1,4 @@
-dynaarm_pose_controller:  
+dynaarm_pose_controller:
   arm_name:
     type: string
     default_value: "DynaarmSystem"

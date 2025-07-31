@@ -41,7 +41,7 @@ class PoseControllerNode(Node):
         self.latest_pose = None
         self.pin_helper = DuaticPinocchioHelper(self)
         self.robot_helper = DuaticRobotsHelper(self)
-        self.active = True  # Controller is active by default
+        self.active = False
 
         # Subscriptions
         self.pose_sub = self.create_subscription(
@@ -60,16 +60,21 @@ class PoseControllerNode(Node):
         self.control_timer = self.create_timer(self.dt, self.control_loop)
 
         # Service to activate/deactivate the controller
-        self.srv = self.create_service(SetBool, "activate_pose_controller", self.handle_activate_service)
+        self.srv = self.create_service(
+            SetBool, "activate_pose_controller", self.handle_activate_service
+        )
 
     def handle_activate_service(self, request, response):
         self.active = request.data
         response.success = True
         response.message = f"Pose controller {'activated' if self.active else 'deactivated'}"
         self.get_logger().info(response.message)
+
+        self.latest_pose = None
+
         return response
 
-    def pose_callback(self, msg: PoseStamped):            
+    def pose_callback(self, msg: PoseStamped):
         self.latest_pose = msg
 
     def control_loop(self):
@@ -112,8 +117,11 @@ class PoseControllerNode(Node):
     def is_move_safe(self, error):
 
         normed_error = np.linalg.norm(error)
-        if normed_error > self.max_distance:            
-            self.get_logger().warn(f"Target pose too far away ({normed_error} m > {self.max_distance:.2f} m). Ignoring command.", throttle_duration_sec=5.0)
+        if normed_error > self.max_distance:
+            self.get_logger().warn(
+                f"Target pose too far away ({normed_error} m > {self.max_distance:.2f} m). Ignoring command.",
+                throttle_duration_sec=5.0,
+            )
             return False
 
         return True
@@ -140,6 +148,7 @@ class PoseControllerNode(Node):
 
         traj_msg.points.append(point)
         self.jtc_pub.publish(traj_msg)
+
 
 def main(args=None):
 
