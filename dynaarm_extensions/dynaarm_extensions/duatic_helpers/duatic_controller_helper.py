@@ -33,7 +33,7 @@ class DuaticControllerHelper:
         self.controller_whitelist = [
             "freedrive_controller",
             "joint_trajectory_controller",
-            #"dynaarm_pose_controller",
+            "dynaarm_pose_controller",
         ]
 
         self.active_low_level_controllers = []

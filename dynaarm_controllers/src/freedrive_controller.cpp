@@ -148,7 +148,7 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
     g.d = joint_d_gain_command_interfaces_[i].get().get_value();
     previous_gains_.emplace_back(g);
 
-    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+    RCLCPP_DEBUG_STREAM(get_node()->get_logger(),
                        "Previous gains: " << params_.joints[i] << " p: " << g.p << " i: " << g.i << " d: " << g.d);
   }
 
@@ -167,7 +167,7 @@ FreeDriveController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State&
       RCLCPP_ERROR_STREAM(get_node()->get_logger(), params_.joints[i] << ": error setting d-gain");
     }
 
-    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+    RCLCPP_DEBUG_STREAM(get_node()->get_logger(),
                        "Set gains: " << params_.joints[i] << " p: " << 0.0 << " i: " << 0.0 << " d: " << d_gain_value);
   }
 
@@ -185,7 +185,7 @@ FreeDriveController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::Stat
     (void)joint_p_gain_command_interfaces_[i].get().set_value(g.p);
     (void)joint_i_gain_command_interfaces_[i].get().set_value(g.i);
     (void)joint_d_gain_command_interfaces_[i].get().set_value(g.d);
-    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+    RCLCPP_DEBUG_STREAM(get_node()->get_logger(),
                        "Restore gains: " << params_.joints[i] << " p: " << g.p << " i: " << g.i << " d: " << g.d);
   }
 
