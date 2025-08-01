@@ -33,7 +33,7 @@ class DuaticControllerHelper:
         self.controller_whitelist = [
             "freedrive_controller",
             "joint_trajectory_controller",
-            "dynaarm_pose_controller",
+            #"dynaarm_pose_controller",
         ]
 
         self.active_low_level_controllers = []
@@ -51,9 +51,21 @@ class DuaticControllerHelper:
 
         self.node.create_timer(0.1, self._get_all_controllers)
 
-    def get_all_controllers(self):
-        """Returns the found controllers by base. May be empty if timer hasn't run yet."""
-        return self._found_controllers_by_base
+    def get_all_controllers(self, matching_names=None):
+        """
+        Returns the found controllers by base.
+        If matching_names is provided, returns a dict with only those controllers.
+        """
+        if not matching_names:
+            return self._found_controllers_by_base
+
+        # Filter controllers by matching_names and return only controller names
+        filtered = []
+        for base, controllers in self._found_controllers_by_base.items():
+            if base in matching_names:
+                # controllers is a list of dicts like [{name: state}]
+                filtered.extend([list(ctrl.keys())[0] for ctrl in controllers])
+        return filtered
 
     def get_active_controllers(self):
         """Returns a list of currently active controllers. May be empty if timer hasn't run yet."""
