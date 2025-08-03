@@ -107,7 +107,7 @@ class MoveToPredefinedPositionNode(Node):
 
         duatic_jtc_helper = DuaticJTCHelper(self, self.arms_count)
 
-        found_topics = duatic_jtc_helper.get_joint_trajectory_topics()
+        found_topics = duatic_jtc_helper.find_topics_for_controller("joint_trajectory_controller", "joint_trajectory")
         response = duatic_jtc_helper.process_topics_and_extract_joint_names(
             found_topics
         )

@@ -38,19 +38,33 @@ class PoseControllerNode(Node):
     def __init__(self):
         super().__init__("dynaarm_pose_controller_node")
 
+        self.declare_parameter('arm_name', '')
+        self.arm_name = self.get_parameter('arm_name').get_parameter_value().string_value
+        self.arm_name_for_topics = f"_{self.arm_name}" if self.arm_name else ''
+
         self.latest_pose = None
-        self.pin_helper = DuaticPinocchioHelper(self)
+
+        if self.arm_name:
+            self.pin_helper = DuaticPinocchioHelper(self, robot_part_name=self.arm_name, robot_type="Alpha")
+        else:
+            self.pin_helper = DuaticPinocchioHelper(self)
+            
         self.robot_helper = DuaticRobotsHelper(self)
         self.active = False
 
         # Subscriptions
         self.pose_sub = self.create_subscription(
-            PoseStamped, "/duatic_pose_controller/target_frame", self.pose_callback, 10
+            PoseStamped, f"/dynaarm_pose_controller{self.arm_name_for_topics}/target_frame", self.pose_callback, 10
         )
 
         # Publishers
         self.jtc_pub = self.create_publisher(
-            JointTrajectory, "/joint_trajectory_controller/joint_trajectory", 10
+            JointTrajectory, f"/joint_trajectory_controller{self.arm_name_for_topics}/joint_trajectory", 10
+        )
+
+         # Service to activate/deactivate the controller
+        self.srv = self.create_service(
+            SetBool, f"activate_pose_controller{self.arm_name_for_topics}", self.handle_activate_service
         )
 
         # Start periodic control loop
@@ -58,11 +72,6 @@ class PoseControllerNode(Node):
         self.dt = 0.005
         self.max_joint_speed = 5.0  # rad/s
         self.control_timer = self.create_timer(self.dt, self.control_loop)
-
-        # Service to activate/deactivate the controller
-        self.srv = self.create_service(
-            SetBool, "activate_pose_controller", self.handle_activate_service
-        )
 
     def handle_activate_service(self, request, response):
         self.active = request.data

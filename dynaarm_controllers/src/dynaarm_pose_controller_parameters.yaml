@@ -3,3 +3,9 @@ dynaarm_pose_controller:
     type: string
     default_value: "DynaarmSystem"
     description: "name of the arm hardware interface"
+  joints:
+    type: string_array
+    default_value: []
+    description: Names of joints used by the controller
+    validation:
+      unique<>: null
