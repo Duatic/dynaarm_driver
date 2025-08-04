@@ -36,88 +36,57 @@ from ament_index_python import get_package_share_directory
 class DuaticPinocchioHelper:
     """A simple class to retrieve the robot URDF from the parameter server."""
 
-    def __init__(self, node, robot_part_name="", robot_type="DynaArm", joint_margins=0.2):
+    def __init__(self, node, robot_type="DynaArm", joint_margins=0.2):
         self.node = node
         self.robot_type = robot_type
-        self.robot_part_name = robot_part_name
         self.param_helper = DuaticParamHelper(self.node)
 
         self.model = self.get_pin_model_data()
         self.data = self.model.createData()
 
-        # Filter joint names to only include the specified robot part (if any)
-        self.joint_names = self._get_part_joint_names()
-
-        # Get joint limits for this specific robot part
-        self._set_part_joint_limits(joint_margins)
-
         self.lower = self.model.lowerPositionLimit + joint_margins
         self.upper = self.model.upperPositionLimit - joint_margins
-
-    def _get_part_joint_names(self):
-        """Get joint names that belong to the specified robot part."""
-        if not self.robot_part_name:
-            # Return all joints if no specific part is specified
-            return [name for name in self.model.names[1:]]
+    
+    def _convert_joint_values_to_array(self, current_joint_values):
+        """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
         
-        part_joint_names = []
-        all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
-        
-        for name in all_joint_names:
-            if self.robot_part_name in name:
-                part_joint_names.append(name)
-        
-        self.node.get_logger().info(f"Found {len(part_joint_names)} joints for {self.robot_part_name}: {part_joint_names}")
-        return part_joint_names
-
-    def _set_part_joint_limits(self, joint_margins):
-        """Set joint limits for the specified robot part only."""
-        if not self.robot_part_name:
-            # Use all joint limits if no specific part is specified
-            self.lower = self.model.lowerPositionLimit + joint_margins
-            self.upper = self.model.upperPositionLimit - joint_margins
-            return
-        
-        # Get indices of part joints in the full model
-        part_joint_indices = []
-        all_joint_names = [name for name in self.model.names[1:]]
-        
-        for joint_name in self.joint_names:
-            if joint_name in all_joint_names:
-                part_joint_indices.append(all_joint_names.index(joint_name))
-        
-        # Extract limits for part joints only
-        self.lower = self.model.lowerPositionLimit[part_joint_indices] + joint_margins
-        self.upper = self.model.upperPositionLimit[part_joint_indices] - joint_margins
+        if isinstance(current_joint_values, dict):
+            # Create full joint configuration array from dictionary
+            q = np.zeros(self.model.nq)
+            all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
+            
+            for i, joint_name in enumerate(all_joint_names):
+                if joint_name in current_joint_values:
+                    q[i] = current_joint_values[joint_name]
+                else:
+                    # Use 0.0 for missing joints
+                    q[i] = 0.0
+        else:
+            # Convert list/array to numpy array
+            q = np.array(current_joint_values, dtype=np.float64)
+            
+            # If we don't have enough joints, pad with zeros
+            if len(q) < self.model.nq:
+                q_full = np.zeros(self.model.nq)
+                q_full[:len(q)] = q
+                q = q_full
+                
+        return q
 
     def get_fk(self, current_joint_values, frame):
         """Compute forward kinematics for the specified arm."""
-        # Create full joint configuration (all joints in model)
-        q_full = np.zeros(self.model.nq)
-        
-        # If dict, use joint names; if list/array, assume correct order for this arm
-        if isinstance(current_joint_values, dict):
-            arm_joint_values = np.array(
-                [current_joint_values[name] for name in self.joint_names], dtype=np.float64
-            )
-        else:
-            arm_joint_values = np.array(current_joint_values, dtype=np.float64)
-        
-        # Map arm joint values to full configuration
-        all_joint_names = [name for name in self.model.names[1:]]
-        for i, joint_name in enumerate(self.joint_names):
-            if joint_name in all_joint_names:
-                full_index = all_joint_names.index(joint_name)
-                q_full[full_index] = arm_joint_values[i]
 
-        # Compute FK
-        pin.forwardKinematics(self.model, self.data, q_full)
+        # Convert input to proper numpy array
+        q = self._convert_joint_values_to_array(current_joint_values)
+
+        # Compute FK        
+        pin.forwardKinematics(self.model, self.data, q)
         pin.updateFramePlacements(self.model, self.data)
 
         frame_id = self.model.getFrameId(frame)
         return self.data.oMf[frame_id]
 
-    def get_fk_as_pose_stamped(self, current_joint_values, frame, offsets=[0.0, 0.0, 0.085]):
+    def get_fk_as_pose_stamped(self, current_joint_values, frame, offsets=[0.0, 0.0, 0.0]):
 
         current_pose = self.get_fk(current_joint_values, frame)
 
@@ -134,47 +103,37 @@ class DuaticPinocchioHelper:
 
         return pose_stamped
 
-    def solve_ik(self, q_arm, target_SE3, frame, iterations=100, threshold=0.0001, joint_weights=None):
-        """Solve IK for the specified arm only."""
+    def solve_ik(self, current_joint_values, target_SE3, frame, iterations=100, threshold=0.0001):
+        """Solve IK for the specified arm, but work with full joint configuration."""
         error = np.inf
 
-        if joint_weights is None:
-            joint_weights = np.ones_like(q_arm)
+        # Convert input to proper numpy array (always full configuration)
+        q = self._convert_joint_values_to_array(current_joint_values)       
+        
+        joint_weights = np.ones_like(q)
         W = np.diag(joint_weights)
 
         frame_id = self.model.getFrameId(frame)
 
-        for i in range(iterations):
-            error = self.get_pose_error(q_arm, target_SE3)
+        for i in range(iterations):                  
+            
+            # Compute error using full configuration
+            error = self.get_pose_error(q, target_SE3, frame)
             if np.linalg.norm(error) < threshold:
                 break
 
-            # Create full configuration for Jacobian computation
-            q_full = np.zeros(self.model.nq)
-            all_joint_names = [name for name in self.model.names[1:]]
-            for j, joint_name in enumerate(self.joint_names):
-                if joint_name in all_joint_names:
-                    full_index = all_joint_names.index(joint_name)
-                    q_full[full_index] = q_arm[j]
-
             # Compute Jacobian for full model
-            J_full = pin.computeFrameJacobian(self.model, self.data, q_full, frame_id, pin.LOCAL)
+            J = pin.computeFrameJacobian(self.model, self.data, q, frame_id, pin.LOCAL)
             
-            # Extract Jacobian columns for arm joints only
-            arm_joint_indices = []
-            for joint_name in self.joint_names:
-                if joint_name in all_joint_names:
-                    arm_joint_indices.append(all_joint_names.index(joint_name))
-            
-            J = J_full[:, arm_joint_indices]
+            # Extract Jacobian columns for arm joints only            
             J_w = J @ W
-
             dq = -0.1 * W @ np.linalg.pinv(J_w) @ error
 
-            q_arm += dq
-            q_arm = np.clip(q_arm, self.lower, self.upper)
+            q += dq
+            # Use only the arm-specific limits for clipping            
+            q = np.clip(q, self.lower, self.upper)        
 
-        return q_arm, error
+        return q, error
 
     def get_pose_error(self, q, target_SE3, frame):
         current_SE3 = self.get_fk(q, frame)
@@ -184,7 +143,7 @@ class DuaticPinocchioHelper:
         error[3:] *= rot_scale
         return error
 
-    def convert_pose_stamped_to_se3(self, pose_stamped, offsets=[0.0, 0.0, 0.085]):
+    def convert_pose_stamped_to_se3(self, pose_stamped, offsets=[0.0, 0.0, 0.0]):
         """Convert a PoseStamped message to a Pinocchio SE3 object."""
         pos = pose_stamped.pose.position
         ori = pose_stamped.pose.orientation
@@ -254,3 +213,35 @@ class DuaticPinocchioHelper:
         except Exception as e:
             self.node.get_logger().warn(f"Failed to get URDF from parameter server: {e}")
             return None
+
+    def get_joint_values_by_names(self, q, joint_names):
+        """Extract specific joint values from q array by joint names."""
+        joint_values = []
+        all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
+        
+        for joint_name in joint_names:
+            try:
+                joint_index = all_joint_names.index(joint_name)
+                joint_values.append(q[joint_index])
+            except ValueError:
+                self.node.get_logger().warn(f"Joint '{joint_name}' not found in model")
+                joint_values.append(0.0)  # Default value for missing joints
+        
+        return joint_values
+
+    def get_joint_values_by_arm_prefix(self, q, arm_prefix):
+        """Extract joint values from q array for joints starting with arm_prefix."""
+        joint_values = []
+        joint_names = []
+        all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
+        
+        for i, joint_name in enumerate(all_joint_names):
+            if joint_name.startswith(f"{arm_prefix}/"):
+                joint_values.append(q[i])
+                joint_names.append(joint_name)
+        
+        return joint_values, joint_names
+
+    def get_all_joint_names(self):
+        """Get all joint names from the model (excluding universe joint)."""
+        return [name for name in self.model.names[1:]]

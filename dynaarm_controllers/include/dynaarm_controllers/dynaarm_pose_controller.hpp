@@ -69,6 +69,9 @@ private:
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<dynaarm_pose_controller::ParamListener> param_listener_;
   dynaarm_pose_controller::Params params_;
+
+  std::string arm_name_;
+  std::string arm_name_for_topics_;
   rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr activate_pose_client_;
 
   std::atomic_bool active_{ false };
