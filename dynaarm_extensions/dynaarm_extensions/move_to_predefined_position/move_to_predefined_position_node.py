@@ -149,9 +149,8 @@ class MoveToPredefinedPositionNode(Node):
             handler = self.movement_handlers.get(action_key)
             if handler:
                 handler()
-        else:
-
-            if self.controller_active and self.previous_active_controllers != "joint_trajectory_controller":
+        else:            
+            if self.controller_active and self.previous_active_controllers != "joint_trajectory_controller":                
                 self.controller_active = False
                 self.switch_to_previous_controllers()
             else:                
@@ -406,28 +405,32 @@ class MoveToPredefinedPositionNode(Node):
     def switch_to_previous_controllers(self):
         """Deactivate all joint trajectory controllers."""
         
-        if not self.previous_active_controllers or len(self.previous_active_controllers) <= 0:
-            self.get_logger().warn("No previous controller state found. Cannot switch back.")
-            return
-                
         all_controllers = self.duatic_controller_helper.get_all_controllers()
         controllers_to_activate = []
         controllers_to_deactivate = []
 
-        # Wenn jtc an war, dann ist er auch im all_controllers an und im previous 
-
-        # Single pass: collect all JTCs and check if any is active, collect others to deactivate
-        for controller_type, controllers in all_controllers.items():
-            for controller in controllers:
-                for name, active_state in controller.items():                    
-                    if name == "joint_trajectory_controller" and active_state == "active":
-                        if name not in self.previous_active_controllers:
+        if not self.previous_active_controllers or len(self.previous_active_controllers) <= 0:
+            self.get_logger().debug("No previous controller state found. Deactivating joint trajectory controllers.")
+            # Just deactivate all active joint trajectory controllers
+            for controller_type, controllers in all_controllers.items():
+                for controller in controllers:
+                    for name, active_state in controller.items():
+                        if "joint_trajectory_controller" in name and active_state == "active":
                             controllers_to_deactivate.append(name)
-                    elif name in self.previous_active_controllers: 
-                        controllers_to_activate.append(name)
-                    else:
-                        pass
+        else:
+            # Single pass: collect all JTCs and check if any is active, collect others to deactivate
+            for controller_type, controllers in all_controllers.items():
+                for controller in controllers:
+                    for name, active_state in controller.items():                    
+                        if "joint_trajectory_controller" in name and active_state == "active":
+                            if name not in self.previous_active_controllers:
+                                controllers_to_deactivate.append(name)
+                        elif name in self.previous_active_controllers: 
+                            controllers_to_activate.append(name)
+                        else:
+                            pass
 
+        self.get_logger().debug(f"Switching to previous controllers: {controllers_to_activate} and deactivating: {controllers_to_deactivate}")        
         self.duatic_controller_helper.switch_controller(controllers_to_activate, controllers_to_deactivate)
 
 def main(args=None):
