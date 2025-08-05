@@ -73,7 +73,7 @@ class DuaticJTCHelper:
         # Convert wildcard pattern to regex pattern
         # Handle the specific case where we search for controller patterns
         if "*" in by_name:
-            # Convert patterns like "joint_trajectory_controller*/joint_trajectory" 
+            # Convert patterns like "joint_trajectory_controller*/joint_trajectory"
             # to match "/joint_trajectory_controller_arm_left/joint_trajectory"
             pattern_str = by_name.replace("*", ".*")
             # Ensure we match from the beginning of the topic name
@@ -82,10 +82,10 @@ class DuaticJTCHelper:
             pattern = re.compile(pattern_str)
         else:
             pattern = re.compile(re.escape(by_name))
-        
+
         topics_and_types = self.node.get_topic_names_and_types()
         self.node.get_logger().debug(f"Found topics and types: {topics_and_types}")
-        
+
         matches = [(topic, types) for topic, types in topics_and_types if pattern.search(topic)]
         self.node.get_logger().debug(f"Filtered topics matching '{by_name}': {matches}")
         return matches
@@ -94,24 +94,32 @@ class DuaticJTCHelper:
         found_topics = []
         max_retries = 10
         retry_count = 0
-        
+
         # Construct the search pattern
         search_pattern = f"/{controller_name}*/{identifier}"
-        
+
         # Find all topics matching the controller name
         while len(found_topics) < self.arms_count and retry_count < max_retries:
             found_topics = self.get_topic_names_and_types_function(search_pattern)
-            
+
             if len(found_topics) >= self.arms_count:
                 break
-                
-            self.node.get_logger().info(f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying...")
+
+            self.node.get_logger().info(
+                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying..."
+            )
             rclpy.spin_once(self.node, timeout_sec=0.5)
             retry_count += 1
 
         if len(found_topics) < self.arms_count:
-            self.node.get_logger().error(f"Expected {self.arms_count} controller topics, but found {len(found_topics)}")
-            self.node.get_logger().error(f"Available topics: {[topic for topic, _ in self.node.get_topic_names_and_types()]}")
-            raise RuntimeError(f"Expected {self.arms_count} controller topics, but found {len(found_topics)}")
+            self.node.get_logger().error(
+                f"Expected {self.arms_count} controller topics, but found {len(found_topics)}"
+            )
+            self.node.get_logger().error(
+                f"Available topics: {[topic for topic, _ in self.node.get_topic_names_and_types()]}"
+            )
+            raise RuntimeError(
+                f"Expected {self.arms_count} controller topics, but found {len(found_topics)}"
+            )
 
         return found_topics

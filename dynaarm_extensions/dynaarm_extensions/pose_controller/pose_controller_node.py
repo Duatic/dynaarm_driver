@@ -38,9 +38,9 @@ class PoseControllerNode(Node):
     def __init__(self):
         super().__init__("dynaarm_pose_controller_node")
 
-        self.declare_parameter('arm_name', '')
-        self.arm_name = self.get_parameter('arm_name').get_parameter_value().string_value
-        self.arm_name_for_topics = f"_{self.arm_name}" if self.arm_name else ''
+        self.declare_parameter("arm_name", "")
+        self.arm_name = self.get_parameter("arm_name").get_parameter_value().string_value
+        self.arm_name_for_topics = f"_{self.arm_name}" if self.arm_name else ""
 
         self.latest_pose = None
 
@@ -50,23 +50,30 @@ class PoseControllerNode(Node):
         else:
             self.frame = "flange"
             self.pin_helper = DuaticPinocchioHelper(self)
-            
+
         self.robot_helper = DuaticRobotsHelper(self)
         self.active = False
 
         # Subscriptions
         self.pose_sub = self.create_subscription(
-            PoseStamped, f"/dynaarm_pose_controller{self.arm_name_for_topics}/target_frame", self.pose_callback, 10
+            PoseStamped,
+            f"/dynaarm_pose_controller{self.arm_name_for_topics}/target_frame",
+            self.pose_callback,
+            10,
         )
 
         # Publishers
         self.jtc_pub = self.create_publisher(
-            JointTrajectory, f"/joint_trajectory_controller{self.arm_name_for_topics}/joint_trajectory", 10
+            JointTrajectory,
+            f"/joint_trajectory_controller{self.arm_name_for_topics}/joint_trajectory",
+            10,
         )
 
-         # Service to activate/deactivate the controller
+        # Service to activate/deactivate the controller
         self.srv = self.create_service(
-            SetBool, f"dynaarm_pose_controller{self.arm_name_for_topics}/activate", self.handle_activate_service
+            SetBool,
+            f"dynaarm_pose_controller{self.arm_name_for_topics}/activate",
+            self.handle_activate_service,
         )
 
         # Start periodic control loop
@@ -101,8 +108,8 @@ class PoseControllerNode(Node):
             return
 
         # Rest of the method remains the same...
-        target_SE3 = self.pin_helper.convert_pose_stamped_to_se3(self.latest_pose)        
-        error = self.pin_helper.get_pose_error(current_joint_values, target_SE3, self.frame)        
+        target_SE3 = self.pin_helper.convert_pose_stamped_to_se3(self.latest_pose)
+        error = self.pin_helper.get_pose_error(current_joint_values, target_SE3, self.frame)
 
         if not self.is_move_safe(error):
             # Extract only the arm-specific joints from current state
@@ -110,7 +117,7 @@ class PoseControllerNode(Node):
             self.send_joint_trajectory(arm_joint_names, arm_joint_positions)
             return
 
-        # Convert all joint states to full configuration array        
+        # Convert all joint states to full configuration array
         q, error = self.pin_helper.solve_ik(current_joint_values, target_SE3, self.frame)
 
         if np.linalg.norm(error) >= 0.01:
@@ -122,37 +129,36 @@ class PoseControllerNode(Node):
         self.send_joint_trajectory(arm_joint_names, arm_joint_positions)
 
     def extract_arm_joints(self, joint_data):
-        """Extract joint positions for this specific arm from either dict or array"""
-        
+        """Extract joint positions for this specific arm from either dict or array."""
         # Handle dictionary input (from current_joint_values)
         if isinstance(joint_data, dict):
             arm_joint_positions = []
             arm_joint_names = []
-            
+
             # If no specific arm is configured, return all joints
             if not self.arm_name:
                 return list(joint_data.values()), list(joint_data.keys())
-            
+
             # Filter joints that belong to this specific arm
             for joint_name, joint_value in joint_data.items():
                 if joint_name.startswith(f"{self.arm_name}/"):
                     arm_joint_positions.append(joint_value)
                     arm_joint_names.append(joint_name)
-            
+
             return arm_joint_positions, arm_joint_names
-        
+
         # Handle array/list input (from IK solution q)
         else:
             # If no specific arm is configured, return all joints
             if not self.arm_name:
                 all_joint_names = self.pin_helper.get_all_joint_names()
                 return list(joint_data), all_joint_names
-            
+
             # Use the new helper function to extract arm-specific joints
             arm_joint_positions, arm_joint_names = self.pin_helper.get_joint_values_by_arm_prefix(
                 joint_data, self.arm_name
             )
-            
+
             return arm_joint_positions, arm_joint_names
 
     def is_move_safe(self, error):

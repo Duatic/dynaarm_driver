@@ -46,15 +46,14 @@ class DuaticPinocchioHelper:
 
         self.lower = self.model.lowerPositionLimit + joint_margins
         self.upper = self.model.upperPositionLimit - joint_margins
-    
+
     def _convert_joint_values_to_array(self, current_joint_values):
         """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
-        
         if isinstance(current_joint_values, dict):
             # Create full joint configuration array from dictionary
             q = np.zeros(self.model.nq)
             all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
-            
+
             for i, joint_name in enumerate(all_joint_names):
                 if joint_name in current_joint_values:
                     q[i] = current_joint_values[joint_name]
@@ -64,22 +63,21 @@ class DuaticPinocchioHelper:
         else:
             # Convert list/array to numpy array
             q = np.array(current_joint_values, dtype=np.float64)
-            
+
             # If we don't have enough joints, pad with zeros
             if len(q) < self.model.nq:
                 q_full = np.zeros(self.model.nq)
-                q_full[:len(q)] = q
+                q_full[: len(q)] = q
                 q = q_full
-                
+
         return q
 
     def get_fk(self, current_joint_values, frame):
         """Compute forward kinematics for the specified arm."""
-
         # Convert input to proper numpy array
         q = self._convert_joint_values_to_array(current_joint_values)
 
-        # Compute FK        
+        # Compute FK
         pin.forwardKinematics(self.model, self.data, q)
         pin.updateFramePlacements(self.model, self.data)
 
@@ -108,15 +106,15 @@ class DuaticPinocchioHelper:
         error = np.inf
 
         # Convert input to proper numpy array (always full configuration)
-        q = self._convert_joint_values_to_array(current_joint_values)       
-        
+        q = self._convert_joint_values_to_array(current_joint_values)
+
         joint_weights = np.ones_like(q)
         W = np.diag(joint_weights)
 
         frame_id = self.model.getFrameId(frame)
 
-        for i in range(iterations):                  
-            
+        for i in range(iterations):
+
             # Compute error using full configuration
             error = self.get_pose_error(q, target_SE3, frame)
             if np.linalg.norm(error) < threshold:
@@ -124,14 +122,14 @@ class DuaticPinocchioHelper:
 
             # Compute Jacobian for full model
             J = pin.computeFrameJacobian(self.model, self.data, q, frame_id, pin.LOCAL)
-            
-            # Extract Jacobian columns for arm joints only            
+
+            # Extract Jacobian columns for arm joints only
             J_w = J @ W
             dq = -0.1 * W @ np.linalg.pinv(J_w) @ error
 
             q += dq
-            # Use only the arm-specific limits for clipping            
-            q = np.clip(q, self.lower, self.upper)        
+            # Use only the arm-specific limits for clipping
+            q = np.clip(q, self.lower, self.upper)
 
         return q, error
 
@@ -155,7 +153,7 @@ class DuaticPinocchioHelper:
 
         # Try to get URDF from parameter server first (preferred)
         urdf_xml = self.get_robot_urdf_from_param()
-        
+
         if urdf_xml:
             # Use URDF from parameter server
             urdf_file_path = self._write_urdf_to_temp_file(urdf_xml)
@@ -169,7 +167,7 @@ class DuaticPinocchioHelper:
         self.node.get_logger().info(
             f"Pinocchio model loaded with {len(self.model.joints)} joints and {len(self.model.frames)} frames."
         )
-        return self.model    
+        return self.model
 
     def _write_urdf_to_temp_file(self, urdf_xml):
         """Write URDF XML string to a temporary file."""
@@ -218,7 +216,7 @@ class DuaticPinocchioHelper:
         """Extract specific joint values from q array by joint names."""
         joint_values = []
         all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
-        
+
         for joint_name in joint_names:
             try:
                 joint_index = all_joint_names.index(joint_name)
@@ -226,7 +224,7 @@ class DuaticPinocchioHelper:
             except ValueError:
                 self.node.get_logger().warn(f"Joint '{joint_name}' not found in model")
                 joint_values.append(0.0)  # Default value for missing joints
-        
+
         return joint_values
 
     def get_joint_values_by_arm_prefix(self, q, arm_prefix):
@@ -234,12 +232,12 @@ class DuaticPinocchioHelper:
         joint_values = []
         joint_names = []
         all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
-        
+
         for i, joint_name in enumerate(all_joint_names):
             if joint_name.startswith(f"{arm_prefix}/"):
                 joint_values.append(q[i])
                 joint_names.append(joint_name)
-        
+
         return joint_values, joint_names
 
     def get_all_joint_names(self):
