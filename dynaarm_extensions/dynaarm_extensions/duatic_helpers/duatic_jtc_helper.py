@@ -106,7 +106,8 @@ class DuaticJTCHelper:
                 break
 
             self.node.get_logger().info(
-                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying...", throttle_duration_sec=10
+                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying...",
+                throttle_duration_sec=10,
             )
             rclpy.spin_once(self.node, timeout_sec=0.5)
             retry_count += 1

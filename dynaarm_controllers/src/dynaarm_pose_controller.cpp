@@ -74,13 +74,13 @@ DynaArmPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::Sta
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
 
-  // Parameter auslesen
+  // Read parameter
   arm_name_ = get_node()->get_parameter("arm_name").as_string();
 
-  // Topic-Suffix erstellen (gleiche Logik wie in Python)
+  // Create topic suffix (same logic as in Python)
   arm_name_for_topics_ = arm_name_.empty() ? "" : "_" + arm_name_;
 
-  // Service erstellen mit dynamischem Namen
+  // Create service with dynamic name
   std::string service_name = "dynaarm_pose_controller" + arm_name_for_topics_ + "/activate";
   activate_pose_client_ = get_node()->create_client<std_srvs::srv::SetBool>(service_name);
   if (!activate_pose_client_) {
