@@ -37,7 +37,7 @@ class DuaticControllerHelper:
         ]
 
         self.active_low_level_controllers = []
-        self._is_freeze_active = False        
+        self._is_freeze_active = False
         self._found_controllers_by_base = {base: [] for base in self.controller_whitelist}
         self._run_once = False
 

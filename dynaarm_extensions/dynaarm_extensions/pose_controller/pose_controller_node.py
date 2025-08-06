@@ -162,7 +162,7 @@ class PoseControllerNode(Node):
             return arm_joint_positions, arm_joint_names
 
     def is_move_safe(self, error):
-
+        """Determines whether a move to the target pose is considered 'safe'."""
         normed_error = np.linalg.norm(error)
         if normed_error > self.max_distance:
             self.get_logger().warn(
