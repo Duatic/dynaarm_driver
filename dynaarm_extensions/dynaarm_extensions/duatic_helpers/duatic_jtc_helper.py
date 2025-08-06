@@ -92,7 +92,7 @@ class DuaticJTCHelper:
 
     def find_topics_for_controller(self, controller_name, identifier):
         found_topics = []
-        max_retries = 10
+        max_retries = 100
         retry_count = 0
 
         # Construct the search pattern
@@ -106,7 +106,7 @@ class DuaticJTCHelper:
                 break
 
             self.node.get_logger().info(
-                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying..."
+                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying...", throttle_duration_sec=10
             )
             rclpy.spin_once(self.node, timeout_sec=0.5)
             retry_count += 1

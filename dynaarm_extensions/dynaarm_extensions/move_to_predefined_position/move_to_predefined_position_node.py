@@ -112,8 +112,8 @@ class MoveToPredefinedPositionNode(Node):
         self.dt = self.duatic_robots_helper.get_dt()
 
         # Target velocities for flexion and rotation joints
-        self.target_velocity_flexion = 0.2  # 0.2 rad/s = ~11.5°/s
-        self.target_velocity_rotation = 0.4  # 0.4 rad/s = ~23°/s
+        self.target_velocity_flexion = 0.8  # 0.8 rad/s = ~45.8°/s
+        self.target_velocity_rotation = 1.2  # 1.2 rad/s = ~68.2°/s
 
         # Calculate step sizes based on dt to achieve target velocities
         self.step_size_flexion_joints = self.target_velocity_flexion * self.dt
