@@ -81,7 +81,7 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   }
 
   // We where not successful - set the output to the original input. Which avoid accidental motions
-  q_out = q;
+  q_out = q_in;
   return false;
 }
 
