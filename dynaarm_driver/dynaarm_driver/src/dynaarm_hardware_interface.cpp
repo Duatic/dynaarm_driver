@@ -102,51 +102,6 @@ DynaArmHardwareInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::
 hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    auto& drive = drives_[i];
-    // In case we are in error state clear the error and try again
-    rsl_drive_sdk::Statusword status_word;
-    drive->getStatuswordSdo(status_word);
-    if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
-      RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
-      drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
-      drive->updateWrite();
-      drive->updateRead();
-      if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
-        RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
-      } else {
-        RCLCPP_INFO_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " went into ControlOp successfully");
-      }
-    }
-  }
-
-  // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
-  for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    auto& drive = drives_[i];
-
-    // Put into controlOP, in blocking mode.
-    if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
-      RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
-                                             << " did not go into ControlOP - this is trouble some and a reason to "
-                                                "abort. Try to reboot the hardware");
-      return hardware_interface::CallbackReturn::ERROR;
-    }
-
-    // Log the firmware information of the drive. Might be useful for debugging issues at customer
-    rsl_drive_sdk::common::BuildInfo info;
-    drive->getBuildInfo(info);
-    RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
-                                               << " tag: " << info.gitTag << " hash: " << info.gitHash);
-
-    rsl_drive_sdk::mode::PidGainsF gains;
-    drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
-    joint_command_vector_[i].p_gain = gains.getP();
-    joint_command_vector_[i].i_gain = gains.getI();
-    joint_command_vector_[i].d_gain = gains.getD();
-
-    RCLCPP_INFO_STREAM(logger_, "PID Gains: " << gains);
-  }
-
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -167,6 +122,60 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
 
 void DynaArmHardwareInterface::read_motor_states()
 {
+  if (!ready_) {
+    if (ecat_master_handle_.running) {
+      for (std::size_t i = 0; i < info_.joints.size(); i++) {
+        auto& drive = drives_[i];
+        // In case we are in error state clear the error and try again
+        rsl_drive_sdk::Statusword status_word;
+        drive->getStatuswordSdo(status_word);
+        if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
+          RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
+          drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
+          drive->updateWrite();
+          drive->updateRead();
+          if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
+            RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
+          } else {
+            RCLCPP_INFO_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " went into ControlOp successfully");
+          }
+        }
+      }
+
+      // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
+      for (std::size_t i = 0; i < info_.joints.size(); i++) {
+        auto& drive = drives_[i];
+
+        // Put into controlOP, in blocking mode.
+        if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
+          RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
+                                                 << " did not go into ControlOP - this is trouble some and a reason to "
+                                                    "abort. Try to reboot the hardware");
+          return;
+        }
+
+        // Log the firmware information of the drive. Might be useful for debugging issues at customer
+        rsl_drive_sdk::common::BuildInfo info;
+        drive->getBuildInfo(info);
+        RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
+                                                   << " tag: " << info.gitTag << " hash: " << info.gitHash);
+
+        rsl_drive_sdk::mode::PidGainsF gains;
+        drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
+        joint_command_vector_[i].p_gain = gains.getP();
+        joint_command_vector_[i].i_gain = gains.getI();
+        joint_command_vector_[i].d_gain = gains.getD();
+
+        RCLCPP_INFO_STREAM(logger_, "PID Gains: " << gains);
+      }
+      ready_ = true;
+    }
+  }
+
+  if (!ready_) {
+    return;
+  }
+
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Get a reading from the specific drive and
     rsl_drive_sdk::ReadingExtended reading;
@@ -196,6 +205,9 @@ void DynaArmHardwareInterface::read_motor_states()
 
 void DynaArmHardwareInterface::write_motor_commands()
 {
+  if (!ready_) {
+    return;
+  }
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Obtain reference to the specific drive
     auto& drive = drives_[i];

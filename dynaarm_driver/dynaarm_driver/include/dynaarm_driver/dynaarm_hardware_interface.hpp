@@ -77,10 +77,7 @@ private:
   ecat_master::EthercatMasterSingleton::Handle ecat_master_handle_;
   std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
-  std::atomic<bool> startupAbortFlag_{ false };
-  std::atomic<bool> abrtFlag_{ false };
-
-  std::unique_ptr<std::thread> ecat_worker_thread_{};
+  bool ready_{ false };
 };
 
 }  // namespace dynaarm_driver
