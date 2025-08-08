@@ -21,34 +21,32 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import os
-from setuptools import find_packages, setup
+import rclpy
+from rclpy.parameter_client import AsyncParameterClient
 
-package_name = "dynaarm_extensions"
 
-setup(
-    name=package_name,
-    packages=find_packages(exclude=["test"]),
-    version="0.0.0",
-    data_files=[
-        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
-        (
-            os.path.join("share", package_name, "config"),
-            ["dynaarm_extensions/duatic_helpers/config/controllers.yaml"],
-        ),
-        ("share/" + package_name, ["package.xml"]),
-    ],
-    install_requires=["setuptools"],
-    zip_safe=True,
-    maintainer="Timo Schwarzer",
-    maintainer_email="tschwarzer@duatic.com",
-    description="DynaArm Extensions - E-Stop and other utilities",
-    license="BSD 3-Clause",
-    tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "e_stop_node = dynaarm_extensions.e_stop.e_stop_node:main",
-            "move_to_predefined_position_node = dynaarm_extensions.move_to_predefined_position.move_to_predefined_position_node:main",
-        ],
-    },
-)
+class DuaticParamHelper:
+    """Helper class for Joint Trajectory Controller topic discovery and management."""
+
+    def __init__(self, node):
+        self.node = node
+
+    def get_param_values(self, controller_ns, param_name):
+        """Retrieve parameter values from the node."""
+        param_client = AsyncParameterClient(self.node, controller_ns)
+        param_client.wait_for_services(timeout_sec=5.0)
+
+        future = param_client.get_parameters([param_name])
+
+        self.node.get_logger().debug(f"Requesting parameter {param_name} from {controller_ns}")
+        while not future.done():
+            rclpy.spin_once(self.node, timeout_sec=0.05)
+
+        self.node.get_logger().debug(
+            f"Parameter {param_name} retrieval completed for {controller_ns}"
+        )
+
+        if future.result() is not None and future.result().values:  # type: ignore
+            return future.result().values  # type: ignore
+
+        return None
