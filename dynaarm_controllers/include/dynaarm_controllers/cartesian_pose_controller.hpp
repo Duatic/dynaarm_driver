@@ -62,8 +62,7 @@ public:
   CartesianPoseController();
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
-  controller_interface::return_type update(const rclcpp::Time& time,
-                                                              const rclcpp::Duration& period) override;
+  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
   controller_interface::CallbackReturn on_init() override;
   controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
   controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
@@ -73,8 +72,6 @@ public:
   controller_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
 protected:
-
-
 private:
   // Access to controller parameters via generate_parameter_library
   std::unique_ptr<cartesian_pose_controller::ParamListener> param_listener_;
@@ -92,15 +89,9 @@ private:
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
 
-
-
   pinocchio::GeometryData geom_data_prev_;
-
 
   std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>> pose_cmd_sub_;
   realtime_tools::RealtimeBuffer<geometry_msgs::msg::PoseStamped> buffer_pose_cmd_;
-
-
-
 };
 }  // namespace dynaarm_controllers

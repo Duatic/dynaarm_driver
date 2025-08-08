@@ -35,6 +35,7 @@
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
+#include <pinocchio/algorithm/check-data.hpp>
 
 namespace dynaarm_controllers
 {
@@ -46,7 +47,6 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   const int IT_MAX = 1000;
   const double DT = 1e-1;
   const double damp = 1e-6;
-
   pinocchio::Data::Matrix6x J(6, model.nv);
   J.setZero();
 
@@ -54,27 +54,17 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   Eigen::VectorXd q = q_in;
 
   for (std::size_t i = 0; i < IT_MAX; i++) {
-    std::cout << i << std::endl;
-
     // Compute the forward kinematics with the current configuration and check if it is close enough to where we want
     pinocchio::forwardKinematics(model, data, q);
     const pinocchio::SE3 iMd = data.oMi[joint_id].actInv(target_pose);
     Eigen::Matrix<double, 6, 1> err = log6(iMd).toVector();
 
-    std::cout << err.norm() << std::endl;
     if (err.norm() < eps) {
       q_out = q;
       return true;
     }
-    std::cout << model.joints[joint_id].classname() << std::endl;
-    std::cout << model.joints[joint_id].shortname() << std::endl;
-    std::cout << "data:" << std::endl;
-    std::cout << data.joints[joint_id].classname() << std::endl;
-    std::cout << data.joints[joint_id].shortname() << std::endl;
 
-    std::cout << "jacob" << std::endl;
     pinocchio::computeJointJacobian(model, data, q, joint_id, J);
-    std::cout << "jacob done" << std::endl;
     pinocchio::Data::Matrix6 Jlog;
     pinocchio::Jlog6(iMd.inverse(), Jlog);
     J = -Jlog * J;
@@ -84,15 +74,14 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
 
     Eigen::VectorXd v(model.nv);
     v.noalias() = -J.transpose() * JJt.ldlt().solve(err);
-    std::cout << "integrate" << std::endl;
     q = pinocchio::integrate(model, q, v * DT);
 
-    if (!(i % 10))
-      std::cout << i << ": error = " << err.transpose() << std::endl;
+    // if (!(i % 10))
+    //   std::cout << i << ": error = " << err.transpose() << std::endl;
   }
 
-  // We where not successfull - set the output to the original input. Which avoid accidential motions
-  q_out = q_in;
+  // We where not successful - set the output to the original input. Which avoid accidental motions
+  q_out = q;
   return false;
 }
 
@@ -305,16 +294,15 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   }
 
   pinocchio::FrameIndex frame_id = pinocchio_model_.getFrameId(params_.end_effector_frame);
-  std::cout << "frame id: " << frame_id << std::endl;
+
   const pinocchio::JointIndex joint_id = pinocchio_model_.frames[frame_id].parent;
-  std::cout << "joint id: " << joint_id << "  " << pinocchio_model_.njoints << std::endl;
+
   const auto target_pose = rosPoseToSE3(buffer_pose_cmd_.readFromRT()->pose);
-  std::cout << "Target pose: " << target_pose << std::endl;
 
   Eigen::VectorXd q_out = Eigen::VectorXd::Zero(pinocchio_model_.nq);
-  RCLCPP_INFO_STREAM(get_node()->get_logger(), "start ik with current pose: " << q);
+
   pinocchio_data_ = pinocchio::Data(pinocchio_model_);
-  if (!computeIK(pinocchio_model_, pinocchio_data_, target_pose, q, frame_id, q_out)) {
+  if (!computeIK(pinocchio_model_, pinocchio_data_, target_pose, q, joint_id, q_out)) {
     RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Failed to compute IK");
   }
 
@@ -322,19 +310,18 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   const auto collides =
       pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q_out);
 
-  // if(!collides){
-  std::cout << "Command output: " << q_out << std::endl;
-  for (std::size_t i = 0; i < joint_count; i++) {
-    const std::string& joint_name = params_.joints[i];
-    auto idx = pinocchio_model_.getJointId(joint_name);
-    if (idx == 0) {
-      RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
-      return controller_interface::return_type::ERROR;
-    }
-    // Pinocchio joint index starts at 1, q/v index is idx-1
-    joint_position_command_interfaces_.at(i).get().set_value<double>(q[pinocchio_model_.joints[idx].idx_q()]);
+  if (!collides) {
+    for (std::size_t i = 0; i < joint_count; i++) {
+      const std::string& joint_name = params_.joints[i];
+      auto idx = pinocchio_model_.getJointId(joint_name);
+      if (idx == 0) {
+        RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
+        return controller_interface::return_type::ERROR;
+      }
+      // Pinocchio joint index starts at 1, q/v index is idx-1
 
-    // }
+      joint_position_command_interfaces_.at(i).get().set_value<double>(q_out[pinocchio_model_.joints[idx].idx_q()]);
+    }
   }
 
   return controller_interface::return_type::OK;
