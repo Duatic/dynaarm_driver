@@ -44,7 +44,7 @@ class PoseControllerNode(Node):
 
         self.latest_pose = None
 
-        if self.arm_name:
+        if self.arm_name:            
             self.frame = f"{self.arm_name}/flange"
             self.pin_helper = DuaticPinocchioHelper(self, robot_type="Alpha")
         else:
@@ -85,9 +85,7 @@ class PoseControllerNode(Node):
     def handle_activate_service(self, request, response):
         self.active = request.data
         response.success = True
-        response.message = f"Pose controller {'activated' if self.active else 'deactivated'}"
-        self.get_logger().info(response.message)
-
+        response.message = f"Pose controller {'activated' if self.active else 'deactivated'}"        
         self.latest_pose = None
 
         return response

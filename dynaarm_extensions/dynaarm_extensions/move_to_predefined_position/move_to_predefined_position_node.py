@@ -97,13 +97,11 @@ class MoveToPredefinedPositionNode(Node):
         self.duatic_controller_helper.wait_for_controller_data()
 
         self.duatic_robots_helper = DuaticRobotsHelper(self)
-        self.arms_count = self.duatic_robots_helper.get_robot_count()
+        self.arms_count = self.duatic_robots_helper.wait_for_robot()
 
-        duatic_jtc_helper = DuaticJTCHelper(self, self.arms_count)
+        duatic_jtc_helper = DuaticJTCHelper(self)
+        found_topics = duatic_jtc_helper.find_topics_for_controller("joint_trajectory_controller", "joint_trajectory")        
 
-        found_topics = duatic_jtc_helper.find_topics_for_controller(
-            "joint_trajectory_controller", "joint_trajectory"
-        )
         response = duatic_jtc_helper.process_topics_and_extract_joint_names(found_topics)
         self.topic_to_joint_names = response[0]
         self.topic_to_commanded_positions = response[1]

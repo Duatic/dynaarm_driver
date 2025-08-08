@@ -29,14 +29,8 @@ from dynaarm_extensions.duatic_helpers.duatic_param_helper import DuaticParamHel
 class DuaticJTCHelper:
     """Helper class for Joint Trajectory Controller topic discovery and management."""
 
-    def __init__(self, node, arms_count):
+    def __init__(self, node):
         self.node = node
-        self.arms_count = arms_count
-
-        if arms_count <= 0:
-            self.node.get_logger().error("arms_count must be greater than 0")
-            raise ValueError("arms_count must be greater than 0")
-
         self.duatic_param_helper = DuaticParamHelper(self.node)
 
     def process_topics_and_extract_joint_names(self, found_topics):
@@ -90,7 +84,12 @@ class DuaticJTCHelper:
         self.node.get_logger().debug(f"Filtered topics matching '{by_name}': {matches}")
         return matches
 
-    def find_topics_for_controller(self, controller_name, identifier):
+    def find_topics_for_controller(self, controller_name, identifier, component_names=[]):
+        
+        if not component_names:
+            self.node.get_logger().warning("No component names provided, returning empty list")
+            return []
+
         found_topics = []
         max_retries = 100
         retry_count = 0
@@ -98,29 +97,38 @@ class DuaticJTCHelper:
         # Construct the search pattern
         search_pattern = f"/{controller_name}*/{identifier}"
 
-        # Find all topics matching the controller name
-        while len(found_topics) < self.arms_count and retry_count < max_retries:
-            found_topics = self.get_topic_names_and_types_function(search_pattern)
+        # Find all topics matching the controller name and identifier
+        while retry_count < max_retries:
+            all_matched_topics = self.get_topic_names_and_types_function(search_pattern)
+            
+            # Filter topics to only include those with the component_names in their controller namespace
+            found_topics = [
+                (topic, types)
+                for topic, types in all_matched_topics
+                if any(f"_{component_name}/" in topic or f"_{component_name}" in topic.split("/")[1] for component_name in component_names)
+            ]
 
-            if len(found_topics) >= self.arms_count:
+            if len(found_topics) >= len(component_names):
                 break
 
             self.node.get_logger().info(
-                f"Found {len(found_topics)} topics, expecting {self.arms_count}. Retrying...",
+                f"Found {len(found_topics)} topics, expecting {len(component_names)}. Retrying...",
                 throttle_duration_sec=10,
             )
             rclpy.spin_once(self.node, timeout_sec=0.5)
             retry_count += 1
 
-        if len(found_topics) < self.arms_count:
+        if len(found_topics) < len(component_names):
             self.node.get_logger().error(
-                f"Expected {self.arms_count} controller topics, but found {len(found_topics)}"
+                f"Expected {len(component_names)} controller topics, but found {len(found_topics)}"
             )
             self.node.get_logger().error(
                 f"Available topics: {[topic for topic, _ in self.node.get_topic_names_and_types()]}"
             )
-            raise RuntimeError(
-                f"Expected {self.arms_count} controller topics, but found {len(found_topics)}"
+            self.node.get_logger().error(
+                f"Search pattern: {search_pattern}, Component names: {component_names}"
             )
+            # Return empty list instead of raising exception to prevent crash
+            return []
 
         return found_topics
