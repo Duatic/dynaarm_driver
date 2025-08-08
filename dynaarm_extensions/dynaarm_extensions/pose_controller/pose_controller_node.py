@@ -44,11 +44,13 @@ class PoseControllerNode(Node):
 
         self.latest_pose = None
 
-        if self.arm_name:            
+        if self.arm_name:    
             self.frame = f"{self.arm_name}/flange"
+            self.base_frame = "tbase"
             self.pin_helper = DuaticPinocchioHelper(self, robot_type="Alpha")
         else:
             self.frame = "flange"
+            self.base_frame = "world"
             self.pin_helper = DuaticPinocchioHelper(self)
 
         self.robot_helper = DuaticRobotsHelper(self)
@@ -107,7 +109,7 @@ class PoseControllerNode(Node):
 
         # Rest of the method remains the same...
         target_SE3 = self.pin_helper.convert_pose_stamped_to_se3(self.latest_pose)
-        error = self.pin_helper.get_pose_error(current_joint_values, target_SE3, self.frame)
+        error = self.pin_helper.get_pose_error(current_joint_values, target_SE3, self.frame, self.base_frame)
 
         if not self.is_move_safe(error):
             # Extract only the arm-specific joints from current state
@@ -116,7 +118,7 @@ class PoseControllerNode(Node):
             return
 
         # Convert all joint states to full configuration array
-        q, error = self.pin_helper.solve_ik(current_joint_values, target_SE3, self.frame)
+        q, error = self.pin_helper.solve_ik(current_joint_values, target_SE3, self.frame, self.base_frame)
 
         if np.linalg.norm(error) >= 0.01:
             self.get_logger().warn("Can't find any valid IK solution", throttle_duration_sec=2.0)

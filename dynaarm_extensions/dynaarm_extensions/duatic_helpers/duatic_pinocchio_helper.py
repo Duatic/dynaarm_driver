@@ -47,19 +47,38 @@ class DuaticPinocchioHelper:
         self.lower = self.model.lowerPositionLimit + joint_margins
         self.upper = self.model.upperPositionLimit - joint_margins
 
+
     def _convert_joint_values_to_array(self, current_joint_values):
         """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
+                
         if isinstance(current_joint_values, dict):
             # Create full joint configuration array from dictionary
             q = np.zeros(self.model.nq)
-            all_joint_names = [name for name in self.model.names[1:]]  # Skip universe joint
-
-            for i, joint_name in enumerate(all_joint_names):
+            
+            # Handle multi-DOF joints properly
+            joint_index = 0  # Track position in q array
+            
+            for model_joint_idx in range(1, len(self.model.joints)):  # Skip universe joint
+                joint = self.model.joints[model_joint_idx]
+                joint_name = self.model.names[model_joint_idx]
+                
                 if joint_name in current_joint_values:
-                    q[i] = current_joint_values[joint_name]
+                    if joint.nq == 1:
+                        # Single DOF joint (most common)
+                        q[joint_index] = current_joint_values[joint_name]
+                        self.node.get_logger().debug(f"Set q[{joint_index}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
+                    else:
+                        # Multi-DOF joint (rare, but handle it)
+                        self.node.get_logger().debug(f"Multi-DOF joint '{joint_name}' has {joint.nq} DOFs - using first value only")
+                        q[joint_index] = current_joint_values[joint_name]
                 else:
-                    # Use 0.0 for missing joints
-                    q[i] = 0.0
+                    # Missing joint - use 0.0
+                    if joint.nq == 1:
+                        q[joint_index] = 0.0
+                        self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{joint_index}] = 0.0")
+                
+                joint_index += joint.nq  # Advance by the number of DOFs this joint has
+                
         else:
             # Convert list/array to numpy array
             q = np.array(current_joint_values, dtype=np.float64)
@@ -69,11 +88,16 @@ class DuaticPinocchioHelper:
                 q_full = np.zeros(self.model.nq)
                 q_full[: len(q)] = q
                 q = q_full
+                
+            self.node.get_logger().debug(f"Converted array input: {q}")
 
+        self.node.get_logger().debug(f"Final q array shape: {q.shape}, values: {q}")
         return q
 
-    def get_fk(self, current_joint_values, frame):
+
+    def get_fk(self, current_joint_values, frame, target_frame=None):
         """Compute forward kinematics for the specified arm."""
+        
         # Convert input to proper numpy array
         q = self._convert_joint_values_to_array(current_joint_values)
 
@@ -81,18 +105,42 @@ class DuaticPinocchioHelper:
         pin.forwardKinematics(self.model, self.data, q)
         pin.updateFramePlacements(self.model, self.data)
 
+        # Get FK for the given frame
         frame_id = self.model.getFrameId(frame)
-        return self.data.oMf[frame_id]
+        pose = self.data.oMf[frame_id]  # Pose in model root frame
+        
+        # Debug: Log the target frame pose if it's tbase
+        if target_frame == "tbase":
+            try:
+                target_frame_id = self.model.getFrameId(target_frame)
+                target_pose = self.data.oMf[target_frame_id]                
+            except Exception as e:
+                self.node.get_logger().warn(f"Could not get tbase frame: {e}")
+        
+        # Transform to target frame if specified
+        if target_frame is not None:
+            try:
+                target_frame_id = self.model.getFrameId(target_frame)                
+                target_pose = self.data.oMf[target_frame_id]  # Target frame pose in model root
 
-    def get_fk_as_pose_stamped(self, current_joint_values, frame, offsets=[0.0, 0.0, 0.0]):
+                # Transform: ee_pose_in_target = target_pose.inverse() * ee_pose
+                ee_pose = target_pose.inverse() * pose
+                return ee_pose
+            except Exception as e:
+                self.node.get_logger().warn(f"Could not transform to frame '{target_frame}': {e}")
+                # Fall back to model root frame
 
-        current_pose = self.get_fk(current_joint_values, frame)
+        return pose
+
+    def get_fk_as_pose_stamped(self, current_joint_values, frame, target_frame=None):
+
+        current_pose = self.get_fk(current_joint_values, frame, target_frame)
 
         pose_stamped = PoseStamped()
-        pose_stamped.pose.position.x = current_pose.translation[0] - offsets[0]
-        pose_stamped.pose.position.y = current_pose.translation[1] - offsets[1]
-        pose_stamped.pose.position.z = current_pose.translation[2] - offsets[2]
-
+        pose_stamped.pose.position.x = current_pose.translation[0]
+        pose_stamped.pose.position.y = current_pose.translation[1]
+        pose_stamped.pose.position.z = current_pose.translation[2]
+        
         quat = pin.Quaternion(current_pose.rotation)
         pose_stamped.pose.orientation.x = quat.x
         pose_stamped.pose.orientation.y = quat.y
@@ -101,7 +149,7 @@ class DuaticPinocchioHelper:
 
         return pose_stamped
 
-    def solve_ik(self, current_joint_values, target_SE3, frame, iterations=100, threshold=0.0001):
+    def solve_ik(self, current_joint_values, target_SE3, frame, target_frame, iterations=100, threshold=0.0001):
         """Solve IK for the specified arm, but work with full joint configuration."""
         error = np.inf
 
@@ -116,7 +164,7 @@ class DuaticPinocchioHelper:
         for i in range(iterations):
 
             # Compute error using full configuration
-            error = self.get_pose_error(q, target_SE3, frame)
+            error = self.get_pose_error(q, target_SE3, frame, target_frame)
             if np.linalg.norm(error) < threshold:
                 break
 
@@ -133,19 +181,20 @@ class DuaticPinocchioHelper:
 
         return q, error
 
-    def get_pose_error(self, q, target_SE3, frame):
-        current_SE3 = self.get_fk(q, frame)
+    def get_pose_error(self, q, target_SE3, frame, target_frame=None):
+        """Compute pose error between current and target pose."""
+        current_SE3 = self.get_fk(q, frame, target_frame)
         error = pin.log(target_SE3.inverse() * current_SE3).vector
         # Scale rotation part (last 3 elements) to balance translation/rotation error
         rot_scale = 0.2  # Try 0.1–0.2 for typical arms
         error[3:] *= rot_scale
         return error
 
-    def convert_pose_stamped_to_se3(self, pose_stamped, offsets=[0.0, 0.0, 0.0]):
+    def convert_pose_stamped_to_se3(self, pose_stamped):
         """Convert a PoseStamped message to a Pinocchio SE3 object."""
         pos = pose_stamped.pose.position
         ori = pose_stamped.pose.orientation
-        translation = np.array([pos.x + offsets[0], pos.y + offsets[1], pos.z + offsets[2]])
+        translation = np.array([pos.x, pos.y, pos.z])
         quat = np.array([ori.w, ori.x, ori.y, ori.z])
         return pin.SE3(pin.Quaternion(*quat).matrix(), translation)
 
