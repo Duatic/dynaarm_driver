@@ -15,6 +15,13 @@
       Dynaarm collision avoidance controller.
     </description>
   </class>
+  <class name="dynaarm_controllers/CartesianPoseController"
+         type="dynaarm_controllers::CartesianPoseController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Dynaarm cartesian pose controller.
+    </description>
+  </class>
 
 
   <class name="dynaarm_controllers/StatusBroadcaster"

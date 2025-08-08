@@ -32,23 +32,25 @@ DynaarmMockHardwareInterface::on_init_derived(const hardware_interface::Hardware
 {
   // Read initial positions from hardware parameters
   std::vector<double> initial_positions;
-  
+
   if (info_.hardware_parameters.find("initial_positions") != info_.hardware_parameters.end()) {
     std::string initial_positions_str = info_.hardware_parameters.at("initial_positions");
-    
+
     // Remove brackets
-    initial_positions_str.erase(std::remove(initial_positions_str.begin(), initial_positions_str.end(), '['), initial_positions_str.end());
-    initial_positions_str.erase(std::remove(initial_positions_str.begin(), initial_positions_str.end(), ']'), initial_positions_str.end());
-    
+    initial_positions_str.erase(std::remove(initial_positions_str.begin(), initial_positions_str.end(), '['),
+                                initial_positions_str.end());
+    initial_positions_str.erase(std::remove(initial_positions_str.begin(), initial_positions_str.end(), ']'),
+                                initial_positions_str.end());
+
     // Split by comma and convert to doubles
     std::stringstream ss(initial_positions_str);
     std::string item;
-    
+
     while (std::getline(ss, item, ',')) {
       // Trim whitespace
       item.erase(0, item.find_first_not_of(" \t"));
       item.erase(item.find_last_not_of(" \t") + 1);
-      
+
       try {
         double value = std::stod(item);
         initial_positions.push_back(value);
@@ -57,16 +59,16 @@ DynaarmMockHardwareInterface::on_init_derived(const hardware_interface::Hardware
         initial_positions.push_back(0.0);
       }
     }
-    
+
     RCLCPP_INFO_STREAM(logger_, "Loaded " << initial_positions.size() << " initial positions from parameters");
   }
-  
+
   // Apply initial positions to joint states, motor states, and motor commands
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     const auto joint_name = info_.joints[i].name;
-    
-    double initial_pos = (i < initial_positions.size()) ? initial_positions[i] : 0.0;        
-    motor_command_vector_[i].position = initial_pos;    
+
+    double initial_pos = (i < initial_positions.size()) ? initial_positions[i] : 0.0;
+    motor_command_vector_[i].position = initial_pos;
   }
 
   RCLCPP_INFO_STREAM(logger_, "Successfully initialized dynaarm hardware interface for DynaarmMockHardwareInterface");

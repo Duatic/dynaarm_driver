@@ -52,6 +52,11 @@ generate_parameter_library(
   src/collision_avoidance_controller_parameters.yaml
 )
 
+generate_parameter_library(
+  cartesian_pose_controller_parameters
+  src/cartesian_pose_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_broadcaster.cpp
@@ -59,6 +64,7 @@ add_library(${PROJECT_NAME} SHARED
   src/dynaarm_pid_tuner.cpp
   src/freeze_controller.cpp
   src/collision_avoidance_controller.cpp
+  src/cartesian_pose_controller.cpp
 )
 
 target_include_directories(
@@ -74,6 +80,7 @@ target_link_libraries(${PROJECT_NAME}
   dynaarm_pid_tuner_parameters
   freeze_controller_parameters
   collision_avoidance_controller_parameters
+  cartesian_pose_controller_parameters
   pinocchio::pinocchio
 )
 
