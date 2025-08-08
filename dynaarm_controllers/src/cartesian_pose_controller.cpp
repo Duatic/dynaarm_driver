@@ -50,26 +50,31 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   pinocchio::Data::Matrix6x J(6, model.nv);
   J.setZero();
 
-  Eigen::Matrix<double, 6, 1> err;
-  Eigen::VectorXd v(model.nv);
-
-  bool success = false;
+  // Create a copy if the input data that we can work on
   Eigen::VectorXd q = q_in;
-  for (int i = 0;; ++i) {
+
+  for (std::size_t i = 0; i < IT_MAX; i++) {
+    std::cout << i << std::endl;
+
+    // Compute the forward kinematics with the current configuration and check if it is close enough to where we want
     pinocchio::forwardKinematics(model, data, q);
-    pinocchio::SE3 iMd = data.oMi[joint_id].actInv(target_pose);
+    const pinocchio::SE3 iMd = data.oMi[joint_id].actInv(target_pose);
     Eigen::Matrix<double, 6, 1> err = log6(iMd).toVector();
 
+    std::cout << err.norm() << std::endl;
     if (err.norm() < eps) {
-      success = true;
-      break;
+      q_out = q;
+      return true;
     }
-    if (i >= IT_MAX) {
-      success = false;
-      break;
-    }
+    std::cout << model.joints[joint_id].classname() << std::endl;
+    std::cout << model.joints[joint_id].shortname() << std::endl;
+    std::cout << "data:" << std::endl;
+    std::cout << data.joints[joint_id].classname() << std::endl;
+    std::cout << data.joints[joint_id].shortname() << std::endl;
 
+    std::cout << "jacob" << std::endl;
     pinocchio::computeJointJacobian(model, data, q, joint_id, J);
+    std::cout << "jacob done" << std::endl;
     pinocchio::Data::Matrix6 Jlog;
     pinocchio::Jlog6(iMd.inverse(), Jlog);
     J = -Jlog * J;
@@ -77,16 +82,18 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
     JJt.noalias() = J * J.transpose();
     JJt.diagonal().array() += damp;
 
+    Eigen::VectorXd v(model.nv);
     v.noalias() = -J.transpose() * JJt.ldlt().solve(err);
-
+    std::cout << "integrate" << std::endl;
     q = pinocchio::integrate(model, q, v * DT);
 
     if (!(i % 10))
       std::cout << i << ": error = " << err.transpose() << std::endl;
   }
 
-  q_out = q;
-  return success;
+  // We where not successfull - set the output to the original input. Which avoid accidential motions
+  q_out = q_in;
+  return false;
 }
 
 pinocchio::SE3 rosPoseToSE3(const geometry_msgs::msg::Pose& pose)
@@ -300,11 +307,13 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   pinocchio::FrameIndex frame_id = pinocchio_model_.getFrameId(params_.end_effector_frame);
   std::cout << "frame id: " << frame_id << std::endl;
   const pinocchio::JointIndex joint_id = pinocchio_model_.frames[frame_id].parent;
-  std::cout << "joint id: " << joint_id << std::endl;
+  std::cout << "joint id: " << joint_id << "  " << pinocchio_model_.njoints << std::endl;
   const auto target_pose = rosPoseToSE3(buffer_pose_cmd_.readFromRT()->pose);
+  std::cout << "Target pose: " << target_pose << std::endl;
 
   Eigen::VectorXd q_out = Eigen::VectorXd::Zero(pinocchio_model_.nq);
-  RCLCPP_INFO_STREAM(get_node()->get_logger(), "start ik");
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "start ik with current pose: " << q);
+  pinocchio_data_ = pinocchio::Data(pinocchio_model_);
   if (!computeIK(pinocchio_model_, pinocchio_data_, target_pose, q, frame_id, q_out)) {
     RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Failed to compute IK");
   }
