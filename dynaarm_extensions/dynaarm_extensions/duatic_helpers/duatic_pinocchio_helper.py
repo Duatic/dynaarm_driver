@@ -47,62 +47,14 @@ class DuaticPinocchioHelper:
         self.lower = self.model.lowerPositionLimit + joint_margins
         self.upper = self.model.upperPositionLimit - joint_margins
 
-
-    def _convert_joint_values_to_array(self, current_joint_values):
-        """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
-                
-        if isinstance(current_joint_values, dict):
-            # Create full joint configuration array from dictionary
-            q = np.zeros(self.model.nq)
-            
-            # Handle multi-DOF joints properly
-            joint_index = 0  # Track position in q array
-            
-            for model_joint_idx in range(1, len(self.model.joints)):  # Skip universe joint
-                joint = self.model.joints[model_joint_idx]
-                joint_name = self.model.names[model_joint_idx]
-                
-                if joint_name in current_joint_values:
-                    if joint.nq == 1:
-                        # Single DOF joint (most common)
-                        q[joint_index] = current_joint_values[joint_name]
-                        self.node.get_logger().debug(f"Set q[{joint_index}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
-                    else:
-                        # Multi-DOF joint (rare, but handle it)
-                        self.node.get_logger().debug(f"Multi-DOF joint '{joint_name}' has {joint.nq} DOFs - using first value only")
-                        q[joint_index] = current_joint_values[joint_name]
-                else:
-                    # Missing joint - use 0.0
-                    if joint.nq == 1:
-                        q[joint_index] = 0.0
-                        self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{joint_index}] = 0.0")
-                
-                joint_index += joint.nq  # Advance by the number of DOFs this joint has
-                
-        else:
-            # Convert list/array to numpy array
-            q = np.array(current_joint_values, dtype=np.float64)
-
-            # If we don't have enough joints, pad with zeros
-            if len(q) < self.model.nq:
-                q_full = np.zeros(self.model.nq)
-                q_full[: len(q)] = q
-                q = q_full
-                
-            self.node.get_logger().debug(f"Converted array input: {q}")
-
-        self.node.get_logger().debug(f"Final q array shape: {q.shape}, values: {q}")
-        return q
-
-
     def get_fk(self, current_joint_values, frame, target_frame=None):
         """Compute forward kinematics for the specified arm."""
         
         # Convert input to proper numpy array
         q = self._convert_joint_values_to_array(current_joint_values)
 
-        # Compute FK
-        pin.forwardKinematics(self.model, self.data, q)
+        # Compute FK using only the model DOFs
+        pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
         pin.updateFramePlacements(self.model, self.data)
 
         # Get FK for the given frame
@@ -149,19 +101,29 @@ class DuaticPinocchioHelper:
 
         return pose_stamped
 
-    def solve_ik(self, current_joint_values, target_SE3, frame, target_frame, iterations=100, threshold=0.0001):
+    def solve_ik(self, current_joint_values, target_SE3, frame, target_frame, iterations=100, threshold=0.01):
         """Solve IK for the specified arm, but work with full joint configuration."""
         error = np.inf
 
         # Convert input to proper numpy array (always full configuration)
         q = self._convert_joint_values_to_array(current_joint_values)
-
-        joint_weights = np.ones_like(q)
-        W = np.diag(joint_weights)
-
+        
         frame_id = self.model.getFrameId(frame)
 
+        # Get the actual DOF count from a test Jacobian computation
+        pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
+        pin.updateFramePlacements(self.model, self.data)
+        J_test = pin.computeFrameJacobian(self.model, self.data, q[:self.model.nq], frame_id, pin.LOCAL)
+        actual_dof = J_test.shape[1]
+        
+        # Create weight matrix with correct dimensions (actual DOF, not model.nq)
+        joint_weights = np.ones(actual_dof)
+        W = np.diag(joint_weights)
+        
         for i in range(iterations):
+            # Update model data with current joint configuration
+            pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
+            pin.updateFramePlacements(self.model, self.data)
 
             # Compute error using full configuration
             error = self.get_pose_error(q, target_SE3, frame, target_frame)
@@ -169,15 +131,18 @@ class DuaticPinocchioHelper:
                 break
 
             # Compute Jacobian for full model
-            J = pin.computeFrameJacobian(self.model, self.data, q, frame_id, pin.LOCAL)
-
-            # Extract Jacobian columns for arm joints only
+            J = pin.computeFrameJacobian(self.model, self.data, q[:self.model.nq], frame_id, pin.LOCAL)
+            
+            # Now J has shape (6, actual_dof) and W has shape (actual_dof, actual_dof)
             J_w = J @ W
             dq = -0.1 * W @ np.linalg.pinv(J_w) @ error
 
-            q += dq
-            # Use only the arm-specific limits for clipping
-            q = np.clip(q, self.lower, self.upper)
+            # Apply the change only to the actual DOFs
+            q[:actual_dof] += dq
+            
+            # Use only the model limits for clipping (but only for actual DOFs)
+            if len(self.lower) >= actual_dof and len(self.upper) >= actual_dof:
+                q[:actual_dof] = np.clip(q[:actual_dof], self.lower[:actual_dof], self.upper[:actual_dof])
 
         return q, error
 
@@ -211,22 +176,12 @@ class DuaticPinocchioHelper:
             urdf_file_path = self.get_dynaarm_urdf()
 
         # Load model with Pinocchio and clean it up
-        full_model = pin.buildModelFromUrdf(urdf_file_path)
-        
-        # Option 1: Build reduced model with only actuated joints
-        self.model = self._build_reduced_model(full_model)
-        
-        # Option 2: Alternative - use geometry model to filter
-        # geometry_model = pin.buildGeomFromUrdf(full_model, urdf_file_path, pin.GeometryType.COLLISION)
-        # self.model = self._filter_model_by_controllable_joints(full_model)
-        
+        self.model = pin.buildModelFromUrdf(urdf_file_path)        
+                
         self.node.get_logger().info(
             f"Pinocchio model loaded with {self.model.nq} DOF, {len(self.model.joints)} joints and {len(self.model.frames)} frames."
         )
-        
-        # Debug: Print all joint info
-        self._debug_print_joint_info()
-        
+                
         return self.model
 
     def _write_urdf_to_temp_file(self, urdf_xml):
@@ -304,109 +259,48 @@ class DuaticPinocchioHelper:
         """Get all joint names from the model (excluding universe joint)."""
         return [name for name in self.model.names[1:]]
 
-    def _build_reduced_model(self, full_model):
-        """Build a reduced model containing only actuated/controllable joints."""
-        
-        # Define which joints you actually want to control (customize this)
-        # You can filter by name patterns, joint types, or other criteria
-        controllable_joint_names = []
-        
-        for i in range(1, len(full_model.names)):  # Skip universe joint
-            joint_name = full_model.names[i]
-            joint = full_model.joints[i]
-            
-            # Filter criteria - customize based on your robot
-            if (joint.nq > 0 and  # Has DOF
-                not joint_name.startswith("fixed_") and  # Not a fixed joint
-                not joint_name.endswith("_fixed") and
-                "joint" in joint_name.lower()):  # Contains "joint" in name
-                controllable_joint_names.append(joint_name)
-        
-        self.node.get_logger().info(f"Found controllable joints: {controllable_joint_names}")
-        
-        # Build reduced model
-        reduced_model = pin.buildReducedModel(
-            full_model, 
-            list(range(len(controllable_joint_names))),  # Joint indices to keep
-            pin.neutral(full_model)  # Reference configuration
-        )
-        
-        return reduced_model
-
-    def _filter_model_by_controllable_joints(self, full_model):
-        """Alternative approach: Filter joints by specific criteria."""
-        
-        # Create a mapping of joints you want to keep
-        joints_to_keep = []
-        
-        for i in range(1, len(full_model.names)):  # Skip universe joint
-            joint_name = full_model.names[i]
-            joint = full_model.joints[i]
-            
-            # Customize these filters for your specific robot
-            if (joint.nq == 1 and  # Single DOF
-                ("arm" in joint_name.lower() or 
-                "shoulder" in joint_name.lower() or
-                "elbow" in joint_name.lower() or
-                "wrist" in joint_name.lower())):
-                joints_to_keep.append(i)
-        
-        if joints_to_keep:
-            # Build model with only selected joints
-            q_ref = pin.neutral(full_model)
-            reduced_model = pin.buildReducedModel(full_model, joints_to_keep, q_ref)
-            return reduced_model
-        else:
-            self.node.get_logger().warn("No controllable joints found, using full model")
-            return full_model
-
-    def _debug_print_joint_info(self):
-        """Print detailed information about all joints for debugging."""
-        self.node.get_logger().info("=== Joint Information ===")
-        
-        for i in range(len(self.model.joints)):
-            joint = self.model.joints[i]
-            joint_name = self.model.names[i] if i < len(self.model.names) else f"joint_{i}"
-            
-            self.node.get_logger().info(
-                f"Joint {i}: {joint_name}, Type: {joint.__class__.__name__}, "
-                f"nq: {joint.nq}, nv: {joint.nv}"
-            )
-        
-        self.node.get_logger().info(f"Total model nq: {self.model.nq}, nv: {self.model.nv}")
-        
-        # Also print frame information
-        self.node.get_logger().info("=== Frame Information ===")
-        for i in range(len(self.model.frames)):
-            frame = self.model.frames[i]
-            self.node.get_logger().info(f"Frame {i}: {frame.name}, Parent: {frame.parent}")
-
     def _convert_joint_values_to_array(self, current_joint_values):
-        """Simplified conversion for cleaned model."""
-        
+        """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
+                
         if isinstance(current_joint_values, dict):
-            # Create array based on model joint order
+            # Create full joint configuration array from dictionary
             q = np.zeros(self.model.nq)
             
-            for i in range(1, len(self.model.names)):  # Skip universe joint
-                joint_name = self.model.names[i]
+            # Handle multi-DOF joints properly
+            joint_index = 0  # Track position in q array
+            
+            for model_joint_idx in range(1, len(self.model.joints)):  # Skip universe joint
+                joint = self.model.joints[model_joint_idx]
+                joint_name = self.model.names[model_joint_idx]
+                
                 if joint_name in current_joint_values:
-                    # Since we cleaned the model, joint index should match array index
-                    q[i-1] = current_joint_values[joint_name]  # -1 because we skip universe joint
-                    self.node.get_logger().debug(f"Set q[{i-1}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
+                    if joint.nq == 1:
+                        # Single DOF joint (most common)
+                        q[joint_index] = current_joint_values[joint_name]
+                        self.node.get_logger().debug(f"Set q[{joint_index}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
+                    else:
+                        # Multi-DOF joint (rare, but handle it)
+                        self.node.get_logger().debug(f"Multi-DOF joint '{joint_name}' has {joint.nq} DOFs - using first value only")
+                        q[joint_index] = current_joint_values[joint_name]
                 else:
-                    q[i-1] = 0.0
-                    self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{i-1}] = 0.0")
+                    # Missing joint - use 0.0
+                    if joint.nq == 1:
+                        q[joint_index] = 0.0
+                        self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{joint_index}] = 0.0")
+                
+                joint_index += joint.nq  # Advance by the number of DOFs this joint has
                     
         else:
             # Convert list/array to numpy array
             q = np.array(current_joint_values, dtype=np.float64)
-            
-            # Pad with zeros if needed
+
+            # If we don't have enough joints, pad with zeros
             if len(q) < self.model.nq:
                 q_full = np.zeros(self.model.nq)
-                q_full[:len(q)] = q
+                q_full[: len(q)] = q
                 q = q_full
-        
+                
+            self.node.get_logger().debug(f"Converted array input: {q}")
+
         self.node.get_logger().debug(f"Final q array shape: {q.shape}, values: {q}")
-        return q
+        return q    

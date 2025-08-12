@@ -54,6 +54,7 @@ class PoseControllerNode(Node):
             self.pin_helper = DuaticPinocchioHelper(self)
 
         self.robot_helper = DuaticRobotsHelper(self)
+        self.dt = self.robot_helper.get_dt()
         self.active = False
 
         # Subscriptions
@@ -79,9 +80,8 @@ class PoseControllerNode(Node):
         )
 
         # Start periodic control loop
-        self.max_distance = 0.2
-        self.dt = 0.005
-        self.max_joint_speed = 5.0  # rad/s
+        self.max_distance = 0.2        
+        self.max_joint_speed = 2.0  # rad/s
         self.control_timer = self.create_timer(self.dt, self.control_loop)
 
     def handle_activate_service(self, request, response):
