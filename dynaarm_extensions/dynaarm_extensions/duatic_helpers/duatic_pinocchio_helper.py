@@ -49,30 +49,29 @@ class DuaticPinocchioHelper:
 
     def get_fk(self, current_joint_values, frame, target_frame=None):
         """Compute forward kinematics for the specified arm."""
-        
         # Convert input to proper numpy array
         q = self._convert_joint_values_to_array(current_joint_values)
 
         # Compute FK using only the model DOFs
-        pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
+        pin.forwardKinematics(self.model, self.data, q[: self.model.nq])
         pin.updateFramePlacements(self.model, self.data)
 
         # Get FK for the given frame
         frame_id = self.model.getFrameId(frame)
         pose = self.data.oMf[frame_id]  # Pose in model root frame
-        
+
         # Debug: Log the target frame pose if it's tbase
         if target_frame == "tbase":
             try:
                 target_frame_id = self.model.getFrameId(target_frame)
-                target_pose = self.data.oMf[target_frame_id]                
+                target_pose = self.data.oMf[target_frame_id]
             except Exception as e:
                 self.node.get_logger().warn(f"Could not get tbase frame: {e}")
-        
+
         # Transform to target frame if specified
         if target_frame is not None:
             try:
-                target_frame_id = self.model.getFrameId(target_frame)                
+                target_frame_id = self.model.getFrameId(target_frame)
                 target_pose = self.data.oMf[target_frame_id]  # Target frame pose in model root
 
                 # Transform: ee_pose_in_target = target_pose.inverse() * ee_pose
@@ -92,7 +91,7 @@ class DuaticPinocchioHelper:
         pose_stamped.pose.position.x = current_pose.translation[0]
         pose_stamped.pose.position.y = current_pose.translation[1]
         pose_stamped.pose.position.z = current_pose.translation[2]
-        
+
         quat = pin.Quaternion(current_pose.rotation)
         pose_stamped.pose.orientation.x = quat.x
         pose_stamped.pose.orientation.y = quat.y
@@ -101,28 +100,32 @@ class DuaticPinocchioHelper:
 
         return pose_stamped
 
-    def solve_ik(self, current_joint_values, target_SE3, frame, target_frame, iterations=100, threshold=0.01):
+    def solve_ik(
+        self, current_joint_values, target_SE3, frame, target_frame, iterations=100, threshold=0.01
+    ):
         """Solve IK for the specified arm, but work with full joint configuration."""
         error = np.inf
 
         # Convert input to proper numpy array (always full configuration)
         q = self._convert_joint_values_to_array(current_joint_values)
-        
+
         frame_id = self.model.getFrameId(frame)
 
         # Get the actual DOF count from a test Jacobian computation
-        pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
+        pin.forwardKinematics(self.model, self.data, q[: self.model.nq])
         pin.updateFramePlacements(self.model, self.data)
-        J_test = pin.computeFrameJacobian(self.model, self.data, q[:self.model.nq], frame_id, pin.LOCAL)
+        J_test = pin.computeFrameJacobian(
+            self.model, self.data, q[: self.model.nq], frame_id, pin.LOCAL
+        )
         actual_dof = J_test.shape[1]
-        
+
         # Create weight matrix with correct dimensions (actual DOF, not model.nq)
         joint_weights = np.ones(actual_dof)
         W = np.diag(joint_weights)
-        
+
         for i in range(iterations):
             # Update model data with current joint configuration
-            pin.forwardKinematics(self.model, self.data, q[:self.model.nq])
+            pin.forwardKinematics(self.model, self.data, q[: self.model.nq])
             pin.updateFramePlacements(self.model, self.data)
 
             # Compute error using full configuration
@@ -131,18 +134,22 @@ class DuaticPinocchioHelper:
                 break
 
             # Compute Jacobian for full model
-            J = pin.computeFrameJacobian(self.model, self.data, q[:self.model.nq], frame_id, pin.LOCAL)
-            
+            J = pin.computeFrameJacobian(
+                self.model, self.data, q[: self.model.nq], frame_id, pin.LOCAL
+            )
+
             # Now J has shape (6, actual_dof) and W has shape (actual_dof, actual_dof)
             J_w = J @ W
             dq = -0.1 * W @ np.linalg.pinv(J_w) @ error
 
             # Apply the change only to the actual DOFs
             q[:actual_dof] += dq
-            
+
             # Use only the model limits for clipping (but only for actual DOFs)
             if len(self.lower) >= actual_dof and len(self.upper) >= actual_dof:
-                q[:actual_dof] = np.clip(q[:actual_dof], self.lower[:actual_dof], self.upper[:actual_dof])
+                q[:actual_dof] = np.clip(
+                    q[:actual_dof], self.lower[:actual_dof], self.upper[:actual_dof]
+                )
 
         return q, error
 
@@ -176,12 +183,12 @@ class DuaticPinocchioHelper:
             urdf_file_path = self.get_dynaarm_urdf()
 
         # Load model with Pinocchio and clean it up
-        self.model = pin.buildModelFromUrdf(urdf_file_path)        
-                
+        self.model = pin.buildModelFromUrdf(urdf_file_path)
+
         self.node.get_logger().info(
             f"Pinocchio model loaded with {self.model.nq} DOF, {len(self.model.joints)} joints and {len(self.model.frames)} frames."
         )
-                
+
         return self.model
 
     def _write_urdf_to_temp_file(self, urdf_xml):
@@ -261,35 +268,40 @@ class DuaticPinocchioHelper:
 
     def _convert_joint_values_to_array(self, current_joint_values):
         """Convert joint values (dict or array) to a proper numpy array for Pinocchio."""
-                
         if isinstance(current_joint_values, dict):
             # Create full joint configuration array from dictionary
             q = np.zeros(self.model.nq)
-            
+
             # Handle multi-DOF joints properly
             joint_index = 0  # Track position in q array
-            
+
             for model_joint_idx in range(1, len(self.model.joints)):  # Skip universe joint
                 joint = self.model.joints[model_joint_idx]
                 joint_name = self.model.names[model_joint_idx]
-                
+
                 if joint_name in current_joint_values:
                     if joint.nq == 1:
                         # Single DOF joint (most common)
                         q[joint_index] = current_joint_values[joint_name]
-                        self.node.get_logger().debug(f"Set q[{joint_index}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
+                        self.node.get_logger().debug(
+                            f"Set q[{joint_index}] = {current_joint_values[joint_name]} for joint '{joint_name}'"
+                        )
                     else:
                         # Multi-DOF joint (rare, but handle it)
-                        self.node.get_logger().debug(f"Multi-DOF joint '{joint_name}' has {joint.nq} DOFs - using first value only")
+                        self.node.get_logger().debug(
+                            f"Multi-DOF joint '{joint_name}' has {joint.nq} DOFs - using first value only"
+                        )
                         q[joint_index] = current_joint_values[joint_name]
                 else:
                     # Missing joint - use 0.0
                     if joint.nq == 1:
                         q[joint_index] = 0.0
-                        self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{joint_index}] = 0.0")
-                
+                        self.node.get_logger().debug(
+                            f"Missing joint '{joint_name}', set q[{joint_index}] = 0.0"
+                        )
+
                 joint_index += joint.nq  # Advance by the number of DOFs this joint has
-                    
+
         else:
             # Convert list/array to numpy array
             q = np.array(current_joint_values, dtype=np.float64)
@@ -299,8 +311,8 @@ class DuaticPinocchioHelper:
                 q_full = np.zeros(self.model.nq)
                 q_full[: len(q)] = q
                 q = q_full
-                
+
             self.node.get_logger().debug(f"Converted array input: {q}")
 
         self.node.get_logger().debug(f"Final q array shape: {q.shape}, values: {q}")
-        return q    
+        return q

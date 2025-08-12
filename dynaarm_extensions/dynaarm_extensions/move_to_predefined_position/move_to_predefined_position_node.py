@@ -101,9 +101,11 @@ class MoveToPredefinedPositionNode(Node):
 
         duatic_jtc_helper = DuaticJTCHelper(self)
         self.arms = self.duatic_robots_helper.get_component_names("arm")
-        found_topics = duatic_jtc_helper.find_topics_for_controller("joint_trajectory_controller", "joint_trajectory", self.arms)      
+        found_topics = duatic_jtc_helper.find_topics_for_controller(
+            "joint_trajectory_controller", "joint_trajectory", self.arms
+        )
 
-        response = duatic_jtc_helper.process_topics_and_extract_joint_names(found_topics)        
+        response = duatic_jtc_helper.process_topics_and_extract_joint_names(found_topics)
         self.topic_to_joint_names = response[0]
         self.topic_to_commanded_positions = response[1]
 
@@ -161,7 +163,7 @@ class MoveToPredefinedPositionNode(Node):
             action_key = (self.robot_configuration, "home" if self.home else "sleep")
             handler = self.movement_handlers.get(action_key)
             if handler:
-                handler()                
+                handler()
         else:
             if (
                 self.controller_active
@@ -210,14 +212,16 @@ class MoveToPredefinedPositionNode(Node):
         """Generic sleep movement logic with 3-phase state machine."""
         arm_index = 0
 
-        for topic, joint_names in self.topic_to_joint_names.items():            
+        for topic, joint_names in self.topic_to_joint_names.items():
             # Initialize state for this topic/arm if not exists
             if topic not in self.moving_states:
                 self.moving_states[topic] = "none"
                 self.get_logger().debug(f"Arm {arm_index}: Initialized state to 'none'")
 
             all_joint_states = self.duatic_robots_helper.get_joint_states()
-            current_joint_values = [all_joint_states.get(joint_name, 0.0) for joint_name in joint_names]
+            current_joint_values = [
+                all_joint_states.get(joint_name, 0.0) for joint_name in joint_names
+            ]
 
             # Determine target position based on mirroring
             if use_mirroring and arm_index == 1:  # Second arm gets mirrored positions

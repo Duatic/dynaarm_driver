@@ -85,7 +85,7 @@ class DuaticJTCHelper:
         return matches
 
     def find_topics_for_controller(self, controller_name, identifier, component_names=[]):
-        
+
         if not component_names:
             self.node.get_logger().warning("No component names provided, returning empty list")
             return []
@@ -100,12 +100,15 @@ class DuaticJTCHelper:
         # Find all topics matching the controller name and identifier
         while retry_count < max_retries:
             all_matched_topics = self.get_topic_names_and_types_function(search_pattern)
-            
+
             # Filter topics to only include those with the component_names in their controller namespace
             found_topics = [
                 (topic, types)
                 for topic, types in all_matched_topics
-                if any(f"_{component_name}/" in topic or f"_{component_name}" in topic.split("/")[1] for component_name in component_names)
+                if any(
+                    f"_{component_name}/" in topic or f"_{component_name}" in topic.split("/")[1]
+                    for component_name in component_names
+                )
             ]
 
             if len(found_topics) >= len(component_names):
