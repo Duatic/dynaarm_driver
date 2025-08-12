@@ -199,7 +199,6 @@ class DuaticPinocchioHelper:
         return pin.SE3(pin.Quaternion(*quat).matrix(), translation)
 
     def get_pin_model_data(self):
-
         # Try to get URDF from parameter server first (preferred)
         urdf_xml = self.get_robot_urdf_from_param()
 
@@ -211,11 +210,23 @@ class DuaticPinocchioHelper:
             self.node.get_logger().warn("URDF not found on parameter server, using fallback URDF")
             urdf_file_path = self.get_dynaarm_urdf()
 
-        # Load model with Pinocchio
-        self.model = pin.buildModelFromUrdf(urdf_file_path)
+        # Load model with Pinocchio and clean it up
+        full_model = pin.buildModelFromUrdf(urdf_file_path)
+        
+        # Option 1: Build reduced model with only actuated joints
+        self.model = self._build_reduced_model(full_model)
+        
+        # Option 2: Alternative - use geometry model to filter
+        # geometry_model = pin.buildGeomFromUrdf(full_model, urdf_file_path, pin.GeometryType.COLLISION)
+        # self.model = self._filter_model_by_controllable_joints(full_model)
+        
         self.node.get_logger().info(
-            f"Pinocchio model loaded with {len(self.model.joints)} joints and {len(self.model.frames)} frames."
+            f"Pinocchio model loaded with {self.model.nq} DOF, {len(self.model.joints)} joints and {len(self.model.frames)} frames."
         )
+        
+        # Debug: Print all joint info
+        self._debug_print_joint_info()
+        
         return self.model
 
     def _write_urdf_to_temp_file(self, urdf_xml):
@@ -292,3 +303,110 @@ class DuaticPinocchioHelper:
     def get_all_joint_names(self):
         """Get all joint names from the model (excluding universe joint)."""
         return [name for name in self.model.names[1:]]
+
+    def _build_reduced_model(self, full_model):
+        """Build a reduced model containing only actuated/controllable joints."""
+        
+        # Define which joints you actually want to control (customize this)
+        # You can filter by name patterns, joint types, or other criteria
+        controllable_joint_names = []
+        
+        for i in range(1, len(full_model.names)):  # Skip universe joint
+            joint_name = full_model.names[i]
+            joint = full_model.joints[i]
+            
+            # Filter criteria - customize based on your robot
+            if (joint.nq > 0 and  # Has DOF
+                not joint_name.startswith("fixed_") and  # Not a fixed joint
+                not joint_name.endswith("_fixed") and
+                "joint" in joint_name.lower()):  # Contains "joint" in name
+                controllable_joint_names.append(joint_name)
+        
+        self.node.get_logger().info(f"Found controllable joints: {controllable_joint_names}")
+        
+        # Build reduced model
+        reduced_model = pin.buildReducedModel(
+            full_model, 
+            list(range(len(controllable_joint_names))),  # Joint indices to keep
+            pin.neutral(full_model)  # Reference configuration
+        )
+        
+        return reduced_model
+
+    def _filter_model_by_controllable_joints(self, full_model):
+        """Alternative approach: Filter joints by specific criteria."""
+        
+        # Create a mapping of joints you want to keep
+        joints_to_keep = []
+        
+        for i in range(1, len(full_model.names)):  # Skip universe joint
+            joint_name = full_model.names[i]
+            joint = full_model.joints[i]
+            
+            # Customize these filters for your specific robot
+            if (joint.nq == 1 and  # Single DOF
+                ("arm" in joint_name.lower() or 
+                "shoulder" in joint_name.lower() or
+                "elbow" in joint_name.lower() or
+                "wrist" in joint_name.lower())):
+                joints_to_keep.append(i)
+        
+        if joints_to_keep:
+            # Build model with only selected joints
+            q_ref = pin.neutral(full_model)
+            reduced_model = pin.buildReducedModel(full_model, joints_to_keep, q_ref)
+            return reduced_model
+        else:
+            self.node.get_logger().warn("No controllable joints found, using full model")
+            return full_model
+
+    def _debug_print_joint_info(self):
+        """Print detailed information about all joints for debugging."""
+        self.node.get_logger().info("=== Joint Information ===")
+        
+        for i in range(len(self.model.joints)):
+            joint = self.model.joints[i]
+            joint_name = self.model.names[i] if i < len(self.model.names) else f"joint_{i}"
+            
+            self.node.get_logger().info(
+                f"Joint {i}: {joint_name}, Type: {joint.__class__.__name__}, "
+                f"nq: {joint.nq}, nv: {joint.nv}"
+            )
+        
+        self.node.get_logger().info(f"Total model nq: {self.model.nq}, nv: {self.model.nv}")
+        
+        # Also print frame information
+        self.node.get_logger().info("=== Frame Information ===")
+        for i in range(len(self.model.frames)):
+            frame = self.model.frames[i]
+            self.node.get_logger().info(f"Frame {i}: {frame.name}, Parent: {frame.parent}")
+
+    def _convert_joint_values_to_array(self, current_joint_values):
+        """Simplified conversion for cleaned model."""
+        
+        if isinstance(current_joint_values, dict):
+            # Create array based on model joint order
+            q = np.zeros(self.model.nq)
+            
+            for i in range(1, len(self.model.names)):  # Skip universe joint
+                joint_name = self.model.names[i]
+                if joint_name in current_joint_values:
+                    # Since we cleaned the model, joint index should match array index
+                    q[i-1] = current_joint_values[joint_name]  # -1 because we skip universe joint
+                    self.node.get_logger().debug(f"Set q[{i-1}] = {current_joint_values[joint_name]} for joint '{joint_name}'")
+                else:
+                    q[i-1] = 0.0
+                    self.node.get_logger().debug(f"Missing joint '{joint_name}', set q[{i-1}] = 0.0")
+                    
+        else:
+            # Convert list/array to numpy array
+            q = np.array(current_joint_values, dtype=np.float64)
+            
+            # Pad with zeros if needed
+            if len(q) < self.model.nq:
+                q_full = np.zeros(self.model.nq)
+                q_full[:len(q)] = q
+                q = q_full
+        
+        self.node.get_logger().debug(f"Final q array shape: {q.shape}, values: {q}")
+        return q
