@@ -123,7 +123,7 @@ class MoveToPredefinedPositionNode(Node):
             self.joint_trajectory_publishers[topic] = self.create_publisher(
                 JointTrajectory, topic, 10
             )
-            self.get_logger().info(f"Created publisher for topic: {topic}")
+            self.get_logger().debug(f"Created publisher for topic: {topic}")
 
         self.create_timer(self.dt, self.control_loop)
 
@@ -214,7 +214,7 @@ class MoveToPredefinedPositionNode(Node):
             # Initialize state for this topic/arm if not exists
             if topic not in self.moving_states:
                 self.moving_states[topic] = "none"
-                self.get_logger().info(f"Arm {arm_index}: Initialized state to 'none'")
+                self.get_logger().debug(f"Arm {arm_index}: Initialized state to 'none'")
 
             all_joint_states = self.duatic_robots_helper.get_joint_states()
             current_joint_values = [all_joint_states.get(joint_name, 0.0) for joint_name in joint_names]
@@ -249,7 +249,7 @@ class MoveToPredefinedPositionNode(Node):
             current_state = self.moving_states[topic]
             commanded_positions = current_joint_values.copy()
 
-            self.get_logger().info(
+            self.get_logger().debug(
                 f"Arm {arm_index}: State={current_state}, at_home={at_home_flexion},  at_sleep={at_sleep_flexion}, at_home_rotation={at_home_rotation}, at_sleep_rotation={at_sleep_rotation}"
             )
 
