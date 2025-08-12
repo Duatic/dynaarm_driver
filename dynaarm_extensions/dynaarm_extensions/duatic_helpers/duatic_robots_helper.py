@@ -142,7 +142,7 @@ class DuaticRobotsHelper:
             return 'robot_0', 'head_0', 'head'
         
         # Default: treat as miscellaneous component
-        return 'robot_0'
+        return 'robot_0', '', 'arm'
 
     def get_component_count(self, component_type='arm'):
         """Get the number of components detected."""
