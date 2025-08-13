@@ -34,7 +34,7 @@ class DuaticControllerHelper:
             "freedrive_controller",
             "joint_trajectory_controller",
             "dynaarm_pose_controller",
-            "mecanum_drive_controller"
+            "mecanum_drive_controller",
         ]
 
         self.active_low_level_controllers = []
@@ -42,10 +42,10 @@ class DuaticControllerHelper:
 
         # Keep track of all controllers we've ever seen
         self._all_known_controllers = set()
-        
+
         # Only store controllers that are actually found
-        self._found_controllers_by_base = {}       
-        
+        self._found_controllers_by_base = {}
+
         self._run_once = False
 
         self.controller_client = self.node.create_client(
@@ -158,29 +158,29 @@ class DuaticControllerHelper:
 
                     # Get current controllers from response
                     current_controllers = {ctrl.name: ctrl.state for ctrl in response.controller}
-                    
+
                     # Clear active controllers
                     self.active_low_level_controllers.clear()
-                    
+
                     # Rebuild found_controllers_by_base with only currently existing controllers
                     new_found_controllers = {}
-                    
+
                     # Check each controller in the whitelist
                     for base in self.controller_whitelist:
                         controllers_for_base = []
-                        
+
                         # Find all controllers that match this base
                         for controller_name, state in current_controllers.items():
                             if controller_name.startswith(base):
                                 controllers_for_base.append({controller_name: state})
-                                
+
                                 # Track all known controllers
                                 self._all_known_controllers.add(controller_name)
-                                
+
                                 # Add to active list if active
                                 if state == "active":
                                     self.active_low_level_controllers.append(controller_name)
-                        
+
                         # Only add to found_controllers if we actually found controllers for this base
                         if controllers_for_base:
                             new_found_controllers[base] = controllers_for_base
@@ -195,16 +195,22 @@ class DuaticControllerHelper:
                             if state == "active":
                                 freeze_active = True
                             break
-                    
+
                     self._is_freeze_active = freeze_active
 
                     # Log controller changes (optional)
                     if self._run_once:
                         available_bases = list(self._found_controllers_by_base.keys())
-                        missing_bases = [base for base in self.controller_whitelist if base not in available_bases]
-                        
+                        missing_bases = [
+                            base
+                            for base in self.controller_whitelist
+                            if base not in available_bases
+                        ]
+
                         if missing_bases:
-                            self.node.get_logger().debug(f"Controller bases not found: {missing_bases}")
+                            self.node.get_logger().debug(
+                                f"Controller bases not found: {missing_bases}"
+                            )
 
                     self._run_once = True
 
