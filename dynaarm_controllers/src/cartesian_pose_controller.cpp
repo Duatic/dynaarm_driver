@@ -157,45 +157,90 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  // 1. build the pinocchio model from the urdf
-  pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
-  pinocchio_data_ = pinocchio::Data(pinocchio_model_);
+  try {
+    // 1. build the pinocchio model from the urdf
+    RCLCPP_DEBUG(get_node()->get_logger(), "Building Pinocchio model from URDF...");
+    pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
+    pinocchio_data_ = pinocchio::Data(pinocchio_model_);
+    RCLCPP_DEBUG(get_node()->get_logger(), "Pinocchio model built with %zu joints", pinocchio_model_.joints.size() - 1);
 
-  // 2. Build the collision model from urdf and srdf
-  std::stringstream urdf_stream;
-  urdf_stream << get_robot_description();
-  pinocchio::urdf::buildGeom(pinocchio_model_, urdf_stream, pinocchio::COLLISION, pinocchio_geom_);
+    // 2. Build the collision model from urdf and srdf (only if SRDF is provided)
+    if (!params_.srdf.empty()) {
+      RCLCPP_DEBUG(get_node()->get_logger(), "Building collision geometry...");
+      std::stringstream urdf_stream;
+      urdf_stream << get_robot_description();
+      pinocchio::urdf::buildGeom(pinocchio_model_, urdf_stream, pinocchio::COLLISION, pinocchio_geom_);
 
-  pinocchio_geom_.addAllCollisionPairs();
-  pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
-
-  // Extract joint names from Pinocchio model that match params_.joints
-  std::vector<std::string> pinocchio_joint_names;
-  for (size_t i = 1; i < pinocchio_model_.joints.size(); ++i)  // Start from 1 to skip the universe/root joint
-  {
-    std::string joint_name = pinocchio_model_.names[i];
-    // Only add if this joint is in params_.joints
-    if (std::find(params_.joints.begin(), params_.joints.end(), joint_name) != params_.joints.end()) {
-      pinocchio_joint_names.push_back(joint_name);
+      pinocchio_geom_.addAllCollisionPairs();
+      pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
+      RCLCPP_DEBUG(get_node()->get_logger(), "Collision geometry built with %zu collision pairs", pinocchio_geom_.collisionPairs.size());
+    } else {
+      RCLCPP_WARN(get_node()->get_logger(), "No SRDF provided - collision checking will be disabled");
     }
-  }
 
-  // 1. Validate joint names (amount)
-  if (pinocchio_joint_names.size() != params_.joints.size()) {
-    RCLCPP_ERROR(get_node()->get_logger(),
-                 "Joint count mismatch: Pinocchio model has %zu relevant joints, but interface has %zu joints.",
-                 pinocchio_joint_names.size(), params_.joints.size());
-    return controller_interface::CallbackReturn::ERROR;
-  }
+    // 3. Validate that all controller joints exist in the Pinocchio model
+    RCLCPP_DEBUG(get_node()->get_logger(), "Validating controller joints...");
+    std::vector<pinocchio::JointIndex> controller_joint_indices;
+    for (const auto& joint_name : params_.joints) {
+      if (!pinocchio_model_.existJointName(joint_name)) {
+        RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
+        return controller_interface::CallbackReturn::ERROR;
+      }
+      auto joint_id = pinocchio_model_.getJointId(joint_name);
+      controller_joint_indices.push_back(joint_id);
+    }
 
-  // 2. Validate joint names order
-  for (size_t i = 0; i < pinocchio_joint_names.size(); ++i) {
-    if (pinocchio_joint_names[i] != params_.joints[i]) {
-      RCLCPP_ERROR(get_node()->get_logger(),
-                   "Joint name mismatch at index %zu: Pinocchio joint is '%s', interface joint is '%s'.", i,
-                   pinocchio_joint_names[i].c_str(), params_.joints[i].c_str());
+    // 4. Validate kinematic chain structure (only if more than one joint)
+    if (params_.joints.size() > 1) {
+      RCLCPP_DEBUG(get_node()->get_logger(), "Validating kinematic chain structure...");
+      for (size_t i = 1; i < controller_joint_indices.size(); ++i) {
+        auto current_joint_id = controller_joint_indices[i];
+        auto previous_joint_id = controller_joint_indices[i-1];
+        
+        // Check if current joint is a descendant of the previous joint in the kinematic tree
+        bool is_valid_chain = false;
+        auto parent_id = pinocchio_model_.parents[current_joint_id];
+        
+        // Traverse up the kinematic tree to see if we find the previous joint
+        while (parent_id != 0) {
+          if (parent_id == previous_joint_id) {
+            is_valid_chain = true;
+            break;
+          }
+          parent_id = pinocchio_model_.parents[parent_id];
+        }
+        
+        if (!is_valid_chain) {
+          RCLCPP_ERROR(get_node()->get_logger(),
+                       "Invalid kinematic chain: Joint '%s' (index %zu) is not a descendant of joint '%s' (index %zu) in the kinematic tree.",
+                       params_.joints[i].c_str(), i, params_.joints[i-1].c_str(), i-1);
+          RCLCPP_ERROR(get_node()->get_logger(),
+                       "Please check that the 'joints' parameter lists the joints in the correct kinematic order.");
+          return controller_interface::CallbackReturn::ERROR;
+        }
+      }
+    }
+
+    // 5. Validate end effector frame exists
+    if (!pinocchio_model_.existFrame(params_.end_effector_frame)) {
+      RCLCPP_ERROR(get_node()->get_logger(), "End effector frame '%s' not found in Pinocchio model.", params_.end_effector_frame.c_str());
+      
+      // Debug: List all available frames
+      RCLCPP_ERROR(get_node()->get_logger(), "Available frames in Pinocchio model:");
+      for (size_t i = 0; i < pinocchio_model_.frames.size(); ++i) {
+        RCLCPP_ERROR(get_node()->get_logger(), "  [%zu]: %s", i, pinocchio_model_.frames[i].name.c_str());
+      }
+      
       return controller_interface::CallbackReturn::ERROR;
     }
+
+    RCLCPP_INFO(get_node()->get_logger(), 
+                "Successfully configured controller with %zu joints and end effector frame '%s'", 
+                params_.joints.size(), params_.end_effector_frame.c_str());
+
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Exception during Pinocchio model setup: %s", e.what());
+    return controller_interface::CallbackReturn::ERROR;
   }
 
   // Setup the pose listener
@@ -309,6 +354,8 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   pinocchio::GeometryData geom_data(pinocchio_geom_);
   const auto collides =
       pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q_out);
+
+  RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Collision detected");
 
   if (!collides) {
     for (std::size_t i = 0; i < joint_count; i++) {
