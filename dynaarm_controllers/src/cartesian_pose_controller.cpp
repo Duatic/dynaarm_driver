@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Duatic AG
+ * Copyright 2025 Duatic AG
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
  * following conditions are met:
@@ -203,7 +203,7 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
       "~/target_pose", 10, [&](const geometry_msgs::msg::PoseStamped& msg) {
         buffer_pose_cmd_.writeFromNonRT(msg);
 
-        RCLCPP_INFO_STREAM(get_node()->get_logger(), "New pose target: " << msg.pose.position.x << ", "
+        RCLCPP_DEBUG_STREAM(get_node()->get_logger(), "New pose target: " << msg.pose.position.x << ", "
                                                                          << msg.pose.position.y << ", "
                                                                          << msg.pose.position.z);
       });
