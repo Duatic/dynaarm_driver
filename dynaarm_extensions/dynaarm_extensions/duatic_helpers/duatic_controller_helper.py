@@ -40,9 +40,6 @@ class DuaticControllerHelper:
         self.active_low_level_controllers = []
         self._is_freeze_active = False
 
-        # Keep track of all controllers we've ever seen
-        self._all_known_controllers = set()
-
         # Only store controllers that are actually found
         self._found_controllers_by_base = {}
 
@@ -173,9 +170,6 @@ class DuaticControllerHelper:
                         for controller_name, state in current_controllers.items():
                             if controller_name.startswith(base):
                                 controllers_for_base.append({controller_name: state})
-
-                                # Track all known controllers
-                                self._all_known_controllers.add(controller_name)
 
                                 # Add to active list if active
                                 if state == "active":
