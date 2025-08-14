@@ -27,12 +27,23 @@ from controller_manager_msgs.srv import ListControllers, SwitchController
 
 class DuaticControllerHelper:
 
-    def __init__(self, node, controllers_config):
+    def __init__(self, node):
         self.node = node
-        self.controllers = {}
 
-        self.current_active_controller = None
+        self.controller_whitelist = [
+            "freedrive_controller",
+            "joint_trajectory_controller",
+            "dynaarm_pose_controller",
+            "mecanum_drive_controller",
+        ]
+
+        self.active_low_level_controllers = []
         self._is_freeze_active = False
+
+        # Only store controllers that are actually found
+        self._found_controllers_by_base = {}
+
+        self._run_once = False
 
         self.controller_client = self.node.create_client(
             ListControllers, "/controller_manager/list_controllers"
@@ -41,23 +52,28 @@ class DuaticControllerHelper:
             SwitchController, "/controller_manager/switch_controller"
         )
 
-        self.controller_whitelist = [
-            name for name, props in controllers_config.items() if props["whitelisted"]
-        ]
-
-        self._active_controllers = set()
-        self._is_freeze_active = False
-        self._found_controllers_by_base = {base: [] for base in self.controller_whitelist}
-        self._run_once = False
         self.node.create_timer(0.1, self._get_all_controllers)
 
-    def get_all_controllers(self):
-        """Returns the found controllers by base. May be empty if timer hasn't run yet."""
-        return self._found_controllers_by_base
+    def get_all_controllers(self, matching_names=None):
+        """
+        Returns the found controllers by base.
+
+        If matching_names is provided, returns a dict with only those controllers.
+        """
+        if not matching_names:
+            return self._found_controllers_by_base
+
+        # Filter controllers by matching_names and return only controller names
+        filtered = []
+        for base, controllers in self._found_controllers_by_base.items():
+            if base in matching_names:
+                # controllers is a list of dicts like [{name: state}]
+                filtered.extend([list(ctrl.keys())[0] for ctrl in controllers])
+        return filtered
 
     def get_active_controllers(self):
         """Returns a list of currently active controllers. May be empty if timer hasn't run yet."""
-        return self._active_controllers
+        return self.active_low_level_controllers
 
     def is_freeze_active(self):
         """Checks if the freeze controller is currently active. Defaults to False if not yet determined."""
@@ -66,6 +82,51 @@ class DuaticControllerHelper:
     def is_controller_data_ready(self):
         """Returns True if controller data has been fetched at least once."""
         return self._run_once
+
+    def switch_controller(self, activate_controllers, deactivate_controllers):
+
+        if not activate_controllers and not deactivate_controllers:
+            self.node.get_logger().debug(
+                "No controllers to activate or deactivate. Skipping switch operation."
+            )
+            return
+
+        req = SwitchController.Request()
+        req.activate_controllers = activate_controllers
+        req.deactivate_controllers = deactivate_controllers
+
+        req.strictness = 1
+
+        future = self.switch_controller_client.call_async(req)
+
+        def callback(future):
+            try:
+                response = future.result()
+                if response.ok:
+                    self._get_all_controllers()
+                else:
+                    self.node.get_logger().error(
+                        "Failed to switch to new controller", throttle_duration_sec=10.0
+                    )
+            except Exception as e:
+                self.node.get_logger().error(
+                    f"Error switching controllers: {e}", throttle_duration_sec=10.0
+                )
+
+        future.add_done_callback(callback)
+
+    def wait_for_controller_loaded(self, controller_name, timeout=60.0):
+        """Checks if a specific controller is loaded."""
+        if not self.wait_for_controller_data(timeout_sec=timeout):
+            return False
+
+        found_controllers = self._found_controllers_by_base
+        for base, controllers in found_controllers.items():
+            for ctrl in controllers:
+                if controller_name in ctrl:
+                    return True
+
+        return False
 
     def wait_for_controller_data(self, timeout_sec=20.0):
         """Wait for controller data to be available, returns True if successful."""
@@ -92,27 +153,58 @@ class DuaticControllerHelper:
                 try:
                     response = future.result()
 
-                    # Reset found controllers and active controllers
-                    for base in self._found_controllers_by_base:
-                        self._found_controllers_by_base[base] = []
-                    self._active_controllers.clear()
+                    # Get current controllers from response
+                    current_controllers = {ctrl.name: ctrl.state for ctrl in response.controller}
 
-                    # Populate found controllers by base name
-                    for controller in response.controller:
-                        for base in self.controller_whitelist:
-                            if controller.name.startswith(base):
-                                self._found_controllers_by_base[base].append(
-                                    {controller.name: controller.state}
-                                )
+                    # Clear active controllers
+                    self.active_low_level_controllers.clear()
 
-                                if controller.state == "active":
-                                    self._active_controllers.add(base)
+                    # Rebuild found_controllers_by_base with only currently existing controllers
+                    new_found_controllers = {}
 
-                        if controller.name.startswith("freeze_controller"):
-                            if controller.state == "active":
-                                self._is_freeze_active = True
-                            else:
-                                self._is_freeze_active = False
+                    # Check each controller in the whitelist
+                    for base in self.controller_whitelist:
+                        controllers_for_base = []
+
+                        # Find all controllers that match this base
+                        for controller_name, state in current_controllers.items():
+                            if controller_name.startswith(base):
+                                controllers_for_base.append({controller_name: state})
+
+                                # Add to active list if active
+                                if state == "active":
+                                    self.active_low_level_controllers.append(controller_name)
+
+                        # Only add to found_controllers if we actually found controllers for this base
+                        if controllers_for_base:
+                            new_found_controllers[base] = controllers_for_base
+
+                    # Replace the old dictionary with the new one
+                    self._found_controllers_by_base = new_found_controllers
+
+                    # Handle freeze controller separately
+                    freeze_active = False
+                    for controller_name, state in current_controllers.items():
+                        if controller_name.startswith("freeze_controller"):
+                            if state == "active":
+                                freeze_active = True
+                            break
+
+                    self._is_freeze_active = freeze_active
+
+                    # Log controller changes (optional)
+                    if self._run_once:
+                        available_bases = list(self._found_controllers_by_base.keys())
+                        missing_bases = [
+                            base
+                            for base in self.controller_whitelist
+                            if base not in available_bases
+                        ]
+
+                        if missing_bases:
+                            self.node.get_logger().debug(
+                                f"Controller bases not found: {missing_bases}"
+                            )
 
                     self._run_once = True
 

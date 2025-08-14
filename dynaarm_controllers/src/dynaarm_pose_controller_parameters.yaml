@@ -1,0 +1,11 @@
+dynaarm_pose_controller:
+  arm_name:
+    type: string
+    default_value: ""
+    description: "name of the arm hardware interface"
+  joints:
+    type: string_array
+    default_value: []
+    description: Names of joints used by the controller
+    validation:
+      unique<>: null

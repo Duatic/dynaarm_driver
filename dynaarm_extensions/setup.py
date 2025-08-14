@@ -21,7 +21,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import os
 from setuptools import find_packages, setup
 
 package_name = "dynaarm_extensions"
@@ -32,10 +31,6 @@ setup(
     version="0.0.0",
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
-        (
-            os.path.join("share", package_name, "config"),
-            ["dynaarm_extensions/duatic_helpers/config/controllers.yaml"],
-        ),
         ("share/" + package_name, ["package.xml"]),
     ],
     install_requires=["setuptools"],
@@ -48,6 +43,7 @@ setup(
     entry_points={
         "console_scripts": [
             "e_stop_node = dynaarm_extensions.e_stop.e_stop_node:main",
+            "pose_controller_node = dynaarm_extensions.pose_controller.pose_controller_node:main",
             "move_to_predefined_position_node = dynaarm_extensions.move_to_predefined_position.move_to_predefined_position_node:main",
         ],
     },
