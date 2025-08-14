@@ -34,11 +34,15 @@ class DuaticControllerHelper:
             "freedrive_controller",
             "joint_trajectory_controller",
             "dynaarm_pose_controller",
+            "mecanum_drive_controller",
         ]
 
         self.active_low_level_controllers = []
         self._is_freeze_active = False
-        self._found_controllers_by_base = {base: [] for base in self.controller_whitelist}
+
+        # Only store controllers that are actually found
+        self._found_controllers_by_base = {}
+
         self._run_once = False
 
         self.controller_client = self.node.create_client(
@@ -149,28 +153,58 @@ class DuaticControllerHelper:
                 try:
                     response = future.result()
 
-                    # Reset found controllers and active controllers
-                    for base in self._found_controllers_by_base:
-                        self._found_controllers_by_base[base] = []
+                    # Get current controllers from response
+                    current_controllers = {ctrl.name: ctrl.state for ctrl in response.controller}
+
+                    # Clear active controllers
                     self.active_low_level_controllers.clear()
 
-                    # Populate found controllers by base name
-                    for controller in response.controller:
+                    # Rebuild found_controllers_by_base with only currently existing controllers
+                    new_found_controllers = {}
 
-                        for base in self.controller_whitelist:
-                            if controller.name.startswith(base):
-                                self._found_controllers_by_base[base].append(
-                                    {controller.name: controller.state}
-                                )
+                    # Check each controller in the whitelist
+                    for base in self.controller_whitelist:
+                        controllers_for_base = []
 
-                                if controller.state == "active":
-                                    self.active_low_level_controllers.append(controller.name)
+                        # Find all controllers that match this base
+                        for controller_name, state in current_controllers.items():
+                            if controller_name.startswith(base):
+                                controllers_for_base.append({controller_name: state})
 
-                        if controller.name.startswith("freeze_controller"):
-                            if controller.state == "active":
-                                self._is_freeze_active = True
-                            else:
-                                self._is_freeze_active = False
+                                # Add to active list if active
+                                if state == "active":
+                                    self.active_low_level_controllers.append(controller_name)
+
+                        # Only add to found_controllers if we actually found controllers for this base
+                        if controllers_for_base:
+                            new_found_controllers[base] = controllers_for_base
+
+                    # Replace the old dictionary with the new one
+                    self._found_controllers_by_base = new_found_controllers
+
+                    # Handle freeze controller separately
+                    freeze_active = False
+                    for controller_name, state in current_controllers.items():
+                        if controller_name.startswith("freeze_controller"):
+                            if state == "active":
+                                freeze_active = True
+                            break
+
+                    self._is_freeze_active = freeze_active
+
+                    # Log controller changes (optional)
+                    if self._run_once:
+                        available_bases = list(self._found_controllers_by_base.keys())
+                        missing_bases = [
+                            base
+                            for base in self.controller_whitelist
+                            if base not in available_bases
+                        ]
+
+                        if missing_bases:
+                            self.node.get_logger().debug(
+                                f"Controller bases not found: {missing_bases}"
+                            )
 
                     self._run_once = True
 
