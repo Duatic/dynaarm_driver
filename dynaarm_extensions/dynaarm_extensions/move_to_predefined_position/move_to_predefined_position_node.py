@@ -43,7 +43,7 @@ class MoveToPredefinedPositionNode(Node):
     def __init__(self):
         super().__init__("motion_to_predefined_position_node")
 
-        self.declare_parameter("robot_configuration", "alpha")  # Default configuration
+        self.declare_parameter("robot_configuration", "dynaarm")  # Default configuration
         self.robot_configuration = self.get_parameter("robot_configuration").value
 
         # Service clients
