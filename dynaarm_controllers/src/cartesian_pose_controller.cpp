@@ -355,8 +355,6 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   const auto collides =
       pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q_out);
 
-  RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Collision detected");
-
   if (!collides) {
     for (std::size_t i = 0; i < joint_count; i++) {
       const std::string& joint_name = params_.joints[i];
@@ -368,6 +366,17 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
       // Pinocchio joint index starts at 1, q/v index is idx-1
 
       joint_position_command_interfaces_.at(i).get().set_value<double>(q_out[pinocchio_model_.joints[idx].idx_q()]);
+    }
+  }
+  else {
+    // Print the status of all the collision pairs
+    for(size_t k = 0; k < pinocchio_geom_.collisionPairs.size(); ++k)
+    {
+      const CollisionPair & cp = pinocchio_geom_.collisionPairs[k];
+      const hpp::fcl::CollisionResult & cr = geom_data.collisionResults[k];
+      
+      std::cout << "collision pair: " << cp.first << " , " << cp.second << " - collision: ";
+      std::cout << (cr.isCollision() ? "yes" : "no") << std::endl;
     }
   }
 
