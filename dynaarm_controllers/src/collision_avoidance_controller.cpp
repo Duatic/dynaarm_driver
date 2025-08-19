@@ -209,7 +209,6 @@ CollisionAvoidanceController::on_deactivate([[maybe_unused]] const rclcpp_lifecy
 controller_interface::return_type CollisionAvoidanceController::update_and_write_commands(
     [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  using namespace pinocchio;
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
     return controller_interface::return_type::OK;
   }
@@ -290,9 +289,9 @@ std::vector<hardware_interface::CommandInterface> CollisionAvoidanceController::
   auto index = 0ul;
   for (const auto& interface : params_.command_interfaces) {
     for (const auto& joint : params_.joints) {
-      if (hardware_interface::HW_IF_POSITION == interface)
+      if (hardware_interface::HW_IF_POSITION == interface) {
         position_reference_.emplace_back(reference_interfaces_[index]);
-      else if (hardware_interface::HW_IF_VELOCITY == interface) {
+      } else if (hardware_interface::HW_IF_VELOCITY == interface) {
         velocity_reference_.emplace_back(reference_interfaces_[index]);
       } else if (hardware_interface::HW_IF_ACCELERATION == interface) {
         acceleration_reference_.emplace_back(reference_interfaces_[index]);

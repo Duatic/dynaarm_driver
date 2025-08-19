@@ -29,4 +29,3 @@ cartesian_pose_controller:
     type: string
     default_value: "flange"
     description: "The full srdf"
-

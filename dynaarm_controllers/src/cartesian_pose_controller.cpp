@@ -173,7 +173,8 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
 
       pinocchio_geom_.addAllCollisionPairs();
       pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
-      RCLCPP_DEBUG(get_node()->get_logger(), "Collision geometry built with %zu collision pairs", pinocchio_geom_.collisionPairs.size());
+      RCLCPP_DEBUG(get_node()->get_logger(), "Collision geometry built with %zu collision pairs",
+                   pinocchio_geom_.collisionPairs.size());
     } else {
       RCLCPP_WARN(get_node()->get_logger(), "No SRDF provided - collision checking will be disabled");
     }
@@ -195,12 +196,12 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
       RCLCPP_DEBUG(get_node()->get_logger(), "Validating kinematic chain structure...");
       for (size_t i = 1; i < controller_joint_indices.size(); ++i) {
         auto current_joint_id = controller_joint_indices[i];
-        auto previous_joint_id = controller_joint_indices[i-1];
-        
+        auto previous_joint_id = controller_joint_indices[i - 1];
+
         // Check if current joint is a descendant of the previous joint in the kinematic tree
         bool is_valid_chain = false;
         auto parent_id = pinocchio_model_.parents[current_joint_id];
-        
+
         // Traverse up the kinematic tree to see if we find the previous joint
         while (parent_id != 0) {
           if (parent_id == previous_joint_id) {
@@ -209,13 +210,14 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
           }
           parent_id = pinocchio_model_.parents[parent_id];
         }
-        
+
         if (!is_valid_chain) {
           RCLCPP_ERROR(get_node()->get_logger(),
-                       "Invalid kinematic chain: Joint '%s' (index %zu) is not a descendant of joint '%s' (index %zu) in the kinematic tree.",
-                       params_.joints[i].c_str(), i, params_.joints[i-1].c_str(), i-1);
-          RCLCPP_ERROR(get_node()->get_logger(),
-                       "Please check that the 'joints' parameter lists the joints in the correct kinematic order.");
+                       "Invalid kinematic chain: Joint '%s' (index %zu) is not a descendant of joint '%s' (index %zu) "
+                       "in the kinematic tree.",
+                       params_.joints[i].c_str(), i, params_.joints[i - 1].c_str(), i - 1);
+          RCLCPP_ERROR(get_node()->get_logger(), "Please check that the 'joints' parameter lists the joints in the "
+                                                 "correct kinematic order.");
           return controller_interface::CallbackReturn::ERROR;
         }
       }
@@ -223,21 +225,20 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
 
     // 5. Validate end effector frame exists
     if (!pinocchio_model_.existFrame(params_.end_effector_frame)) {
-      RCLCPP_ERROR(get_node()->get_logger(), "End effector frame '%s' not found in Pinocchio model.", params_.end_effector_frame.c_str());
-      
+      RCLCPP_ERROR(get_node()->get_logger(), "End effector frame '%s' not found in Pinocchio model.",
+                   params_.end_effector_frame.c_str());
+
       // Debug: List all available frames
       RCLCPP_ERROR(get_node()->get_logger(), "Available frames in Pinocchio model:");
       for (size_t i = 0; i < pinocchio_model_.frames.size(); ++i) {
         RCLCPP_ERROR(get_node()->get_logger(), "  [%zu]: %s", i, pinocchio_model_.frames[i].name.c_str());
       }
-      
       return controller_interface::CallbackReturn::ERROR;
     }
 
-    RCLCPP_INFO(get_node()->get_logger(), 
-                "Successfully configured controller with %zu joints and end effector frame '%s'", 
-                params_.joints.size(), params_.end_effector_frame.c_str());
-
+    RCLCPP_INFO(get_node()->get_logger(),
+                "Successfully configured controller with %zu joints and end effector frame '%s'", params_.joints.size(),
+                params_.end_effector_frame.c_str());
   } catch (const std::exception& e) {
     RCLCPP_ERROR(get_node()->get_logger(), "Exception during Pinocchio model setup: %s", e.what());
     return controller_interface::CallbackReturn::ERROR;
@@ -249,8 +250,8 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
         buffer_pose_cmd_.writeFromNonRT(msg);
 
         RCLCPP_DEBUG_STREAM(get_node()->get_logger(), "New pose target: " << msg.pose.position.x << ", "
-                                                                         << msg.pose.position.y << ", "
-                                                                         << msg.pose.position.z);
+                                                                          << msg.pose.position.y << ", "
+                                                                          << msg.pose.position.z);
       });
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -313,7 +314,8 @@ CartesianPoseController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::
 controller_interface::return_type CartesianPoseController::update([[maybe_unused]] const rclcpp::Time& time,
                                                                   [[maybe_unused]] const rclcpp::Duration& period)
 {
-  using namespace pinocchio;
+  using pinocchio::CollisionPair;
+
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
     return controller_interface::return_type::OK;
   }
@@ -367,14 +369,12 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
 
       joint_position_command_interfaces_.at(i).get().set_value<double>(q_out[pinocchio_model_.joints[idx].idx_q()]);
     }
-  }
-  else {
+  } else {
     // Print the status of all the collision pairs
-    for(size_t k = 0; k < pinocchio_geom_.collisionPairs.size(); ++k)
-    {
-      const CollisionPair & cp = pinocchio_geom_.collisionPairs[k];
-      const hpp::fcl::CollisionResult & cr = geom_data.collisionResults[k];
-      
+    for (size_t k = 0; k < pinocchio_geom_.collisionPairs.size(); ++k) {
+      const CollisionPair& cp = pinocchio_geom_.collisionPairs[k];
+      const hpp::fcl::CollisionResult& cr = geom_data.collisionResults[k];
+
       std::cout << "collision pair: " << cp.first << " , " << cp.second << " - collision: ";
       std::cout << (cr.isCollision() ? "yes" : "no") << std::endl;
     }
