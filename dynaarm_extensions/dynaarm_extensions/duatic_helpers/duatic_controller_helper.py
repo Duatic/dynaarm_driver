@@ -33,7 +33,7 @@ class DuaticControllerHelper:
         self.controller_whitelist = [
             "freedrive_controller",
             "joint_trajectory_controller",
-            "dynaarm_pose_controller",
+            "cartesian_pose_controller",
             "mecanum_drive_controller",
         ]
 

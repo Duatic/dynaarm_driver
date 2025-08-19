@@ -1,0 +1,31 @@
+cartesian_pose_controller:
+  joints:
+    type: string_array
+    default_value: []
+    description: Names of joints used by the controller
+    validation:
+      unique<>: null
+  command_interfaces:
+    {
+      type: string_array,
+      description: "Specifies which command interfaces the controller will claim.",
+      read_only: true
+    }
+  arm_name:
+    type: string
+    default_value: "dynaarm"
+    description: "name of the arm hardware interface"
+  enable_state_topic:
+    type: bool
+    default_value: true
+    description: "Publish a status message on the ~/state topic"
+
+  srdf:
+    type: string
+    default_value: ""
+    description: "The full srdf"
+
+  end_effector_frame:
+    type: string
+    default_value: "flange"
+    description: "The full srdf"
