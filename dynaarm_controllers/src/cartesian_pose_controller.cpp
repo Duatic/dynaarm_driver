@@ -37,6 +37,8 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/check-data.hpp>
 
+#include <pluginlib/class_list_macros.hpp>
+
 namespace dynaarm_controllers
 {
 
@@ -53,6 +55,10 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   // Create a copy if the input data that we can work on
   Eigen::VectorXd q = q_in;
 
+  RCLCPP_DEBUG(rclcpp::get_logger("computeIK"),
+               "Starting IK computation for joint %ld, target pose translation=[%f, %f, %f]", joint_id,
+               target_pose.translation().x(), target_pose.translation().y(), target_pose.translation().z());
+
   for (std::size_t i = 0; i < IT_MAX; i++) {
     // Compute the forward kinematics with the current configuration and check if it is close enough to where we want
     pinocchio::forwardKinematics(model, data, q);
@@ -61,6 +67,8 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
 
     if (err.norm() < eps) {
       q_out = q;
+      RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "IK converged after %zu iterations, final error norm: %f", i,
+                   err.norm());
       return true;
     }
 
@@ -76,12 +84,14 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
     v.noalias() = -J.transpose() * JJt.ldlt().solve(err);
     q = pinocchio::integrate(model, q, v * DT);
 
-    // if (!(i % 10))
-    //   std::cout << i << ": error = " << err.transpose() << std::endl;
+    if (!(i % 100)) {
+      RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "Iteration %zu: error norm = %f", i, err.norm());
+    }
   }
 
   // We where not successful - set the output to the original input. Which avoid accidental motions
   q_out = q_in;
+  RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "IK failed to converge after %d iterations", IT_MAX);
   return false;
 }
 
@@ -90,6 +100,45 @@ pinocchio::SE3 rosPoseToSE3(const geometry_msgs::msg::Pose& pose)
   Eigen::Quaterniond q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
   Eigen::Vector3d t(pose.position.x, pose.position.y, pose.position.z);
   return pinocchio::SE3(q.normalized(), t);
+}
+
+std::pair<pinocchio::SE3, bool> transformPoseToModelBaseFrame(const geometry_msgs::msg::PoseStamped& pose_msg,
+                                                              const pinocchio::SE3& target_pose,
+                                                              const pinocchio::Model& model, pinocchio::Data& data,
+                                                              const Eigen::VectorXd& q_current, rclcpp::Logger logger)
+{
+  // If no frame_id specified or it's "world", assume pose is already in model base frame
+  if (pose_msg.header.frame_id.empty() || pose_msg.header.frame_id == "world" || pose_msg.header.frame_id == "") {
+    return { target_pose, true };
+  }
+
+  RCLCPP_DEBUG(logger, "Target pose is in frame '%s', transforming to model base frame",
+               pose_msg.header.frame_id.c_str());
+
+  // Get the transformation from the target frame to the model base frame
+  pinocchio::FrameIndex target_frame_id;
+  try {
+    target_frame_id = model.getFrameId(pose_msg.header.frame_id);
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(logger, "Frame '%s' not found in Pinocchio model: %s", pose_msg.header.frame_id.c_str(), e.what());
+    // Return original pose with failure flag
+    return { target_pose, false };
+  }
+
+  // Compute forward kinematics to get the transformation
+  pinocchio::forwardKinematics(model, data, q_current);
+  pinocchio::updateFramePlacements(model, data);
+
+  // Get the pose of the target frame in model base frame
+  const pinocchio::SE3 target_frame_pose = data.oMf[target_frame_id];
+
+  // Transform the target pose: pose_in_base = target_frame_pose * pose_in_target
+  const pinocchio::SE3 transformed_target_pose = target_frame_pose * target_pose;
+
+  RCLCPP_DEBUG(logger, "Transformed target pose: translation=[%f, %f, %f]", transformed_target_pose.translation().x(),
+               transformed_target_pose.translation().y(), transformed_target_pose.translation().z());
+
+  return { transformed_target_pose, true };
 }
 
 CartesianPoseController::CartesianPoseController() : controller_interface::ControllerInterface()
@@ -159,28 +208,28 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
 
   try {
     // 1. build the pinocchio model from the urdf
-    RCLCPP_DEBUG(get_node()->get_logger(), "Building Pinocchio model from URDF...");
+    RCLCPP_INFO(get_node()->get_logger(), "Building Pinocchio model from URDF...");
     pinocchio::urdf::buildModelFromXML(get_robot_description(), pinocchio_model_);
     pinocchio_data_ = pinocchio::Data(pinocchio_model_);
-    RCLCPP_DEBUG(get_node()->get_logger(), "Pinocchio model built with %zu joints", pinocchio_model_.joints.size() - 1);
+    RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model built with %zu joints", pinocchio_model_.joints.size() - 1);
 
     // 2. Build the collision model from urdf and srdf (only if SRDF is provided)
     if (!params_.srdf.empty()) {
-      RCLCPP_DEBUG(get_node()->get_logger(), "Building collision geometry...");
+      RCLCPP_INFO(get_node()->get_logger(), "Building collision geometry...");
       std::stringstream urdf_stream;
       urdf_stream << get_robot_description();
       pinocchio::urdf::buildGeom(pinocchio_model_, urdf_stream, pinocchio::COLLISION, pinocchio_geom_);
 
       pinocchio_geom_.addAllCollisionPairs();
       pinocchio::srdf::removeCollisionPairsFromXML(pinocchio_model_, pinocchio_geom_, params_.srdf);
-      RCLCPP_DEBUG(get_node()->get_logger(), "Collision geometry built with %zu collision pairs",
-                   pinocchio_geom_.collisionPairs.size());
+      RCLCPP_INFO(get_node()->get_logger(), "Collision geometry built with %zu collision pairs",
+                  pinocchio_geom_.collisionPairs.size());
     } else {
       RCLCPP_WARN(get_node()->get_logger(), "No SRDF provided - collision checking will be disabled");
     }
 
     // 3. Validate that all controller joints exist in the Pinocchio model
-    RCLCPP_DEBUG(get_node()->get_logger(), "Validating controller joints...");
+    RCLCPP_INFO(get_node()->get_logger(), "Validating controller joints...");
     std::vector<pinocchio::JointIndex> controller_joint_indices;
     for (const auto& joint_name : params_.joints) {
       if (!pinocchio_model_.existJointName(joint_name)) {
@@ -189,11 +238,12 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
       }
       auto joint_id = pinocchio_model_.getJointId(joint_name);
       controller_joint_indices.push_back(joint_id);
+      RCLCPP_INFO(get_node()->get_logger(), "Joint '%s' found with index %ld", joint_name.c_str(), joint_id);
     }
 
     // 4. Validate kinematic chain structure (only if more than one joint)
     if (params_.joints.size() > 1) {
-      RCLCPP_DEBUG(get_node()->get_logger(), "Validating kinematic chain structure...");
+      RCLCPP_INFO(get_node()->get_logger(), "Validating kinematic chain structure...");
       for (size_t i = 1; i < controller_joint_indices.size(); ++i) {
         auto current_joint_id = controller_joint_indices[i];
         auto previous_joint_id = controller_joint_indices[i - 1];
@@ -210,6 +260,10 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
           }
           parent_id = pinocchio_model_.parents[parent_id];
         }
+
+        RCLCPP_INFO(get_node()->get_logger(), "Chain validation for joint '%s' (id %ld) -> '%s' (id %ld): %s",
+                    params_.joints[i].c_str(), current_joint_id, params_.joints[i - 1].c_str(), previous_joint_id,
+                    is_valid_chain ? "VALID" : "INVALID");
 
         if (!is_valid_chain) {
           RCLCPP_ERROR(get_node()->get_logger(),
@@ -344,18 +398,36 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
 
   const pinocchio::JointIndex joint_id = pinocchio_model_.frames[frame_id].parent;
 
-  const auto target_pose = rosPoseToSE3(buffer_pose_cmd_.readFromRT()->pose);
+  const auto pose_msg = buffer_pose_cmd_.readFromRT();
+  const auto target_pose = rosPoseToSE3(pose_msg->pose);
 
+  // Transform pose to model base frame if necessary
+  auto [pose_for_ik, transform_success] = transformPoseToModelBaseFrame(*pose_msg, target_pose, pinocchio_model_,
+                                                                        pinocchio_data_, q, get_node()->get_logger());
+
+  if (!transform_success) {
+    return controller_interface::return_type::ERROR;
+  }
+
+  // Declare variables for IK result
   Eigen::VectorXd q_out = Eigen::VectorXd::Zero(pinocchio_model_.nq);
+  bool ik_success = false;
 
-  pinocchio_data_ = pinocchio::Data(pinocchio_model_);
-  if (!computeIK(pinocchio_model_, pinocchio_data_, target_pose, q, joint_id, q_out)) {
+  // Use the transformed pose for IK
+  ik_success = computeIK(pinocchio_model_, pinocchio_data_, pose_for_ik, q, joint_id, q_out);
+  RCLCPP_DEBUG(get_node()->get_logger(), "Target pose: translation=[%f, %f, %f], IK success: %s",
+               pose_for_ik.translation().x(), pose_for_ik.translation().y(), pose_for_ik.translation().z(),
+               ik_success ? "true" : "false");
+  if (!ik_success) {
     RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Failed to compute IK");
   }
 
   pinocchio::GeometryData geom_data(pinocchio_geom_);
   const auto collides =
       pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q_out);
+
+  RCLCPP_DEBUG(get_node()->get_logger(), "Collision check result: %s",
+               collides ? "COLLISION DETECTED" : "NO COLLISION");
 
   if (!collides) {
     for (std::size_t i = 0; i < joint_count; i++) {
@@ -367,7 +439,10 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
       }
       // Pinocchio joint index starts at 1, q/v index is idx-1
 
-      joint_position_command_interfaces_.at(i).get().set_value<double>(q_out[pinocchio_model_.joints[idx].idx_q()]);
+      if (!joint_position_command_interfaces_.at(i).get().set_value<double>(
+              q_out[pinocchio_model_.joints[idx].idx_q()])) {
+        RCLCPP_WARN(get_node()->get_logger(), "Failed to set position command for joint '%s'", joint_name.c_str());
+      }
     }
   } else {
     // Print the status of all the collision pairs
@@ -375,8 +450,9 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
       const CollisionPair& cp = pinocchio_geom_.collisionPairs[k];
       const hpp::fcl::CollisionResult& cr = geom_data.collisionResults[k];
 
-      std::cout << "collision pair: " << cp.first << " , " << cp.second << " - collision: ";
-      std::cout << (cr.isCollision() ? "yes" : "no") << std::endl;
+      RCLCPP_WARN(get_node()->get_logger(), "Collision pair: %s , %s - collision: %s",
+                  pinocchio_geom_.geometryObjects[cp.first].name.c_str(),
+                  pinocchio_geom_.geometryObjects[cp.second].name.c_str(), cr.isCollision() ? "yes" : "no");
     }
   }
 
@@ -402,6 +478,5 @@ CartesianPoseController::on_shutdown([[maybe_unused]] const rclcpp_lifecycle::St
 }
 }  // namespace dynaarm_controllers
 
-#include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
 PLUGINLIB_EXPORT_CLASS(dynaarm_controllers::CartesianPoseController, controller_interface::ControllerInterface)
