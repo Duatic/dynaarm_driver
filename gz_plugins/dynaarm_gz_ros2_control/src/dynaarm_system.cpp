@@ -333,7 +333,7 @@ bool GazeboSimSystem::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::s
     RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Elbow flexion joint or shoulder flexion joint not found in the "
                                                  "hardware info. "
                                                  "Please check the URDF and hardware info configuration.");
-    // Print all availbale joint names
+    // Print all available joint names
     for (const auto& joint : hardware_info.joints) {
       RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Available joint: " << joint.name);
     }
