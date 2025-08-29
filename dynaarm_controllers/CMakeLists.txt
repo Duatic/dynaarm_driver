@@ -29,11 +29,6 @@ generate_parameter_library(
 )
 
 generate_parameter_library(
-    dynaarm_pose_controller_parameters
-    src/dynaarm_pose_controller_parameters.yaml
-)
-
-generate_parameter_library(
   gravity_compensation_controller_parameters
   src/gravity_compensation_controller_parameters.yaml
 )
@@ -53,13 +48,18 @@ generate_parameter_library(
   src/freeze_controller_parameters.yaml
 )
 
+generate_parameter_library(
+  cartesian_pose_controller_parameters
+  src/cartesian_pose_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_broadcaster.cpp
   src/freedrive_controller.cpp
   src/dynaarm_pid_tuner.cpp
   src/freeze_controller.cpp
-  src/dynaarm_pose_controller.cpp
+  src/cartesian_pose_controller.cpp
 )
 
 target_include_directories(
@@ -74,7 +74,7 @@ target_link_libraries(${PROJECT_NAME}
   freedrive_controller_parameters
   dynaarm_pid_tuner_parameters
   freeze_controller_parameters
-  dynaarm_pose_controller_parameters
+  cartesian_pose_controller_parameters
   pinocchio::pinocchio
 )
 
