@@ -187,6 +187,12 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
                                                             << " is: " << joint_state_vector_[i].position);
   }
 
+  if (std::all_of(joint_command_vector_.begin(), joint_command_vector_.end(),
+                  [](const auto& val) { return val.position == 0.0; })) {
+    RCLCPP_FATAL_STREAM(logger_, "All initial joint readings were 0.0 - this is indicates a critical error");
+    return hardware_interface::CallbackReturn::FAILURE;
+  }
+
   return callbackReturn;
 }
 
