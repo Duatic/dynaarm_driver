@@ -139,13 +139,12 @@ GravityCompensationController::on_configure([[maybe_unused]] const rclcpp_lifecy
 controller_interface::CallbackReturn
 GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  active_ = true;
-
   // clear out vectors in case of restart
   joint_effort_command_interfaces_.clear();
 
   joint_position_state_interfaces_.clear();
   joint_velocity_state_interfaces_.clear();
+  initial_joint_positions_.clear();
 
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(
@@ -170,6 +169,11 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  for (std::size_t i = 0; i < joint_position_state_interfaces_.size(); i++) {
+    initial_joint_positions_.push_back(joint_position_state_interfaces_.at(i).get().get_value());
+  }
+  active_ = true;
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -189,6 +193,7 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
                                                                         [[maybe_unused]] const rclcpp::Duration& period)
 {
   if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE || !active_) {
+    activation_time_ = time;
     return controller_interface::return_type::OK;
   }
 
@@ -210,6 +215,21 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
     q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
     v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
+  }
+
+  if (params_.enable_startup_check && (time - activation_time_ < rclcpp::Duration(std::chrono::milliseconds(500)))) {
+    bool has_jump = false;
+    for (std::size_t i = 0; i < joint_count; i++) {
+      if (std::abs(joint_position_state_interfaces_.at(i).get().get_value() - initial_joint_positions_.at(i)) >
+          params_.max_jump_startup) {
+        has_jump = true;
+      }
+    }
+
+    if (has_jump) {
+      RCLCPP_ERROR(get_node()->get_logger(), "Detected jump directly after startup- this is an error");
+      return controller_interface::return_type::ERROR;
+    }
   }
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
