@@ -38,6 +38,10 @@
 #include <pinocchio/algorithm/check-data.hpp>
 
 #include <pluginlib/class_list_macros.hpp>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
 
 namespace dynaarm_controllers
 {
@@ -174,7 +178,59 @@ controller_interface::CallbackReturn CartesianPoseController::on_init()
     return controller_interface::CallbackReturn::ERROR;
   }
 
+  // Start IK worker thread
+  // IK worker will be started in on_activate after Pinocchio model is built
+
   return controller_interface::CallbackReturn::SUCCESS;
+}
+
+void CartesianPoseController::ikWorkerMain()
+{
+  // Each worker maintains its own Pinocchio Data to avoid races
+  pinocchio::Data local_data(pinocchio_model_);
+
+  while (ik_worker_running_) {
+    geometry_msgs::msg::PoseStamped req;
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex_);
+      queue_cv_.wait(lock, [&] { return !ik_request_queue_.empty() || !ik_worker_running_; });
+      if (!ik_worker_running_) {
+        break;
+      }
+      req = ik_request_queue_.front();
+      ik_request_queue_.pop_front();
+    }
+
+    // Convert pose to SE3
+    const pinocchio::SE3 target_pose = rosPoseToSE3(req.pose);
+
+    // Snapshot q for IK
+    Eigen::VectorXd q_snapshot;
+    {
+      std::lock_guard<std::mutex> qlock(ik_mutex_);
+      if (q_snapshot_.size() == 0) {
+        // no snapshot available yet; skip
+        continue;
+      }
+      q_snapshot = q_snapshot_;
+    }
+
+    // Transform pose into model base using local_data
+    auto [pose_for_ik, transform_success] = transformPoseToModelBaseFrame(req, target_pose, pinocchio_model_,
+                                                                          local_data, q_snapshot, get_node()->get_logger());
+    if (!transform_success) {
+      continue;
+    }
+
+    Eigen::VectorXd q_out_local = Eigen::VectorXd::Zero(pinocchio_model_.nq);
+    bool ik_ok = computeIK(pinocchio_model_, local_data, pose_for_ik, q_snapshot, pinocchio_model_.getFrameId(params_.end_effector_frame), q_out_local);
+
+    if (ik_ok) {
+      std::lock_guard<std::mutex> lock(ik_mutex_);
+      last_q_out_ = q_out_local;
+      have_last_q_out_ = true;
+    }
+  }
 }
 
 controller_interface::CallbackReturn
@@ -279,6 +335,12 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
     RCLCPP_INFO(get_node()->get_logger(),
                 "Successfully configured controller with %zu joints and end effector frame '%s'", params_.joints.size(),
                 params_.end_effector_frame.c_str());
+    // Initialize q_snapshot_ now that model size is known
+    {
+      std::lock_guard<std::mutex> lock(ik_mutex_);
+      q_snapshot_ = Eigen::VectorXd::Zero(pinocchio_model_.nq);
+  have_last_q_out_ = false;
+    }
   } catch (const std::exception& e) {
     RCLCPP_ERROR(get_node()->get_logger(), "Exception during Pinocchio model setup: %s", e.what());
     return controller_interface::CallbackReturn::ERROR;
@@ -286,7 +348,28 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
 
   // Setup the pose listener
   pose_cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "~/target_pose", 10, [&](const geometry_msgs::msg::PoseStamped& msg) { buffer_pose_cmd_.writeFromNonRT(msg); });
+      "~/target_pose", 10, [&](const geometry_msgs::msg::PoseStamped& msg) {
+        // Write raw to RT buffer for real-time consumers
+        buffer_pose_cmd_.writeFromNonRT(msg);
+
+        // Non-RT: push to IK request queue if it's a new target (ignore duplicates)
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        bool duplicate = false;
+        if (!ik_request_queue_.empty()) {
+          const auto& back = ik_request_queue_.back();
+          if (back.header.frame_id == msg.header.frame_id &&
+              back.pose.position.x == msg.pose.position.x && back.pose.position.y == msg.pose.position.y &&
+              back.pose.position.z == msg.pose.position.z && back.pose.orientation.w == msg.pose.orientation.w &&
+              back.pose.orientation.x == msg.pose.orientation.x && back.pose.orientation.y == msg.pose.orientation.y &&
+              back.pose.orientation.z == msg.pose.orientation.z) {
+            duplicate = true;
+          }
+        }
+        if (!duplicate) {
+          ik_request_queue_.push_back(msg);
+          queue_cv_.notify_one();
+        }
+      });
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -334,12 +417,102 @@ CartesianPoseController::on_activate([[maybe_unused]] const rclcpp_lifecycle::St
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  // Start IK worker thread now that model and q_snapshot_ are initialized
+  // Clear any stale requests before starting the worker
+  {
+    std::lock_guard<std::mutex> qlock(queue_mutex_);
+    ik_request_queue_.clear();
+  }
+
+  if (!ik_worker_running_) {
+    ik_worker_running_ = true;
+    ik_worker_thread_ = std::thread(&CartesianPoseController::ikWorkerMain, this);
+  }
+
+  // Ensure the current robot pose becomes the target immediately to avoid any transient motion
+  // Build full-size vectors for all robot joints (Pinocchio expects this)
+  {
+    const std::size_t joint_count = joint_position_state_interfaces_.size();
+    Eigen::VectorXd q = Eigen::VectorXd::Zero(pinocchio_model_.nq);
+    Eigen::VectorXd v = Eigen::VectorXd::Zero(pinocchio_model_.nv);
+
+    for (std::size_t i = 0; i < joint_count; i++) {
+      const std::string& joint_name = params_.joints[i];
+      auto idx = pinocchio_model_.getJointId(joint_name);
+      if (idx == 0) {
+        RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
+        return controller_interface::CallbackReturn::FAILURE;
+      }
+      q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
+      v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
+    }
+
+    // Update snapshot for worker
+    {
+      std::lock_guard<std::mutex> lock(ik_mutex_);
+      q_snapshot_ = q;
+    }
+
+    // Compute current EE pose and set it as the current target (in base frame)
+    pinocchio::forwardKinematics(pinocchio_model_, pinocchio_data_, q);
+    pinocchio::updateFramePlacements(pinocchio_model_, pinocchio_data_);
+    pinocchio::FrameIndex frame_id = pinocchio_model_.getFrameId(params_.end_effector_frame);
+    const pinocchio::SE3 current_ee_pose = pinocchio_data_.oMf[frame_id];
+
+    // Fill PoseStamped (use empty frame_id to indicate base frame)
+    geometry_msgs::msg::PoseStamped pmsg;
+    pmsg.header.stamp = get_node()->now();
+    pmsg.header.frame_id = "";
+    const Eigen::Vector3d t = current_ee_pose.translation();
+    const Eigen::Quaterniond qrot(current_ee_pose.rotation());
+    pmsg.pose.position.x = t.x();
+    pmsg.pose.position.y = t.y();
+    pmsg.pose.position.z = t.z();
+    pmsg.pose.orientation.x = qrot.x();
+    pmsg.pose.orientation.y = qrot.y();
+    pmsg.pose.orientation.z = qrot.z();
+    pmsg.pose.orientation.w = qrot.w();
+
+    // Write into RT buffer so update() will see the current pose as target
+    buffer_pose_cmd_.writeFromNonRT(pmsg);
+
+    // Cache IK results as the current configuration so update() won't trigger motion
+    {
+      std::lock_guard<std::mutex> lock(ik_mutex_);
+      last_q_out_ = q;
+      have_last_q_out_ = true;
+    }
+
+    // Sync command interfaces to current positions to avoid jumps when the controller starts commanding
+    for (std::size_t i = 0; i < joint_count; i++) {
+      double q_val = q[pinocchio_model_.joints[pinocchio_model_.getJointId(params_.joints[i])].idx_q()];
+      // set the commanded position to current position
+      if (!joint_position_command_interfaces_.at(i).get().set_value<double>(q_val)) {
+        RCLCPP_WARN(get_node()->get_logger(), "Failed to set initial command for joint '%s'", params_.joints[i].c_str());
+      }
+    }
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
+
 
 controller_interface::CallbackReturn
 CartesianPoseController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  // Stop IK worker thread
+  ik_worker_running_ = false;
+  queue_cv_.notify_all();
+  if (ik_worker_thread_.joinable()) {
+    ik_worker_thread_.join();
+  }
+
+  // Clear any remaining requests after worker stopped
+  {
+    std::lock_guard<std::mutex> qlock(queue_mutex_);
+    ik_request_queue_.clear();
+  }
+
   active_ = false;
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -374,10 +547,15 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
   }
 
+  // Make a snapshot of q for the IK worker
+  {
+    std::lock_guard<std::mutex> lock(ik_mutex_);
+    q_snapshot_ = q;
+  }
+
   pinocchio::FrameIndex frame_id = pinocchio_model_.getFrameId(params_.end_effector_frame);
 
   // Use the frame id directly for IK (solve for the end-effector frame)
-  const pinocchio::FrameIndex ik_frame_id = frame_id;
 
   const auto pose_msg = buffer_pose_cmd_.readFromRT();
   const auto target_pose = rosPoseToSE3(pose_msg->pose);
@@ -394,13 +572,19 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   Eigen::VectorXd q_out = Eigen::VectorXd::Zero(pinocchio_model_.nq);
   bool ik_success = false;
 
-  // Use the transformed pose for IK
-  ik_success = computeIK(pinocchio_model_, pinocchio_data_, pose_for_ik, q, ik_frame_id, q_out);
-  if (!ik_success) {
-    RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Failed to compute IK");
+  // Worker-only IK: do not compute IK in the hot update loop.
+  // Rely on the async worker to fill `last_q_out_`. If no cached solution is available yet,
+  // avoid commanding anything (safe fallback) until the worker produces a q_out.
+  if (!have_last_q_out_) {
+    // No IK solution available yet from the worker -> skip commanding this cycle
+    return controller_interface::return_type::OK;
   }
 
-  // Compute current FK for the end-effector and compare to the requested target so we can avoid tiny motions
+  // Use cached q_out computed by the worker
+  q_out = last_q_out_;
+  ik_success = true;
+
+  // Compute current FK for the end-effector to evaluate error (cheap compared to IK)
   pinocchio::forwardKinematics(pinocchio_model_, pinocchio_data_, q);
   pinocchio::updateFramePlacements(pinocchio_model_, pinocchio_data_);
   const pinocchio::SE3 current_ee_pose = pinocchio_data_.oMf[frame_id];
