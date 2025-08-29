@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(dynaarm_gz_ros2_control)
 
-find_package(ros2_control REQUIRED)
+
 
 # Compiler options
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
