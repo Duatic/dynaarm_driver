@@ -26,10 +26,11 @@
 
 #include <dynaarm_controllers/cartesian_pose_controller.hpp>
 
-#include <hardware_interface/types/hardware_interface_type_values.hpp>
-
-#include <controller_interface/helpers.hpp>
-#include <lifecycle_msgs/msg/state.hpp>
+// C++ system headers
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
 
 #include <pinocchio/collision/collision.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -37,11 +38,13 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/check-data.hpp>
 
+// Other headers
+#include <hardware_interface/types/hardware_interface_type_values.hpp>
+
+#include <controller_interface/helpers.hpp>
+#include <lifecycle_msgs/msg/state.hpp>
+
 #include <pluginlib/class_list_macros.hpp>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <deque>
 
 namespace dynaarm_controllers
 {
@@ -216,14 +219,15 @@ void CartesianPoseController::ikWorkerMain()
     }
 
     // Transform pose into model base using local_data
-    auto [pose_for_ik, transform_success] = transformPoseToModelBaseFrame(req, target_pose, pinocchio_model_,
-                                                                          local_data, q_snapshot, get_node()->get_logger());
+    auto [pose_for_ik, transform_success] = transformPoseToModelBaseFrame(
+        req, target_pose, pinocchio_model_, local_data, q_snapshot, get_node()->get_logger());
     if (!transform_success) {
       continue;
     }
 
     Eigen::VectorXd q_out_local = Eigen::VectorXd::Zero(pinocchio_model_.nq);
-    bool ik_ok = computeIK(pinocchio_model_, local_data, pose_for_ik, q_snapshot, pinocchio_model_.getFrameId(params_.end_effector_frame), q_out_local);
+    bool ik_ok = computeIK(pinocchio_model_, local_data, pose_for_ik, q_snapshot,
+                           pinocchio_model_.getFrameId(params_.end_effector_frame), q_out_local);
 
     if (ik_ok) {
       std::lock_guard<std::mutex> lock(ik_mutex_);
@@ -339,7 +343,7 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
     {
       std::lock_guard<std::mutex> lock(ik_mutex_);
       q_snapshot_ = Eigen::VectorXd::Zero(pinocchio_model_.nq);
-  have_last_q_out_ = false;
+      have_last_q_out_ = false;
     }
   } catch (const std::exception& e) {
     RCLCPP_ERROR(get_node()->get_logger(), "Exception during Pinocchio model setup: %s", e.what());
@@ -357,11 +361,10 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
         bool duplicate = false;
         if (!ik_request_queue_.empty()) {
           const auto& back = ik_request_queue_.back();
-          if (back.header.frame_id == msg.header.frame_id &&
-              back.pose.position.x == msg.pose.position.x && back.pose.position.y == msg.pose.position.y &&
-              back.pose.position.z == msg.pose.position.z && back.pose.orientation.w == msg.pose.orientation.w &&
-              back.pose.orientation.x == msg.pose.orientation.x && back.pose.orientation.y == msg.pose.orientation.y &&
-              back.pose.orientation.z == msg.pose.orientation.z) {
+          if (back.header.frame_id == msg.header.frame_id && back.pose.position.x == msg.pose.position.x &&
+              back.pose.position.y == msg.pose.position.y && back.pose.position.z == msg.pose.position.z &&
+              back.pose.orientation.w == msg.pose.orientation.w && back.pose.orientation.x == msg.pose.orientation.x &&
+              back.pose.orientation.y == msg.pose.orientation.y && back.pose.orientation.z == msg.pose.orientation.z) {
             duplicate = true;
           }
         }
@@ -488,14 +491,14 @@ CartesianPoseController::on_activate([[maybe_unused]] const rclcpp_lifecycle::St
       double q_val = q[pinocchio_model_.joints[pinocchio_model_.getJointId(params_.joints[i])].idx_q()];
       // set the commanded position to current position
       if (!joint_position_command_interfaces_.at(i).get().set_value<double>(q_val)) {
-        RCLCPP_WARN(get_node()->get_logger(), "Failed to set initial command for joint '%s'", params_.joints[i].c_str());
+        RCLCPP_WARN(get_node()->get_logger(), "Failed to set initial command for joint '%s'",
+                    params_.joints[i].c_str());
       }
     }
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
-
 
 controller_interface::CallbackReturn
 CartesianPoseController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)

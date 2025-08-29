@@ -24,22 +24,11 @@
 
 #pragma once
 
+// C++ system headers
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <memory>
-
-#include <controller_interface/controller_interface.hpp>
-#include <hardware_interface/loaned_command_interface.hpp>
-#include <hardware_interface/loaned_state_interface.hpp>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-#include <dynaarm_msgs/msg/gravity_compensation_controller_status.hpp>
-#include "controller_interface/chainable_controller_interface.hpp"
-
-// ROS2
-#include <realtime_tools/realtime_publisher.hpp>
-#include <realtime_tools/realtime_buffer.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -53,6 +42,19 @@
 #include <pinocchio/parsers/srdf.hpp>
 #include "pinocchio/algorithm/joint-configuration.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
+
+// Other headers
+#include <controller_interface/controller_interface.hpp>
+#include <hardware_interface/loaned_command_interface.hpp>
+#include <hardware_interface/loaned_state_interface.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <dynaarm_msgs/msg/gravity_compensation_controller_status.hpp>
+#include "controller_interface/chainable_controller_interface.hpp"
+
+// ROS2
+#include <realtime_tools/realtime_publisher.hpp>
+#include <realtime_tools/realtime_buffer.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 // Project
 #include <dynaarm_controllers/cartesian_pose_controller_parameters.hpp>
@@ -93,12 +95,11 @@ private:
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
 
-
   std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>> pose_cmd_sub_;
   realtime_tools::RealtimeBuffer<geometry_msgs::msg::PoseStamped> buffer_pose_cmd_;
   // Cached IK result to avoid recomputing IK every update
   Eigen::VectorXd last_q_out_;
-  bool have_last_q_out_{false};
+  bool have_last_q_out_{ false };
   // Async IK worker
   std::mutex ik_mutex_;  // protects last_* members
   // Queue for incoming non-RT target poses
@@ -106,7 +107,7 @@ private:
   std::condition_variable queue_cv_;
   std::deque<geometry_msgs::msg::PoseStamped> ik_request_queue_;
   std::thread ik_worker_thread_;
-  std::atomic<bool> ik_worker_running_{false};
+  std::atomic<bool> ik_worker_running_{ false };
   // Snapshot of most recent q (updated in update()) for worker to use
   Eigen::VectorXd q_snapshot_;
   // IK worker main
