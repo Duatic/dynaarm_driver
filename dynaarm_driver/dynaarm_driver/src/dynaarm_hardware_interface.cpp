@@ -25,7 +25,7 @@
 #include <filesystem>
 #include "dynaarm_driver/dynaarm_hardware_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
-
+#include "ethercat_sdk_master/EthercatMasterSingleton.hpp"
 namespace dynaarm_driver
 {
 hardware_interface::CallbackReturn
@@ -38,8 +38,7 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
   };  // TODO(firesurfer) set timestep according to the update rate of ros2control (or spin asynchronously)
 
   // Obtain an instance of the bus from the singleton - if there is no instance it will be created
-  ecat_master_ = std::make_shared<ecat_master::EthercatMaster>();
-  ecat_master_->loadEthercatMasterConfiguration(ecat_master_config);
+  ecat_master_handle_ = ecat_master::EthercatMasterSingleton::instance().aquireMaster(ecat_master_config);
 
   // Every joint refers to a drive
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
@@ -78,90 +77,31 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
     drives_.push_back(drive);
 
     // And attach it to the ethercat master
-    if (ecat_master_->attachDevice(drive) == false) {
+    if (ecat_master_handle_.ecat_master->attachDevice(drive) == false) {
       RCLCPP_ERROR_STREAM(logger_, "Could not attach the slave drive to the master.");
     }
 
     RCLCPP_INFO_STREAM(logger_, "Configuring drive: " << joint_name << " at bus address: " << address);
   }
 
-  if (ecat_master_->startup(startupAbortFlag_) == false) {
-    RCLCPP_ERROR_STREAM(logger_, "Could not start the Ethercat Master.");
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-
-  RCLCPP_INFO_STREAM(
-      logger_, "Successfully started Ethercat Master on Network Interface: " << ecat_master_->getBusPtr()->getName());
-
-  // Actually run the ethercat master in a separate thread
-  ecat_worker_thread_ = std::make_unique<std::thread>([this] {
-    // A rt priority > 48 seems to starve other processes on some systems.
-    if (ecat_master_->setRealtimePriority(48) == false) {
-      RCLCPP_WARN_STREAM(logger_, "Could not increase thread priority - check user privileges.");
-    }
-
-    if (ecat_master_->activate()) {
-      RCLCPP_INFO_STREAM(logger_, "Activated the Bus: " << ecat_master_->getBusPtr()->getName());
-    }
-
-    while (!abrtFlag_) {
-      ecat_master_->update(ecat_master::UpdateMode::StandaloneEnforceStep);
-    }
-    ecat_master_->deactivate();
-  });
-
   RCLCPP_INFO_STREAM(logger_, "Successfully initialized dynaarm hardware interface for DynaArmHardwareInterface");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn
+DynaArmHardwareInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+{
+  // This is a bit of a work around but doesn't work otherwise
+  // We separate the activation of the ethercat bus into separate stages
+  // 1. Setup
+  // 2. Activation - only when all handles that where given out in the setup (on_init) mark themselves as ready for
+  // activation the bus will be activated
+  ecat_master::EthercatMasterSingleton::instance().markAsReady(ecat_master_handle_);
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_activate_derived([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    auto& drive = drives_[i];
-    // In case we are in error state clear the error and try again
-    rsl_drive_sdk::Statusword status_word;
-    drive->getStatuswordSdo(status_word);
-    if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
-      RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
-      drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
-      drive->updateWrite();
-      drive->updateRead();
-      if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
-        RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
-      } else {
-        RCLCPP_INFO_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " went into ControlOp successfully");
-      }
-    }
-  }
-
-  // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
-  for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    auto& drive = drives_[i];
-
-    // Put into controlOP, in blocking mode.
-    if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
-      RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
-                                             << " did not go into ControlOP - this is trouble some and a reason to "
-                                                "abort. Try to reboot the hardware");
-      return hardware_interface::CallbackReturn::ERROR;
-    }
-
-    // Log the firmware information of the drive. Might be useful for debugging issues at customer
-    rsl_drive_sdk::common::BuildInfo info;
-    drive->getBuildInfo(info);
-    RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
-                                               << " tag: " << info.gitTag << " hash: " << info.gitHash);
-
-    rsl_drive_sdk::mode::PidGainsF gains;
-    drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
-    joint_command_vector_[i].p_gain = gains.getP();
-    joint_command_vector_[i].i_gain = gains.getI();
-    joint_command_vector_[i].d_gain = gains.getD();
-
-    RCLCPP_INFO_STREAM(logger_, "PID Gains: " << gains);
-  }
-
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -182,6 +122,60 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
 
 void DynaArmHardwareInterface::read_motor_states()
 {
+  if (!ready_) {
+    if (ecat_master_handle_.running) {
+      for (std::size_t i = 0; i < info_.joints.size(); i++) {
+        auto& drive = drives_[i];
+        // In case we are in error state clear the error and try again
+        rsl_drive_sdk::Statusword status_word;
+        drive->getStatuswordSdo(status_word);
+        if (status_word.getStateEnum() == rsl_drive_sdk::fsm::StateEnum::Error) {
+          RCLCPP_WARN_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " is in Error state - trying to reset");
+          drive->setControlword(RSL_DRIVE_CW_ID_CLEAR_ERRORS_TO_STANDBY);
+          drive->updateWrite();
+          drive->updateRead();
+          if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
+            RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name << " did not go into ControlOP");
+          } else {
+            RCLCPP_INFO_STREAM(logger_, "Drive: " << info_.joints.at(i).name << " went into ControlOp successfully");
+          }
+        }
+      }
+
+      // On activate is already in the realtime loop (on_configure would be in the non_rt loop)
+      for (std::size_t i = 0; i < info_.joints.size(); i++) {
+        auto& drive = drives_[i];
+
+        // Put into controlOP, in blocking mode.
+        if (!drive->setFSMGoalState(rsl_drive_sdk::fsm::StateEnum::ControlOp, true, 1, 10)) {
+          RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
+                                                 << " did not go into ControlOP - this is trouble some and a reason to "
+                                                    "abort. Try to reboot the hardware");
+          return;
+        }
+
+        // Log the firmware information of the drive. Might be useful for debugging issues at customer
+        rsl_drive_sdk::common::BuildInfo info;
+        drive->getBuildInfo(info);
+        RCLCPP_INFO_STREAM(logger_, "Drive info: " << info_.joints[i].name << " Build date: " << info.buildDate
+                                                   << " tag: " << info.gitTag << " hash: " << info.gitHash);
+
+        rsl_drive_sdk::mode::PidGainsF gains;
+        drive->getControlGains(rsl_drive_sdk::mode::ModeEnum::JointPositionVelocityTorquePidGains, gains);
+        joint_command_vector_[i].p_gain = gains.getP();
+        joint_command_vector_[i].i_gain = gains.getI();
+        joint_command_vector_[i].d_gain = gains.getD();
+
+        RCLCPP_INFO_STREAM(logger_, "PID Gains: " << gains);
+      }
+      ready_ = true;
+    }
+  }
+
+  if (!ready_) {
+    return;
+  }
+
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Get a reading from the specific drive and
     rsl_drive_sdk::ReadingExtended reading;
@@ -211,6 +205,9 @@ void DynaArmHardwareInterface::read_motor_states()
 
 void DynaArmHardwareInterface::write_motor_commands()
 {
+  if (!ready_) {
+    return;
+  }
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     // Obtain reference to the specific drive
     auto& drive = drives_[i];
@@ -246,23 +243,8 @@ void DynaArmHardwareInterface::write_motor_commands()
 DynaArmHardwareInterface::~DynaArmHardwareInterface()
 {
   RCLCPP_INFO_STREAM(logger_, "Destructor of DynaArm Hardware Interface called");
-  // call preShutdown before terminating the cyclic PDO communication!!
-  if (ecat_master_) {
-    ecat_master_->preShutdown(true);
-  }
-  RCLCPP_INFO_STREAM(logger_, "PreShutdown ethercat master and all slaves.");
-
-  // tell the ecat master thread to end and join it if possible
-  abrtFlag_ = true;
-  if (ecat_worker_thread_) {
-    if (ecat_worker_thread_->joinable()) {
-      ecat_worker_thread_->join();
-    }
-  }
-
-  ecat_master_->shutdown();
-
-  RCLCPP_INFO_STREAM(logger_, "Fully shutdown.");
+  ecat_master::EthercatMasterSingleton::instance().releaseMaster(ecat_master_handle_);
+  ecat_master_handle_.ecat_master.reset();
 }
 }  // namespace dynaarm_driver
 
