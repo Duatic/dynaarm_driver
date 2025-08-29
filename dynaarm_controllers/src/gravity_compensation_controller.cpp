@@ -169,6 +169,7 @@ GravityCompensationController::on_activate([[maybe_unused]] const rclcpp_lifecyc
     return controller_interface::CallbackReturn::FAILURE;
   }
 
+  // Obtain the joint positions during startup which we need for the startup jump check
   for (std::size_t i = 0; i < joint_position_state_interfaces_.size(); i++) {
     initial_joint_positions_.push_back(joint_position_state_interfaces_.at(i).get().get_value());
   }
@@ -217,6 +218,9 @@ controller_interface::return_type GravityCompensationController::update([[maybe_
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
   }
 
+  // Perform startup jump check if enabled
+  // A jump might happen if the configured urdf does not match the hardware
+  // So for the first 0.5s after activation we check if there was a jump of more than (default 0.5) x rad
   if (params_.enable_startup_check && (time - activation_time_ < rclcpp::Duration(std::chrono::milliseconds(500)))) {
     bool has_jump = false;
     for (std::size_t i = 0; i < joint_count; i++) {
