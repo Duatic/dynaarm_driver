@@ -43,7 +43,7 @@ namespace dynaarm_controllers
 {
 
 bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinocchio::SE3& target_pose,
-               const Eigen::VectorXd& q_in, const pinocchio::JointIndex joint_id, Eigen::VectorXd& q_out)
+               const Eigen::VectorXd& q_in, const pinocchio::FrameIndex frame_id, Eigen::VectorXd& q_out)
 {
   const double eps = 1e-4;
   const int IT_MAX = 1000;
@@ -55,26 +55,22 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
   // Create a copy if the input data that we can work on
   Eigen::VectorXd q = q_in;
 
-  RCLCPP_DEBUG(rclcpp::get_logger("computeIK"),
-               "Starting IK computation for joint %ld, target pose translation=[%f, %f, %f]", joint_id,
-               target_pose.translation().x(), target_pose.translation().y(), target_pose.translation().z());
-
   for (std::size_t i = 0; i < IT_MAX; i++) {
     // Compute the forward kinematics with the current configuration and check if it is close enough to where we want
     pinocchio::forwardKinematics(model, data, q);
-    const pinocchio::SE3 iMd = data.oMi[joint_id].actInv(target_pose);
-    Eigen::Matrix<double, 6, 1> err = log6(iMd).toVector();
+    pinocchio::updateFramePlacements(model, data);
+    const pinocchio::SE3 iMf = data.oMf[frame_id].actInv(target_pose);
+    Eigen::Matrix<double, 6, 1> err = log6(iMf).toVector();
 
     if (err.norm() < eps) {
       q_out = q;
-      RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "IK converged after %zu iterations, final error norm: %f", i,
-                   err.norm());
       return true;
     }
 
-    pinocchio::computeJointJacobian(model, data, q, joint_id, J);
+    // Use frame Jacobian for the specified frame so the IK is solved at the end-effector frame
+    pinocchio::computeFrameJacobian(model, data, q, frame_id, J);
     pinocchio::Data::Matrix6 Jlog;
-    pinocchio::Jlog6(iMd.inverse(), Jlog);
+    pinocchio::Jlog6(iMf.inverse(), Jlog);
     J = -Jlog * J;
     pinocchio::Data::Matrix6 JJt;
     JJt.noalias() = J * J.transpose();
@@ -83,15 +79,11 @@ bool computeIK(const pinocchio::Model& model, pinocchio::Data& data, const pinoc
     Eigen::VectorXd v(model.nv);
     v.noalias() = -J.transpose() * JJt.ldlt().solve(err);
     q = pinocchio::integrate(model, q, v * DT);
-
-    if (!(i % 100)) {
-      RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "Iteration %zu: error norm = %f", i, err.norm());
-    }
   }
 
   // We where not successful - set the output to the original input. Which avoid accidental motions
   q_out = q_in;
-  RCLCPP_DEBUG(rclcpp::get_logger("computeIK"), "IK failed to converge after %d iterations", IT_MAX);
+
   return false;
 }
 
@@ -112,9 +104,6 @@ std::pair<pinocchio::SE3, bool> transformPoseToModelBaseFrame(const geometry_msg
     return { target_pose, true };
   }
 
-  RCLCPP_DEBUG(logger, "Target pose is in frame '%s', transforming to model base frame",
-               pose_msg.header.frame_id.c_str());
-
   // Get the transformation from the target frame to the model base frame
   pinocchio::FrameIndex target_frame_id;
   try {
@@ -134,9 +123,6 @@ std::pair<pinocchio::SE3, bool> transformPoseToModelBaseFrame(const geometry_msg
 
   // Transform the target pose: pose_in_base = target_frame_pose * pose_in_target
   const pinocchio::SE3 transformed_target_pose = target_frame_pose * target_pose;
-
-  RCLCPP_DEBUG(logger, "Transformed target pose: translation=[%f, %f, %f]", transformed_target_pose.translation().x(),
-               transformed_target_pose.translation().y(), transformed_target_pose.translation().z());
 
   return { transformed_target_pose, true };
 }
@@ -300,13 +286,7 @@ CartesianPoseController::on_configure([[maybe_unused]] const rclcpp_lifecycle::S
 
   // Setup the pose listener
   pose_cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "~/target_pose", 10, [&](const geometry_msgs::msg::PoseStamped& msg) {
-        buffer_pose_cmd_.writeFromNonRT(msg);
-
-        RCLCPP_DEBUG_STREAM(get_node()->get_logger(), "New pose target: " << msg.pose.position.x << ", "
-                                                                          << msg.pose.position.y << ", "
-                                                                          << msg.pose.position.z);
-      });
+      "~/target_pose", 10, [&](const geometry_msgs::msg::PoseStamped& msg) { buffer_pose_cmd_.writeFromNonRT(msg); });
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -396,7 +376,8 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
 
   pinocchio::FrameIndex frame_id = pinocchio_model_.getFrameId(params_.end_effector_frame);
 
-  const pinocchio::JointIndex joint_id = pinocchio_model_.frames[frame_id].parent;
+  // Use the frame id directly for IK (solve for the end-effector frame)
+  const pinocchio::FrameIndex ik_frame_id = frame_id;
 
   const auto pose_msg = buffer_pose_cmd_.readFromRT();
   const auto target_pose = rosPoseToSE3(pose_msg->pose);
@@ -414,22 +395,38 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
   bool ik_success = false;
 
   // Use the transformed pose for IK
-  ik_success = computeIK(pinocchio_model_, pinocchio_data_, pose_for_ik, q, joint_id, q_out);
-  RCLCPP_DEBUG(get_node()->get_logger(), "Target pose: translation=[%f, %f, %f], IK success: %s",
-               pose_for_ik.translation().x(), pose_for_ik.translation().y(), pose_for_ik.translation().z(),
-               ik_success ? "true" : "false");
+  ik_success = computeIK(pinocchio_model_, pinocchio_data_, pose_for_ik, q, ik_frame_id, q_out);
   if (!ik_success) {
     RCLCPP_ERROR_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, "Failed to compute IK");
+  }
+
+  // Compute current FK for the end-effector and compare to the requested target so we can avoid tiny motions
+  pinocchio::forwardKinematics(pinocchio_model_, pinocchio_data_, q);
+  pinocchio::updateFramePlacements(pinocchio_model_, pinocchio_data_);
+  const pinocchio::SE3 current_ee_pose = pinocchio_data_.oMf[frame_id];
+
+  // Compute 6D error (translation + rotation) current -> target
+  const pinocchio::SE3 ee_err_se3 = current_ee_pose.actInv(pose_for_ik);
+  Eigen::Matrix<double, 6, 1> ee_err6 = log6(ee_err_se3).toVector();
+  const double trans_err = ee_err6.head<3>().norm();
+  const double rot_err = ee_err6.tail<3>().norm();
+
+  // Thresholds to avoid tiny commanded motions (tolerances can be tuned)
+  const double TRANSLATION_TOL = 5e-4;  // 0.5 mm
+  const double ROTATION_TOL = 1e-3;     // ~0.057 deg in axis-angle magnitude
+
+  if (trans_err < TRANSLATION_TOL && rot_err < ROTATION_TOL) {
+    return controller_interface::return_type::OK;
   }
 
   pinocchio::GeometryData geom_data(pinocchio_geom_);
   const auto collides =
       pinocchio::computeCollisions(pinocchio_model_, pinocchio_data_, pinocchio_geom_, geom_data, q_out);
 
-  RCLCPP_DEBUG(get_node()->get_logger(), "Collision check result: %s",
-               collides ? "COLLISION DETECTED" : "NO COLLISION");
-
   if (!collides) {
+    // Compute joint-space delta and optionally clamp per-update joint changes to avoid jumps
+    const double MAX_JOINT_STEP = 0.01;  // radians per update (~0.57 deg). Tune if needed.
+    double max_delta_norm = 0.0;
     for (std::size_t i = 0; i < joint_count; i++) {
       const std::string& joint_name = params_.joints[i];
       auto idx = pinocchio_model_.getJointId(joint_name);
@@ -437,10 +434,22 @@ controller_interface::return_type CartesianPoseController::update([[maybe_unused
         RCLCPP_ERROR(get_node()->get_logger(), "Joint '%s' not found in Pinocchio model.", joint_name.c_str());
         return controller_interface::return_type::ERROR;
       }
-      // Pinocchio joint index starts at 1, q/v index is idx-1
 
-      if (!joint_position_command_interfaces_.at(i).get().set_value<double>(
-              q_out[pinocchio_model_.joints[idx].idx_q()])) {
+      const double q_current_joint = q[pinocchio_model_.joints[idx].idx_q()];
+      const double q_target_joint = q_out[pinocchio_model_.joints[idx].idx_q()];
+      const double delta = q_target_joint - q_current_joint;
+      max_delta_norm = std::max(max_delta_norm, std::abs(delta));
+
+      // Read currently commanded position (may be last commanded value)
+      double cmd_current = joint_position_command_interfaces_.at(i).get().get_value();
+
+      // Clamp change per update to MAX_JOINT_STEP to avoid instantaneous jumps
+      double applied = q_target_joint;
+      if (std::abs(q_target_joint - cmd_current) > MAX_JOINT_STEP) {
+        applied = cmd_current + std::copysign(MAX_JOINT_STEP, q_target_joint - cmd_current);
+      }
+
+      if (!joint_position_command_interfaces_.at(i).get().set_value<double>(applied)) {
         RCLCPP_WARN(get_node()->get_logger(), "Failed to set position command for joint '%s'", joint_name.c_str());
       }
     }
