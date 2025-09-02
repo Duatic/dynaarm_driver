@@ -87,5 +87,6 @@ private:
 
   std::vector<double> initial_joint_positions_;
   rclcpp::Time activation_time_;
+  bool activation_time_set_ = false;
 };
 }  // namespace dynaarm_controllers
