@@ -13,3 +13,11 @@ gravity_compensation_controller:
     type: bool
     default_value: true
     description: "Publish a status message on the ~/state topic"
+  enable_startup_check:
+    type: bool
+    default_value: true
+    description: "Perform a check in the first half second if a large change in joint position happens"
+  max_jump_startup:
+    type: double
+    default_value: 0.5
+    description: "The maximum allowed jump in the first half second after startup"

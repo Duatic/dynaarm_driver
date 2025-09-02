@@ -84,5 +84,8 @@ private:
   using StatusMsgPublisher = realtime_tools::RealtimePublisher<StatusMsg>;
   rclcpp::Publisher<StatusMsg>::SharedPtr status_pub_;
   std::unique_ptr<StatusMsgPublisher> status_pub_rt_;
+
+  std::vector<double> initial_joint_positions_;
+  rclcpp::Time activation_time_;
 };
 }  // namespace dynaarm_controllers
