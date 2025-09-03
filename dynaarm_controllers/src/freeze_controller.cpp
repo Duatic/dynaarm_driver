@@ -24,10 +24,11 @@
 
 #include <dynaarm_controllers/freeze_controller.hpp>
 
+#include <fmt/format.h>
+
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
-#include <fmt/format.h>
 
 namespace dynaarm_controllers
 {
@@ -87,15 +88,17 @@ FreezeController::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& pr
 
   for (const auto& name : params_.names) {
     CommandInterfaceReferences freeze_interface_ref;
-    if (!controller_interface::get_ordered_interfaces(command_interfaces_, std::vector<std::string>{name},
+    if (!controller_interface::get_ordered_interfaces(command_interfaces_, std::vector<std::string>{ name },
                                                       "freeze_mode", freeze_interface_ref)) {
-      RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interface - freeze_mode for: %s", name.c_str());
+      RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interface - freeze_mode for: %s",
+                  name.c_str());
       return controller_interface::CallbackReturn::FAILURE;
     }
     freeze_mode_interfaces.push_back(freeze_interface_ref);
   }
 
-  RCLCPP_INFO_STREAM(get_node()->get_logger(), "Enable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", ")));
+  RCLCPP_INFO_STREAM(get_node()->get_logger(),
+                     "Enable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", ")));
 
   for (auto& interface_ref : freeze_mode_interfaces) {
     if (!interface_ref.at(0).get().set_value(1.0)) {
@@ -111,7 +114,8 @@ controller_interface::CallbackReturn
 FreezeController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   if (params_.disable_at_deactivate) {
-    RCLCPP_INFO_STREAM(get_node()->get_logger(), "Disable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", ")));
+    RCLCPP_INFO_STREAM(get_node()->get_logger(),
+                       "Disable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", ")));
 
     for (auto& interface_ref : freeze_mode_interfaces) {
       if (!interface_ref.at(0).get().set_value(0.0)) {
@@ -120,10 +124,11 @@ FreezeController::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& 
       }
     }
   } else {
-    RCLCPP_WARN_STREAM(get_node()->get_logger(), "Do not disable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", "))
-                                                                                        << " at deactivation - this "
-                                                                                           "might lead to unexpected "
-                                                                                           "behavior");
+    RCLCPP_WARN_STREAM(get_node()->get_logger(),
+                       "Do not disable freeze mode for: " << fmt::format("{}", fmt::join(params_.names, ", "))
+                                                          << " at deactivation - this "
+                                                             "might lead to unexpected "
+                                                             "behavior");
   }
   return controller_interface::CallbackReturn::SUCCESS;
 }
