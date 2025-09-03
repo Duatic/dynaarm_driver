@@ -68,6 +68,6 @@ private:
   std::unique_ptr<freeze_controller::ParamListener> param_listener_;
   freeze_controller::Params params_;
 
-  CommandInterfaceReferences freeze_mode_interface;
+  std::vector<CommandInterfaceReferences> freeze_mode_interfaces;
 };
 }  // namespace dynaarm_controllers
