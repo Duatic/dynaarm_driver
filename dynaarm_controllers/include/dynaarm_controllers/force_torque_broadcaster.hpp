@@ -32,8 +32,7 @@
 #include <controller_interface/controller_interface.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-#include <dynaarm_msgs/msg/gravity_compensation_controller_status.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
 
 // ROS2
 #include <realtime_tools/realtime_publisher.hpp>
@@ -72,21 +71,17 @@ private:
 
   pinocchio::Model pinocchio_model_;
   pinocchio::Data pinocchio_data_;
+  pinocchio::FrameIndex frame_index_;
 
-  std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> joint_effort_command_interfaces_;
-
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_effort_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_position_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_velocity_state_interfaces_;
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> joint_acceleration_state_interfaces_;
   std::atomic_bool active_{ false };
 
-  using StatusMsg = dynaarm_msgs::msg::GravityCompensationControllerStatus;
-  using StatusMsgPublisher = realtime_tools::RealtimePublisher<StatusMsg>;
-  rclcpp::Publisher<StatusMsg>::SharedPtr status_pub_;
-  std::unique_ptr<StatusMsgPublisher> status_pub_rt_;
-
-  std::vector<double> initial_joint_positions_;
-  rclcpp::Time activation_time_;
-  bool activation_time_set_ = false;
+  using WrenchStamped = geometry_msgs::msg::WrenchStamped;
+  using WrenchStampedPublisher = realtime_tools::RealtimePublisher<WrenchStamped>;
+  rclcpp::Publisher<WrenchStamped>::SharedPtr wrench_pub_;
+  std::unique_ptr<WrenchStampedPublisher> wrench_pub_rt_;
 };
 }  // namespace dynaarm_controllers

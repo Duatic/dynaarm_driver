@@ -29,6 +29,11 @@
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <controller_interface/helpers.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 
 namespace dynaarm_controllers
 {
@@ -43,11 +48,6 @@ controller_interface::InterfaceConfiguration ForceTorqueBroadcaster::command_int
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
-  const auto joints = params_.joints;
-  for (auto& joint : joints) {
-    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_EFFORT);
-  }
-
   return config;
 }
 
@@ -61,6 +61,7 @@ controller_interface::InterfaceConfiguration ForceTorqueBroadcaster::state_inter
   for (auto& joint : joints) {
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_POSITION);
     config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
+    config.names.emplace_back(joint + "/" + hardware_interface::HW_IF_EFFORT);
     config.names.emplace_back(joint + "/" + "acceleration_commanded");
   }
 
@@ -129,9 +130,12 @@ ForceTorqueBroadcaster::on_configure([[maybe_unused]] const rclcpp_lifecycle::St
     }
   }
 
-  // The status publisher
-  status_pub_ = get_node()->create_publisher<StatusMsg>("~/state", 10);  // TODO(firesurfer) what is the right qos ?
-  status_pub_rt_ = std::make_unique<StatusMsgPublisher>(status_pub_);
+  frame_index_ = pinocchio_model_.getFrameId(params_.endeffector_frame);
+
+  // The wrench publisher
+  wrench_pub_ =
+      get_node()->create_publisher<WrenchStamped>("~/wrench", 10);  // TODO(firesurfer) what is the right qos ?
+  wrench_pub_rt_ = std::make_unique<WrenchStampedPublisher>(wrench_pub_);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -140,11 +144,9 @@ controller_interface::CallbackReturn
 ForceTorqueBroadcaster::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   // clear out vectors in case of restart
-  joint_effort_command_interfaces_.clear();
-
+  joint_effort_state_interfaces_.clear();
   joint_position_state_interfaces_.clear();
   joint_velocity_state_interfaces_.clear();
-  initial_joint_positions_.clear();
 
   // get the actual interface in an ordered way (same order as the joints parameter)
   if (!controller_interface::get_ordered_interfaces(
@@ -163,16 +165,12 @@ ForceTorqueBroadcaster::on_activate([[maybe_unused]] const rclcpp_lifecycle::Sta
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  if (!controller_interface::get_ordered_interfaces(
-          command_interfaces_, params_.joints, hardware_interface::HW_IF_EFFORT, joint_effort_command_interfaces_)) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered command interfaces - effort");
+  if (!controller_interface::get_ordered_interfaces(state_interfaces_, params_.joints, hardware_interface::HW_IF_EFFORT,
+                                                    joint_effort_state_interfaces_)) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not get ordered state interfaces - effort");
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  // Obtain the joint positions during startup which we need for the startup jump check
-  for (std::size_t i = 0; i < joint_position_state_interfaces_.size(); i++) {
-    initial_joint_positions_.push_back(joint_position_state_interfaces_.at(i).get().get_value());
-  }
   active_ = true;
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -182,12 +180,7 @@ controller_interface::CallbackReturn
 ForceTorqueBroadcaster::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   active_ = false;
-  activation_time_set_ = false;
-  const std::size_t joint_count = joint_position_state_interfaces_.size();
-  // Reset the commanded joint efforts to 0
-  for (std::size_t i = 0; i < joint_count; i++) {
-    (void)joint_effort_command_interfaces_.at(i).get().set_value(0.0);
-  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -198,18 +191,13 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
     return controller_interface::return_type::OK;
   }
 
-  // Set activation_time_ only once, using the same time source as 'time'
-  if (!activation_time_set_) {
-    activation_time_ = time;
-    activation_time_set_ = true;
-  }
-
   const std::size_t joint_count = joint_position_state_interfaces_.size();
 
   // Build full-size vectors for all robot joints (Pinocchio expects this)
   Eigen::VectorXd q = Eigen::VectorXd::Zero(pinocchio_model_.nq);
   Eigen::VectorXd v = Eigen::VectorXd::Zero(pinocchio_model_.nv);
   Eigen::VectorXd a = Eigen::VectorXd::Zero(pinocchio_model_.nv);
+  Eigen::VectorXd torque_meas = Eigen::VectorXd::Zero(pinocchio_model_.nv);
   // Map: Pinocchio joint name -> index in q/v
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
@@ -222,33 +210,46 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
     q[pinocchio_model_.joints[idx].idx_q()] = joint_position_state_interfaces_.at(i).get().get_value();
     v[pinocchio_model_.joints[idx].idx_v()] = joint_velocity_state_interfaces_.at(i).get().get_value();
     a[pinocchio_model_.joints[idx].idx_v()] = joint_acceleration_state_interfaces_.at(i).get().get_value();
+    torque_meas[pinocchio_model_.joints[idx].idx_v()] = joint_effort_state_interfaces_.at(i).get().get_value();
   }
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
   const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
 
-  StatusMsg state_msg;
-  state_msg.timestamp = time;
+  Eigen::VectorXd tau_ext = tau - torque_meas;
+
+  pinocchio::computeJointJacobians(pinocchio_model_, pinocchio_data_, q);  // Or LOCAL
+  pinocchio::updateFramePlacements(pinocchio_model_, pinocchio_data_);
+  Eigen::Matrix<double, 6, Eigen::Dynamic> J(6, pinocchio_model_.nv);
+  pinocchio::getFrameJacobian(pinocchio_model_, pinocchio_data_, frame_index_, pinocchio::LOCAL_WORLD_ALIGNED,
+                              J);  // LOCAL or LOCAL_WORLD_ALIGNED
+
+  // Solve for wrench: F = (J^T)^+ * tau_ext
+  Eigen::VectorXd wrench = J.transpose().completeOrthogonalDecomposition().solve(tau_ext);
+
+  WrenchStamped wrench_msg;
+  wrench_msg.header.stamp = time;
+  wrench_msg.header.frame_id = params_.endeffector_frame;
+
+  // Force
+  wrench_msg.wrench.force.x = wrench(0);
+  wrench_msg.wrench.force.y = wrench(1);
+  wrench_msg.wrench.force.z = wrench(2);
+
+  // Torque
+  wrench_msg.wrench.torque.x = wrench(3);
+  wrench_msg.wrench.torque.y = wrench(4);
+  wrench_msg.wrench.torque.z = wrench(5);
   // Write only the efforts for this arm's joints
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
     auto idx = pinocchio_model_.getJointId(joint_name);
-    double effort = tau[pinocchio_model_.joints[idx].idx_v()];
-    bool success = joint_effort_command_interfaces_.at(i).get().set_value(effort);
-
-    state_msg.joints.push_back(joint_name);
-    state_msg.commanded_torque.push_back(effort);
-
-    if (!success) {
-      RCLCPP_ERROR(get_node()->get_logger(), "Failed to set new effort value for joint interface at index %zu.", i);
-      return controller_interface::return_type::ERROR;
-    }
   }
   // and we try to have our realtime publisher publish the message
   // if this doesn't succeed - well it will probably next time
-  if (status_pub_rt_->trylock()) {
-    status_pub_rt_->msg_ = state_msg;
-    status_pub_rt_->unlockAndPublish();
+  if (wrench_pub_rt_->trylock()) {
+    wrench_pub_rt_->msg_ = wrench_msg;
+    wrench_pub_rt_->unlockAndPublish();
   }
 
   return controller_interface::return_type::OK;
