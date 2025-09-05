@@ -229,7 +229,7 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
 
   // Solve for wrench: F = (J^T)^+ * tau_ext
   Eigen::VectorXd wrench = J.transpose().completeOrthogonalDecomposition().solve(tau_ext);
-  
+
   // Publish the wrench as wrench stamped
   WrenchStamped wrench_msg;
   wrench_msg.header.stamp = time;
