@@ -137,6 +137,9 @@ ForceTorqueBroadcaster::on_configure([[maybe_unused]] const rclcpp_lifecycle::St
       get_node()->create_publisher<WrenchStamped>("~/wrench", 10);  // TODO(firesurfer) what is the right qos ?
   wrench_pub_rt_ = std::make_unique<WrenchStampedPublisher>(wrench_pub_);
 
+  external_torques_pub_ = get_node()->create_publisher<MeasuredTorques>("~/torques", 10);
+  external_torques_pub__rt_ = std::make_unique<MeasuredTorquesPublisher>(external_torques_pub_);
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -215,7 +218,7 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
 
   forwardKinematics(pinocchio_model_, pinocchio_data_, q, v, a);
   const auto tau = pinocchio::rnea(pinocchio_model_, pinocchio_data_, q, v, a);
-
+  // These are the actual external torques
   Eigen::VectorXd tau_ext = tau - torque_meas;
 
   pinocchio::computeJointJacobians(pinocchio_model_, pinocchio_data_, q);  // Or LOCAL
@@ -226,7 +229,8 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
 
   // Solve for wrench: F = (J^T)^+ * tau_ext
   Eigen::VectorXd wrench = J.transpose().completeOrthogonalDecomposition().solve(tau_ext);
-
+  
+  // Publish the wrench as wrench stamped
   WrenchStamped wrench_msg;
   wrench_msg.header.stamp = time;
   wrench_msg.header.frame_id = params_.endeffector_frame;
@@ -240,16 +244,27 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
   wrench_msg.wrench.torque.x = wrench(3);
   wrench_msg.wrench.torque.y = wrench(4);
   wrench_msg.wrench.torque.z = wrench(5);
-  // Write only the efforts for this arm's joints
-  for (std::size_t i = 0; i < joint_count; i++) {
-    const std::string& joint_name = params_.joints[i];
-    auto idx = pinocchio_model_.getJointId(joint_name);
-  }
+
   // and we try to have our realtime publisher publish the message
   // if this doesn't succeed - well it will probably next time
   if (wrench_pub_rt_->trylock()) {
     wrench_pub_rt_->msg_ = wrench_msg;
     wrench_pub_rt_->unlockAndPublish();
+  }
+
+  MeasuredTorques torques_msg;
+  torques_msg.header = wrench_msg.header;
+  // Publish the calculated external torques per joint
+  for (std::size_t i = 0; i < joint_count; i++) {
+    const std::string& joint_name = params_.joints[i];
+    auto idx = pinocchio_model_.getJointId(joint_name);
+    torques_msg.joints.push_back(joint_name);
+    torques_msg.torques.push_back(tau_ext(idx));
+  }
+
+  if (external_torques_pub__rt_->trylock()) {
+    external_torques_pub__rt_->msg_ = torques_msg;
+    external_torques_pub__rt_->unlockAndPublish();
   }
 
   return controller_interface::return_type::OK;

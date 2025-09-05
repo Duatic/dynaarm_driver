@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DriveState.msg"
   "msg/PIDGains.msg"
   "msg/GravityCompensationControllerStatus.msg"
+  "msg/MeasuredTorques.msg"
   DEPENDENCIES std_msgs
 )
 

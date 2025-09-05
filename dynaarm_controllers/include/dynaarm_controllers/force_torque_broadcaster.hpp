@@ -33,6 +33,7 @@
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
+#include <dynaarm_msgs/msg/measured_torques.hpp>
 
 // ROS2
 #include <realtime_tools/realtime_publisher.hpp>
@@ -83,5 +84,10 @@ private:
   using WrenchStampedPublisher = realtime_tools::RealtimePublisher<WrenchStamped>;
   rclcpp::Publisher<WrenchStamped>::SharedPtr wrench_pub_;
   std::unique_ptr<WrenchStampedPublisher> wrench_pub_rt_;
+
+  using MeasuredTorques = dynaarm_msgs::msg::MeasuredTorques;
+  using MeasuredTorquesPublisher = realtime_tools::RealtimePublisher<MeasuredTorques>;
+  rclcpp::Publisher<MeasuredTorques>::SharedPtr external_torques_pub_;
+  std::unique_ptr<MeasuredTorquesPublisher> external_torques_pub__rt_;
 };
 }  // namespace dynaarm_controllers
