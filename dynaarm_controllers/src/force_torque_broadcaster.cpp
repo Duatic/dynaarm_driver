@@ -221,10 +221,10 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
   // These are the actual external torques
   Eigen::VectorXd tau_ext = tau - torque_meas;
 
-  pinocchio::computeJointJacobians(pinocchio_model_, pinocchio_data_, q);  // Or LOCAL
+  pinocchio::computeJointJacobians(pinocchio_model_, pinocchio_data_, q);  
   pinocchio::updateFramePlacements(pinocchio_model_, pinocchio_data_);
   Eigen::Matrix<double, 6, Eigen::Dynamic> J(6, pinocchio_model_.nv);
-  pinocchio::getFrameJacobian(pinocchio_model_, pinocchio_data_, frame_index_, pinocchio::LOCAL_WORLD_ALIGNED,
+  pinocchio::getFrameJacobian(pinocchio_model_, pinocchio_data_, frame_index_, pinocchio::LOCAL,
                               J);  // LOCAL or LOCAL_WORLD_ALIGNED
 
   // Solve for wrench: F = (J^T)^+ * tau_ext
