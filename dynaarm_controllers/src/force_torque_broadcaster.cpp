@@ -259,7 +259,8 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
     const std::string& joint_name = params_.joints[i];
     auto idx = pinocchio_model_.getJointId(joint_name);
     torques_msg.joints.push_back(joint_name);
-    torques_msg.torques.push_back(tau_ext(idx));
+    const double effort = tau_ext[pinocchio_model_.joints[idx].idx_v()];
+    torques_msg.torques.push_back(effort);
   }
 
   if (external_torques_pub__rt_->trylock()) {
