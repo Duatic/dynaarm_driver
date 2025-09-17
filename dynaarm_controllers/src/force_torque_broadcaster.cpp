@@ -38,6 +38,24 @@
 namespace dynaarm_controllers
 {
 
+
+const geometry_msgs::msg::WrenchStamped apply_wrench_offset(const geometry_msgs::msg::WrenchStamped& msg, const geometry_msgs::msg::WrenchStamped& offset){
+    geometry_msgs::msg::WrenchStamped corrected_msg = msg;
+
+    // Subtract the offset from the force components
+    corrected_msg.wrench.force.x = msg.wrench.force.x - offset.wrench.force.x;
+    corrected_msg.wrench.force.y = msg.wrench.force.y - offset.wrench.force.y;
+    corrected_msg.wrench.force.z = msg.wrench.force.z - offset.wrench.force.z;
+
+    // Subtract the offset from the torque components
+    corrected_msg.wrench.torque.x = msg.wrench.torque.x - offset.wrench.torque.x;
+    corrected_msg.wrench.torque.y = msg.wrench.torque.y - offset.wrench.torque.y;
+    corrected_msg.wrench.torque.z = msg.wrench.torque.z - offset.wrench.torque.z;
+
+    return corrected_msg;
+
+}
+
 ForceTorqueBroadcaster::ForceTorqueBroadcaster() : controller_interface::ControllerInterface()
 {
 }
@@ -140,6 +158,12 @@ ForceTorqueBroadcaster::on_configure([[maybe_unused]] const rclcpp_lifecycle::St
   external_torques_pub_ = get_node()->create_publisher<MeasuredTorques>("~/torques", 10);
   external_torques_pub__rt_ = std::make_unique<MeasuredTorquesPublisher>(external_torques_pub_);
 
+  zero_service_ = get_node()->create_service<std_srvs::srv::Trigger>(
+    "~/zero", [&](std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res){
+
+      wrench_offset_ = wrench_raw_msg_;
+    });
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -228,32 +252,38 @@ controller_interface::return_type ForceTorqueBroadcaster::update([[maybe_unused]
                               J);  // LOCAL or LOCAL_WORLD_ALIGNED
 
   // Solve for wrench: F = (J^T)^+ * tau_ext
-  Eigen::VectorXd wrench = J.transpose().completeOrthogonalDecomposition().solve(tau_ext);
+  double lambda = 1e-4; // Regularization parameter (tune this)
+  Eigen::MatrixXd J_reg = J.transpose();
+  J_reg.diagonal().array() += lambda;
+  Eigen::BDCSVD<Eigen::MatrixXd> svd(J_reg, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  Eigen::VectorXd wrench = svd.solve(tau_ext);
 
   // Publish the wrench as wrench stamped
-  WrenchStamped wrench_msg;
-  wrench_msg.header.stamp = time;
-  wrench_msg.header.frame_id = params_.endeffector_frame;
+
+  wrench_raw_msg_.header.stamp = time;
+  wrench_raw_msg_.header.frame_id = params_.endeffector_frame;
 
   // Force
-  wrench_msg.wrench.force.x = wrench(0);
-  wrench_msg.wrench.force.y = wrench(1);
-  wrench_msg.wrench.force.z = wrench(2);
+  wrench_raw_msg_.wrench.force.x = wrench(0);
+  wrench_raw_msg_.wrench.force.y = wrench(1);
+  wrench_raw_msg_.wrench.force.z = wrench(2);
 
   // Torque
-  wrench_msg.wrench.torque.x = wrench(3);
-  wrench_msg.wrench.torque.y = wrench(4);
-  wrench_msg.wrench.torque.z = wrench(5);
+  wrench_raw_msg_.wrench.torque.x = wrench(3);
+  wrench_raw_msg_.wrench.torque.y = wrench(4);
+  wrench_raw_msg_.wrench.torque.z = wrench(5);
+
+  wrench_msg_ = apply_wrench_offset(wrench_raw_msg_, wrench_offset_);
 
   // and we try to have our realtime publisher publish the message
   // if this doesn't succeed - well it will probably next time
   if (wrench_pub_rt_->trylock()) {
-    wrench_pub_rt_->msg_ = wrench_msg;
+    wrench_pub_rt_->msg_ = wrench_msg_;
     wrench_pub_rt_->unlockAndPublish();
   }
 
   MeasuredTorques torques_msg;
-  torques_msg.header = wrench_msg.header;
+  torques_msg.header = wrench_msg_.header;
   // Publish the calculated external torques per joint
   for (std::size_t i = 0; i < joint_count; i++) {
     const std::string& joint_name = params_.joints[i];
