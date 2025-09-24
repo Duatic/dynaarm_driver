@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>dynaarm_gz_ros2_control</name>
+  <version>1.2.14</version>
+  <description>Gazebo package that simulates the dynaarm.</description>
+  <maintainer email="zrene@leggedrobotics.com">René Zurbrügg</maintainer>
+  <author>René Zurbrügg</author>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>gz_sim_vendor</depend>
+  <depend>gz_plugin_vendor</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>yaml_cpp_vendor</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <depend>controller_manager</depend>
+  <depend>hardware_interface</depend>
+  <depend>ros2_control_cmake</depend>
+
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
