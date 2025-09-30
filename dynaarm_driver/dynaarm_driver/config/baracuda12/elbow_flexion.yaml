@@ -62,9 +62,9 @@ modes:
   # freeze controller gains
   - name: "MotorVelocity"
     gains:
-      p: 300
-      i: 25
-      d: 1500
+      p: 200
+      i: 1.5
+      d: 80
 
   - name: "GearPosition"
     gains:
