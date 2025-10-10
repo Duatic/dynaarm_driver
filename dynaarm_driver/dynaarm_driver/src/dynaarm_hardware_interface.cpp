@@ -123,7 +123,8 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
 void DynaArmHardwareInterface::read_motor_states()
 {
   if (!ready_) {
-    if (ecat_master_handle_.running) {
+    if (*ecat_master_handle_.running) {
+      RCLCPP_INFO_STREAM(logger_, "Deferred initialization of arm: " << info_.name);
       for (std::size_t i = 0; i < info_.joints.size(); i++) {
         auto& drive = drives_[i];
         // In case we are in error state clear the error and try again
