@@ -61,7 +61,7 @@ public:
   hardware_interface::CallbackReturn on_activate_derived(const rclcpp_lifecycle::State& previous_state) override;
   hardware_interface::CallbackReturn on_deactivate_derived(const rclcpp_lifecycle::State& previous_state) override;
 
-  void read_motor_states() override;
+  bool read_motor_states() override;
   void write_motor_commands() override;
 };
 

@@ -120,7 +120,7 @@ DynaArmHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::State& /
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-void DynaArmHardwareInterface::read_motor_states()
+bool DynaArmHardwareInterface::read_motor_states()
 {
   if (!ready_) {
     if (*ecat_master_handle_.running) {
@@ -152,7 +152,7 @@ void DynaArmHardwareInterface::read_motor_states()
           RCLCPP_FATAL_STREAM(logger_, "Drive: " << info_.joints[i].name
                                                  << " did not go into ControlOP - this is trouble some and a reason to "
                                                     "abort. Try to reboot the hardware");
-          return;
+          return false;
         }
 
         // Log the firmware information of the drive. Might be useful for debugging issues at customer
@@ -174,7 +174,7 @@ void DynaArmHardwareInterface::read_motor_states()
   }
 
   if (!ready_) {
-    return;
+    return false;
   }
 
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
@@ -202,6 +202,8 @@ void DynaArmHardwareInterface::read_motor_states()
     motor_state_vector_[i].temperature_coil_C = state.getCoilTemp3();
     motor_state_vector_[i].bus_voltage = state.getVoltage();
   }
+
+  return true;
 }
 
 void DynaArmHardwareInterface::write_motor_commands()

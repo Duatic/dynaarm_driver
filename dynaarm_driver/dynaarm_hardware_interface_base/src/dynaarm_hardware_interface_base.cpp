@@ -172,27 +172,6 @@ DynaArmHardwareInterfaceBase::on_activate(const rclcpp_lifecycle::State& previou
   // Basically lock the read/write methods until on_activate has finished
   active_ = true;
 
-  // Perform a reading once to obtain the current positions
-  if (read(rclcpp::Time(), rclcpp::Duration(std::chrono::nanoseconds(0))) != hardware_interface::return_type::OK) {
-    RCLCPP_ERROR_STREAM(logger_, "Could not perform initial read - this is critical");
-    return hardware_interface::CallbackReturn::FAILURE;
-  }
-
-  for (std::size_t i = 0; i < info_.joints.size(); i++) {
-    joint_command_vector_[i].position = joint_state_vector_[i].position;
-    joint_command_vector_[i].velocity = 0.0;
-    joint_command_vector_[i].acceleration = 0.0;
-    joint_command_vector_[i].effort = 0.0;
-    RCLCPP_INFO_STREAM(logger_, "Start position of joint: " << info_.joints[i].name
-                                                            << " is: " << joint_state_vector_[i].position);
-  }
-
-  if (std::all_of(joint_command_vector_.begin(), joint_command_vector_.end(),
-                  [](const auto& val) { return val.position == 0.0; })) {
-    RCLCPP_FATAL_STREAM(logger_, "All initial joint readings were 0.0 - this is indicates a critical error");
-    return hardware_interface::CallbackReturn::FAILURE;
-  }
-
   return callbackReturn;
 }
 
@@ -215,8 +194,30 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
     return hardware_interface::return_type::OK;
 
   // updates the motor states. Assumed that after this function the motor_state_vector is correctly updated
-  read_motor_states();
+  // returns true if the motor states are valid and ready to be used
+  if (!read_motor_states())
+    return hardware_interface::return_type::OK;
 
+  // Initialize joint_command_vector position and log on first read after activation
+  if (!initial_positions_initialized_) {
+    for (std::size_t i = 0; i < info_.joints.size(); i++) {
+      joint_command_vector_[i].position = motor_state_vector_[i].position;
+      joint_command_vector_[i].velocity = 0.0;
+      joint_command_vector_[i].acceleration = 0.0;
+      joint_command_vector_[i].effort = 0.0;
+      RCLCPP_INFO_STREAM(logger_, "Start position of joint: " << info_.joints[i].name
+                                                              << " is: " << motor_state_vector_[i].position);
+    }
+
+    if (std::all_of(joint_command_vector_.begin(), joint_command_vector_.end(),
+                    [](const auto& val) { return val.position == 0.0; })) {
+      RCLCPP_FATAL_STREAM(logger_, "All initial joint readings were 0.0 - this indicates a critical error");
+      return hardware_interface::return_type::ERROR;
+    }
+
+    initial_positions_initialized_ = true;
+  }
+  
   Eigen::VectorXd motor_position(info_.joints.size());
   Eigen::VectorXd motor_velocity(info_.joints.size());
   Eigen::VectorXd motor_acceleration(info_.joints.size());
@@ -250,6 +251,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialCoordinates(motor_velocity_commanded);
   Eigen::VectorXd joint_effort_commanded =
       dynaarm_hardware_interface_common::CommandTranslator::mapFromDynaarmToSerialTorques(motor_effort_commanded);
+
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     joint_state_vector_[i].position = joint_position[i];
     joint_state_vector_[i].velocity = joint_velocity[i];
@@ -270,6 +272,9 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::write(const rclcpp
                                                                     const rclcpp::Duration& /*period*/)
 {
   if (!active_)
+    return hardware_interface::return_type::OK;
+
+  if (!initial_positions_initialized_)
     return hardware_interface::return_type::OK;
 
   Eigen::VectorXd joint_position(info_.joints.size());
