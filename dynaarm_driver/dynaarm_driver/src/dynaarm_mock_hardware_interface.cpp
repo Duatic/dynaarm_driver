@@ -89,7 +89,7 @@ DynaarmMockHardwareInterface::on_deactivate_derived(const rclcpp_lifecycle::Stat
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-void DynaarmMockHardwareInterface::read_motor_states()
+bool DynaarmMockHardwareInterface::read_motor_states()
 {
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
     motor_state_vector_[i].position = motor_command_vector_[i].position;
@@ -103,6 +103,8 @@ void DynaarmMockHardwareInterface::read_motor_states()
     motor_state_vector_[i].temperature_coil_C = 0.0;
     motor_state_vector_[i].bus_voltage = 0.0;
   }
+
+  return true;
 }
 
 void DynaarmMockHardwareInterface::write_motor_commands()

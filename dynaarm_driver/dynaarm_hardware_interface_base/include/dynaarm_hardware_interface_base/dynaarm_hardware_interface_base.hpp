@@ -74,7 +74,7 @@ public:
   hardware_interface::CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state);
 
   hardware_interface::return_type read(const rclcpp::Time& time, const rclcpp::Duration& period);
-  virtual void read_motor_states() = 0;
+  virtual bool read_motor_states() = 0;
   hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period);
   virtual void write_motor_commands() = 0;
 
@@ -103,6 +103,7 @@ protected:
                                        // ros2control parameters
 
   std::atomic<bool> active_{ false };
+  std::atomic<bool> initial_positions_initialized_{ false };
 };
 
 }  // namespace dynaarm_hardware_interface_base
