@@ -217,7 +217,7 @@ hardware_interface::return_type DynaArmHardwareInterfaceBase::read(const rclcpp:
 
     initial_positions_initialized_ = true;
   }
-  
+
   Eigen::VectorXd motor_position(info_.joints.size());
   Eigen::VectorXd motor_velocity(info_.joints.size());
   Eigen::VectorXd motor_acceleration(info_.joints.size());
