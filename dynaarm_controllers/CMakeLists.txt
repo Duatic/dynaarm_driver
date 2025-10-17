@@ -53,6 +53,11 @@ generate_parameter_library(
   src/cartesian_pose_controller_parameters.yaml
 )
 
+generate_parameter_library(
+  force_torque_broadcaster_parameters
+  src/force_torque_broadcaster_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
   src/gravity_compensation_controller.cpp
   src/dynaarm_status_broadcaster.cpp
@@ -60,6 +65,7 @@ add_library(${PROJECT_NAME} SHARED
   src/dynaarm_pid_tuner.cpp
   src/freeze_controller.cpp
   src/cartesian_pose_controller.cpp
+  src/force_torque_broadcaster.cpp
 )
 
 target_include_directories(
@@ -75,6 +81,7 @@ target_link_libraries(${PROJECT_NAME}
   dynaarm_pid_tuner_parameters
   freeze_controller_parameters
   cartesian_pose_controller_parameters
+  force_torque_broadcaster_parameters
   pinocchio::pinocchio
 )
 
