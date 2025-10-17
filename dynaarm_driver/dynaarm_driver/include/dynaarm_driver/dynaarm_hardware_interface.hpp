@@ -74,10 +74,25 @@ public:
   on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state) override;
 
 private:
+  // Structure to track initialization state for each drive
+  struct DriveInitState
+  {
+    std::vector<double> position_readings;           // Last position readings for validation
+    uint32_t stable_read_count = 0;                  // Counter for stable readings
+    bool position_validated = false;                 // Flag: position validated and stable
+    bool mode_set = false;                           // Flag: mode has been set
+    bool controlop_transition_initiated = false;     // Flag: ControlOp transition started
+    rsl_drive_sdk::mode::ModeEnum current_mode;     // Current mode on the drive
+  };
+
   ecat_master::EthercatMasterSingleton::Handle ecat_master_handle_;
   std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
   bool ready_{ false };
+  bool in_init_phase_{ true };                                    // Pre-ControlOp initialization phase
+  std::vector<DriveInitState> drive_init_states_;                 // Initialization state per drive
+  static constexpr uint32_t REQUIRED_STABLE_READS = 3;            // Number of stable reads required
+  static constexpr double POSITION_TOLERANCE = 0.001;             // Tolerance for position stability (rad)
 };
 
 }  // namespace dynaarm_driver
