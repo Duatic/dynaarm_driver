@@ -37,6 +37,8 @@ class DuaticRobotsHelper:
         self._robot = {}
         self._robot_count = 0
 
+        self._end_effector_keywords = ("finger", "gripper", "claw", "tool", "effector", "hand", "pinch")
+
         self._joint_states_subscription = self.node.create_subscription(
             JointState, "/joint_states", self._joint_sate_callback, 10
         )
@@ -118,6 +120,8 @@ class DuaticRobotsHelper:
         """Parse a joint name to extract robot ID, component name, and component type."""
         # Handle different joint naming patterns
 
+
+
         # Pattern 1: arm_left/shoulder_rotation, arm_right/elbow_flexion
         if "/" in joint_name and ("arm_" in joint_name or "hand_" in joint_name):
             prefix, joint_suffix = joint_name.split("/", 1)
@@ -135,6 +139,10 @@ class DuaticRobotsHelper:
         # Pattern 4: head_pan, head_tilt
         elif joint_name.startswith("head_"):
             return "robot_0", "head_0", "head"
+        
+        # Pattern 5: finger or gripper joints (e.g., zimmer_finger_left, gripper_joint)
+        elif any(keyword in joint_name for keyword in self._end_effector_keywords):
+            return "robot_0", "end_effector_0", "end_effector"
 
         # Default: treat as miscellaneous component
         return "robot_0", "", "arm"
