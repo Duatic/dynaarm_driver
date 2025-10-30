@@ -49,15 +49,15 @@ class DuaticJTCHelper:
                 self.node.get_logger().error(f"Unexpected topic format: {topic}")
                 continue
 
-            controller_ns = segments[-2] 
+            controller_ns = segments[-2]
 
             # Try several ways to fetch the 'joints' parameter (namespaced vs non-namespaced)
             param_result = None
             try_names = [
-                controller_ns,                                # 'joint_trajectory_controller_arm_left'
-                f"/{controller_ns}",                          # '/joint_trajectory_controller_arm_left'
-                "/".join(segments[:-1]),                      # 'robo2/joint_trajectory_controller_arm_left'
-                f"/{'/'.join(segments[:-1])}",                # '/robo2/joint_trajectory_controller_arm_left'
+                controller_ns,  # 'joint_trajectory_controller_arm_left'
+                f"/{controller_ns}",  # '/joint_trajectory_controller_arm_left'
+                "/".join(segments[:-1]),  # 'robo2/joint_trajectory_controller_arm_left'
+                f"/{'/'.join(segments[:-1])}",  # '/robo2/joint_trajectory_controller_arm_left'
             ]
 
             tried = []
@@ -67,7 +67,9 @@ class DuaticJTCHelper:
                 tried.append(name)
                 param_result = self.duatic_param_helper.get_param_values(name, "joints")
                 if param_result:
-                    self.node.get_logger().debug(f"Found 'joints' param under '{name}' for topic {topic}")
+                    self.node.get_logger().debug(
+                        f"Found 'joints' param under '{name}' for topic {topic}"
+                    )
                     break
 
             if param_result is None or not param_result:
@@ -80,15 +82,21 @@ class DuaticJTCHelper:
             try:
                 joint_names = list(param_result[0].string_array_value)
             except Exception as e:
-                self.node.get_logger().error(f"Failed to read 'joints' parameter for {controller_ns}: {e}")
+                self.node.get_logger().error(
+                    f"Failed to read 'joints' parameter for {controller_ns}: {e}"
+                )
                 continue
 
-            self.node.get_logger().debug(f"Retrieved joint names for {controller_ns}: {joint_names}")
+            self.node.get_logger().debug(
+                f"Retrieved joint names for {controller_ns}: {joint_names}"
+            )
             if joint_names:
                 topic_to_joint_names[topic] = joint_names
                 topic_to_commanded_positions[topic] = {}
             else:
-                self.node.get_logger().warning(f"Parameter 'joints' empty for controller {controller_ns} (topic {topic})")
+                self.node.get_logger().warning(
+                    f"Parameter 'joints' empty for controller {controller_ns} (topic {topic})"
+                )
 
         return topic_to_joint_names, topic_to_commanded_positions
 
@@ -162,12 +170,8 @@ class DuaticJTCHelper:
             self.node.get_logger().error(
                 f"Search pattern: {search_pattern}, Component names: {component_names}"
             )
-            self.node.get_logger().error(
-                f"Found topics: {[topic for topic, _ in found_topics]}"
-            )
+            self.node.get_logger().error(f"Found topics: {[topic for topic, _ in found_topics]}")
             # Return empty list instead of raising exception to prevent crash
             return []
-        self.node.get_logger().info(
-                f"Found topics: {[topic for topic, _ in found_topics]}"
-            )
+        self.node.get_logger().info(f"Found topics: {[topic for topic, _ in found_topics]}")
         return found_topics
