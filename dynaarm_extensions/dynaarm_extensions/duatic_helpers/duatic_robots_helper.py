@@ -134,8 +134,8 @@ class DuaticRobotsHelper:
             if prefix.startswith("arm_"):
                 return "robot_0", prefix, "arm"
 
-        # Pattern 2: hip_joint_pitch_joint, hip_joint_yaw_joint
-        elif "hip_joint" in joint_name:
+        # Pattern 2: hip_pitch, hip_roll
+        elif "hip" in joint_name:
             return "robot_0", "hip_0", "hip"
 
         # Pattern 3: joint_wheel1, joint_wheel2, joint_wheel3, joint_wheel4
