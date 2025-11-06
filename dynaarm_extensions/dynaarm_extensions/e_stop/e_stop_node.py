@@ -161,7 +161,7 @@ class EmergencyStopNode(Node):
         else:
             request.activate_controllers = []
             request.deactivate_controllers = controller_names
-        request.strictness = SwitchController.Request.STRICT
+        request.strictness = SwitchController.Request.BEST_EFFORT
 
         future = self.switch_controller_client.call_async(request)
         future.add_done_callback(
