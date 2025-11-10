@@ -173,5 +173,5 @@ class DuaticJTCHelper:
             self.node.get_logger().error(f"Found topics: {[topic for topic, _ in found_topics]}")
             # Return empty list instead of raising exception to prevent crash
             return []
-        self.node.get_logger().info(f"Found topics: {[topic for topic, _ in found_topics]}")
+        self.node.get_logger().debug(f"Found topics: {[topic for topic, _ in found_topics]}")
         return found_topics
