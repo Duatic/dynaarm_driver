@@ -46,10 +46,10 @@ class DuaticControllerHelper:
         self._run_once = False
 
         self.controller_client = self.node.create_client(
-            ListControllers, "/controller_manager/list_controllers"
+            ListControllers, "controller_manager/list_controllers"
         )
         self.switch_controller_client = self.node.create_client(
-            SwitchController, "/controller_manager/switch_controller"
+            SwitchController, "controller_manager/switch_controller"
         )
 
         self.node.create_timer(0.1, self._get_all_controllers)

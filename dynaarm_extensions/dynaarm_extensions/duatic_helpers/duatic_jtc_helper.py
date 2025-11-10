@@ -41,15 +41,51 @@ class DuaticJTCHelper:
         # Discover all topics and joint names, extract prefix
         for topic, types in found_topics:
 
-            # Extract prefix from topic name
-            # e.g. /joint_trajectory_controller_arm_1/joint_trajectory -> arm_1
-            controller_ns = topic.split("/")[1]
-            param_result = self.duatic_param_helper.get_param_values(controller_ns, "joints")
-            if param_result is None or not param_result:
-                self.node.get_logger().error(f"Parameter 'joints' not found for {controller_ns}")
-                break
+            # Normalize topic and obtain the controller segment (the token before the final identifier)
+            # e.g. '/robo2/joint_trajectory_controller_arm_left/joint_trajectory' ->
+            # segments = ['robo2', 'joint_trajectory_controller_arm_left', 'joint_trajectory']
+            segments = topic.strip("/").split("/")
+            if len(segments) < 2:
+                self.node.get_logger().error(f"Unexpected topic format: {topic}")
+                continue
 
-            joint_names = list(param_result[0].string_array_value)
+            controller_ns = segments[-2]
+
+            # Try several ways to fetch the 'joints' parameter (namespaced vs non-namespaced)
+            param_result = None
+            try_names = [
+                controller_ns,  # 'joint_trajectory_controller_arm_left'
+                f"/{controller_ns}",  # '/joint_trajectory_controller_arm_left'
+                "/".join(segments[:-1]),  # 'robo2/joint_trajectory_controller_arm_left'
+                f"/{'/'.join(segments[:-1])}",  # '/robo2/joint_trajectory_controller_arm_left'
+            ]
+
+            tried = []
+            for name in try_names:
+                if name in tried:
+                    continue
+                tried.append(name)
+                param_result = self.duatic_param_helper.get_param_values(name, "joints")
+                if param_result:
+                    self.node.get_logger().debug(
+                        f"Found 'joints' param under '{name}' for topic {topic}"
+                    )
+                    break
+
+            if param_result is None or not param_result:
+                self.node.get_logger().error(
+                    f"Parameter 'joints' not found for controller '{controller_ns}'. Tried: {try_names}"
+                )
+                continue  # skip this topic but continue processing others
+
+            # param_result is expected to be a list of parameter value objects; take first
+            try:
+                joint_names = list(param_result[0].string_array_value)
+            except Exception as e:
+                self.node.get_logger().error(
+                    f"Failed to read 'joints' parameter for {controller_ns}: {e}"
+                )
+                continue
 
             self.node.get_logger().debug(
                 f"Retrieved joint names for {controller_ns}: {joint_names}"
@@ -58,7 +94,9 @@ class DuaticJTCHelper:
                 topic_to_joint_names[topic] = joint_names
                 topic_to_commanded_positions[topic] = {}
             else:
-                print("Parameter not found or empty for topic", topic)
+                self.node.get_logger().warning(
+                    f"Parameter 'joints' empty for controller {controller_ns} (topic {topic})"
+                )
 
         return topic_to_joint_names, topic_to_commanded_positions
 
@@ -95,7 +133,11 @@ class DuaticJTCHelper:
         retry_count = 0
 
         # Construct the search pattern
-        search_pattern = f"/{controller_name}*/{identifier}"
+        namespace = self.node.get_namespace().strip("/")
+        if namespace:
+            search_pattern = f"/{namespace}/{controller_name}*/{identifier}"
+        else:
+            search_pattern = f"/{controller_name}*/{identifier}"
 
         # Find all topics matching the controller name and identifier
         while retry_count < max_retries:
@@ -105,10 +147,7 @@ class DuaticJTCHelper:
             found_topics = [
                 (topic, types)
                 for topic, types in all_matched_topics
-                if any(
-                    f"_{component_name}/" in topic or f"_{component_name}" in topic.split("/")[1]
-                    for component_name in component_names
-                )
+                if any(f"_{component_name}/" in topic for component_name in component_names)
             ]
 
             if len(found_topics) >= len(component_names):
@@ -131,7 +170,8 @@ class DuaticJTCHelper:
             self.node.get_logger().error(
                 f"Search pattern: {search_pattern}, Component names: {component_names}"
             )
+            self.node.get_logger().error(f"Found topics: {[topic for topic, _ in found_topics]}")
             # Return empty list instead of raising exception to prevent crash
             return []
-
+        self.node.get_logger().debug(f"Found topics: {[topic for topic, _ in found_topics]}")
         return found_topics

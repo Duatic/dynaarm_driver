@@ -49,10 +49,10 @@ class EmergencyStopNode(Node):
 
         # Service clients for controller manager
         self.list_controllers_client = self.create_client(
-            ListControllers, "/controller_manager/list_controllers"
+            ListControllers, "controller_manager/list_controllers"
         )
         self.switch_controller_client = self.create_client(
-            SwitchController, "/controller_manager/switch_controller"
+            SwitchController, "controller_manager/switch_controller"
         )
 
         self.joy_subscriber = self.create_subscription(Joy, "joy", self.joy_callback, 10)
@@ -161,7 +161,7 @@ class EmergencyStopNode(Node):
         else:
             request.activate_controllers = []
             request.deactivate_controllers = controller_names
-        request.strictness = SwitchController.Request.STRICT
+        request.strictness = SwitchController.Request.BEST_EFFORT
 
         future = self.switch_controller_client.call_async(request)
         future.add_done_callback(

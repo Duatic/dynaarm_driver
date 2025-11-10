@@ -48,11 +48,11 @@ class DuaticRobotsHelper:
         )
 
         self._joint_states_subscription = self.node.create_subscription(
-            JointState, "/joint_states", self._joint_sate_callback, 10
+            JointState, "joint_states", self._joint_sate_callback, 10
         )
 
         self.hardware_components_client = self.node.create_client(
-            ListHardwareComponents, "/controller_manager/list_hardware_components"
+            ListHardwareComponents, "controller_manager/list_hardware_components"
         )
 
     def _joint_sate_callback(self, msg):

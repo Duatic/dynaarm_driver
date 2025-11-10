@@ -48,10 +48,10 @@ class MoveToPredefinedPositionNode(Node):
 
         # Service clients
         self.list_controllers_client = self.create_client(
-            ListControllers, "/controller_manager/list_controllers"
+            ListControllers, "controller_manager/list_controllers"
         )
         self.switch_controller_client = self.create_client(
-            SwitchController, "/controller_manager/switch_controller"
+            SwitchController, "controller_manager/switch_controller"
         )
 
         # Subscriptions
