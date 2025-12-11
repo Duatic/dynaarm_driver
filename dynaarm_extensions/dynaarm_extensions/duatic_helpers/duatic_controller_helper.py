@@ -46,10 +46,10 @@ class DuaticControllerHelper:
         self._run_once = False
 
         self.controller_client = self.node.create_client(
-            ListControllers, "/alpha1/controller_manager/list_controllers"
+            ListControllers, "/alpha/controller_manager/list_controllers"
         )
         self.switch_controller_client = self.node.create_client(
-            SwitchController, "/alpha1/controller_manager/switch_controller"
+            SwitchController, "/alpha/controller_manager/switch_controller"
         )
 
         self.node.create_timer(0.1, self._get_all_controllers)
@@ -91,9 +91,25 @@ class DuaticControllerHelper:
             )
             return
 
+        # Filter out controllers that are already in the desired state
+        active_controllers = self.get_active_controllers()
+        
+        # Only activate controllers that are not already active
+        controllers_to_activate = [c for c in activate_controllers if c not in active_controllers]
+        
+        # Only deactivate controllers that are currently active
+        controllers_to_deactivate = [c for c in deactivate_controllers if c in active_controllers]
+        
+        # If nothing needs to change, skip the operation
+        if not controllers_to_activate and not controllers_to_deactivate:
+            self.node.get_logger().info(
+                "All requested controllers are already in the desired state. Skipping switch."
+            )
+            return
+
         req = SwitchController.Request()
-        req.activate_controllers = activate_controllers
-        req.deactivate_controllers = deactivate_controllers
+        req.activate_controllers = controllers_to_activate
+        req.deactivate_controllers = controllers_to_deactivate
 
         req.strictness = 1
 
@@ -104,6 +120,9 @@ class DuaticControllerHelper:
                 response = future.result()
                 if response.ok:
                     self._get_all_controllers()
+                    self.node.get_logger().info(
+                        f"Successfully switched controllers: activated={controllers_to_activate}, deactivated={controllers_to_deactivate}"
+                    )
                 else:
                     self.node.get_logger().error(
                         "Failed to switch to new controller", throttle_duration_sec=10.0
