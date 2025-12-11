@@ -61,7 +61,7 @@ public:
   }
   virtual ~DynaArmHardwareInterfaceBase();
 
-  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& system_info);
+  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams& system_info);
   virtual hardware_interface::CallbackReturn on_init_derived(const hardware_interface::HardwareInfo& system_info) = 0;
 
   std::vector<hardware_interface::StateInterface> export_state_interfaces();

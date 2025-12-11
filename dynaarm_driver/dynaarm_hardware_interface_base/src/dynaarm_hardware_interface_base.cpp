@@ -33,15 +33,13 @@ DynaArmHardwareInterfaceBase::~DynaArmHardwareInterfaceBase()
 }
 
 hardware_interface::CallbackReturn
-DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& system_info)
+DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareComponentInterfaceParams& system_info)
 {
   // Init base interface
   if (hardware_interface::SystemInterface::on_init(system_info) != hardware_interface::CallbackReturn::SUCCESS) {
     RCLCPP_FATAL(logger_, "Error initialising base interface");
     return hardware_interface::CallbackReturn::ERROR;
   }
-  // Store the system information
-  info_ = system_info;
 
   // Check the amount of joints. We only support 4 or 6
   if (info_.joints.size() != 6 && info_.joints.size() != 4) {
@@ -67,7 +65,7 @@ DynaArmHardwareInterfaceBase::on_init(const hardware_interface::HardwareInfo& sy
     command_freeze_mode_ = utils::sttobool(info_.hardware_parameters.at("start_in_freeze_mode")) ? 1.0 : 0.0;
   }
 
-  return on_init_derived(system_info);
+  return on_init_derived(system_info.hardware_info);
 }
 
 std::vector<hardware_interface::StateInterface> DynaArmHardwareInterfaceBase::export_state_interfaces()
