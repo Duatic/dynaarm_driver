@@ -28,6 +28,33 @@
 #include "ethercat_sdk_master/EthercatMasterSingleton.hpp"
 namespace dynaarm_driver
 {
+
+static void print_drive_status_changes(
+    const std::string& drive_name, const rsl_drive_sdk::Statusword& current_status_word,
+    rsl_drive_sdk::Statusword previous_status_word /*create copy because getmessagesDiff is not const declared*/,
+    rclcpp::Logger& logger)
+{
+  std::vector<std::string> infos;
+  std::vector<std::string> warnings;
+  std::vector<std::string> errors;
+  std::vector<std::string> fatals;
+
+  current_status_word.getMessagesDiff(previous_status_word, infos, warnings, errors, fatals);
+
+  for (const auto& msg : infos) {
+    RCLCPP_INFO_STREAM(logger, "[" << drive_name << "]:" << msg);
+  }
+  for (const auto& msg : warnings) {
+    RCLCPP_WARN_STREAM(logger, "[" << drive_name << "]:" << msg);
+  }
+  for (const auto& msg : errors) {
+    RCLCPP_ERROR_STREAM(logger, "[" << drive_name << "]:" << msg);
+  }
+  for (const auto& msg : fatals) {
+    RCLCPP_FATAL_STREAM(logger, "[" << drive_name << "]:" << msg);
+  }
+}
+
 hardware_interface::CallbackReturn
 DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo& system_info)
 {
@@ -75,6 +102,7 @@ DynaArmHardwareInterface::on_init_derived(const hardware_interface::HardwareInfo
 
     // Store in our internal list so that we can easy refer to them afterwards
     drives_.push_back(drive);
+    last_status_words_.push_back({});
 
     // And attach it to the ethercat master
     if (ecat_master_handle_.ecat_master->attachDevice(drive) == false) {
@@ -186,6 +214,12 @@ void DynaArmHardwareInterface::read_motor_states()
 
     // And update the state vector so that controllers can read the current state
     auto state = reading.getState();
+
+    // Print any status word changes (e.g. motor temperature warning has appeared)
+    // TODO(firesurfer) this might be bad to have in the real time loop
+    const auto current_status_word = state.getStatusword();
+    print_drive_status_changes(info_.joints[i].name, current_status_word, last_status_words_[i], logger_);
+    last_status_words_[i] = current_status_word;
 
     motor_state_vector_[i].position = state.getJointPosition();
     motor_state_vector_[i].velocity = state.getJointVelocity();

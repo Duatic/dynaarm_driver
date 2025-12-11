@@ -77,6 +77,8 @@ private:
   ecat_master::EthercatMasterSingleton::Handle ecat_master_handle_;
   std::vector<rsl_drive_sdk::DriveEthercatDevice::SharedPtr> drives_;
 
+  std::vector<rsl_drive_sdk::Statusword> last_status_words_;
+
   bool ready_{ false };
 };
 
