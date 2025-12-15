@@ -27,8 +27,15 @@ from controller_manager_msgs.srv import ListControllers, SwitchController
 
 class DuaticControllerHelper:
 
-    def __init__(self, node):
+    def __init__(self, node, robot_namespace=""):
         self.node = node
+
+        # Resolve namespace from parameter if not explicitly provided
+        if not robot_namespace:
+            robot_namespace = self._resolve_namespace()
+
+        # Clean up namespace (remove trailing slashes)
+        self.robot_namespace = robot_namespace.rstrip("/") if robot_namespace else ""
 
         self.controller_whitelist = [
             "freedrive_controller",
@@ -45,14 +52,79 @@ class DuaticControllerHelper:
 
         self._run_once = False
 
+        # Construct service paths with namespace
+        base_path = f"/{self.robot_namespace}" if self.robot_namespace else ""
+
         self.controller_client = self.node.create_client(
-            ListControllers, "controller_manager/list_controllers"
+            ListControllers, f"{base_path}/controller_manager/list_controllers"
         )
         self.switch_controller_client = self.node.create_client(
-            SwitchController, "controller_manager/switch_controller"
+            SwitchController, f"{base_path}/controller_manager/switch_controller"
         )
 
         self.node.create_timer(0.1, self._get_all_controllers)
+
+    def _resolve_namespace(self):
+        """
+        Resolve namespace from multiple sources in priority order.
+
+        Priority order:
+        1. Node namespace (if set and not root)
+        2. Empty string (default - for backward compatibility)
+        3. URDF robot name (optional, from robot_description parameter)
+        """
+        # Priority 1: Node namespace
+        node_ns = self.node.get_namespace()
+        if node_ns and node_ns != "/":
+            cleaned_ns = node_ns.strip("/")
+            self.node.get_logger().info(f"Using namespace from node: {cleaned_ns}")
+            return cleaned_ns
+
+        # Priority 2: Default to empty string (backward compatible)
+        # This allows users to explicitly NOT use a namespace
+
+        # Priority 3 (Optional): Try to extract robot name from URDF
+        # Only if explicitly needed - call _get_robot_name_from_urdf()
+        # Disabled by default to maintain backward compatibility
+        # Uncomment the following lines to enable URDF-based namespace detection:
+        #
+        # urdf_robot_name = self._get_robot_name_from_urdf()
+        # if urdf_robot_name:
+        #     self.node.get_logger().info(f"Using namespace from URDF: {urdf_robot_name}")
+        #     return urdf_robot_name
+
+        return ""
+
+    def _get_robot_name_from_urdf(self):
+        """
+        Extract robot name from URDF robot_description parameter.
+
+        Returns empty string if not found or on error.
+        """
+        try:
+            from dynaarm_extensions.duatic_helpers.duatic_param_helper import DuaticParamHelper
+            import xml.etree.ElementTree as ET
+
+            param_helper = DuaticParamHelper(self.node)
+            urdf_values = param_helper.get_param_values(
+                "robot_state_publisher", "robot_description"
+            )
+
+            if urdf_values and urdf_values[0].string_value:
+                urdf_xml = urdf_values[0].string_value
+
+                # Parse URDF XML to extract robot name
+                root = ET.fromstring(urdf_xml)
+                robot_name = root.attrib.get("name", "")
+
+                if robot_name:
+                    self.node.get_logger().debug(f"Found robot name in URDF: {robot_name}")
+                    return robot_name
+
+        except Exception as e:
+            self.node.get_logger().debug(f"Could not extract robot name from URDF: {e}")
+
+        return ""
 
     def get_all_controllers(self, matching_names=None):
         """
@@ -91,9 +163,25 @@ class DuaticControllerHelper:
             )
             return
 
+        # Filter out controllers that are already in the desired state
+        active_controllers = self.get_active_controllers()
+
+        # Only activate controllers that are not already active
+        controllers_to_activate = [c for c in activate_controllers if c not in active_controllers]
+
+        # Only deactivate controllers that are currently active
+        controllers_to_deactivate = [c for c in deactivate_controllers if c in active_controllers]
+
+        # If nothing needs to change, skip the operation
+        if not controllers_to_activate and not controllers_to_deactivate:
+            self.node.get_logger().info(
+                "All requested controllers are already in the desired state. Skipping switch."
+            )
+            return
+
         req = SwitchController.Request()
-        req.activate_controllers = activate_controllers
-        req.deactivate_controllers = deactivate_controllers
+        req.activate_controllers = controllers_to_activate
+        req.deactivate_controllers = controllers_to_deactivate
 
         req.strictness = 1
 
@@ -104,6 +192,9 @@ class DuaticControllerHelper:
                 response = future.result()
                 if response.ok:
                     self._get_all_controllers()
+                    self.node.get_logger().info(
+                        f"Successfully switched controllers: activated={controllers_to_activate}, deactivated={controllers_to_deactivate}"
+                    )
                 else:
                     self.node.get_logger().error(
                         "Failed to switch to new controller", throttle_duration_sec=10.0
