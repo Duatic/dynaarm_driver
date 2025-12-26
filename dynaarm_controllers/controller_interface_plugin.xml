@@ -1,5 +1,13 @@
 <library path="dynaarm_controllers">
 
+  <class name="dynaarm_controllers/ForceTorqueBroadcaster"
+         type="dynaarm_controllers::ForceTorqueBroadcaster"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Calculate the estimated endeffector wrench from the measured torques of the drives
+    </description>
+  </class>
+
   <class name="dynaarm_controllers/GravityCompensationController"
          type="dynaarm_controllers::GravityCompensationController"
          base_class_type="controller_interface::ControllerInterface">
@@ -7,6 +15,7 @@
       Dynaarm gravity compensation controller.
     </description>
   </class>
+
 
   <class name="dynaarm_controllers/CartesianPoseController"
          type="dynaarm_controllers::CartesianPoseController"
